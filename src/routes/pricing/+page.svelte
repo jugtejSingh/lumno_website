@@ -96,6 +96,7 @@
 
 <svelte:head>
 	<title>Pricing — Lumno</title>
+	<meta name="description" content="Simple, transparent pricing for therapists running their practice on Lumno." />
 </svelte:head>
 
 <div class="page">

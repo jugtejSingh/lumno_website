@@ -5,6 +5,7 @@
 
 <svelte:head>
 	<title>Terms of Service — Lumno</title>
+	<meta name="description" content="The terms governing use of Lumno." />
 </svelte:head>
 
 <div class="page">

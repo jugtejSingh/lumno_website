@@ -5,6 +5,7 @@
 
 <svelte:head>
 	<title>Privacy Policy — Lumno</title>
+	<meta name="description" content="How Lumno collects, uses, and protects your data." />
 </svelte:head>
 
 <div class="page">
