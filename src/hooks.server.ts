@@ -1,0 +1,53 @@
+import type { Handle } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
+import { building } from '$app/environment';
+import { auth } from '$lib/server/auth';
+import { db } from '$lib/server/db';
+import { therapist } from '$lib/server/db/schema';
+import { listClientsForUser } from '$lib/server/clients';
+import { ACTIVE_CLIENT_COOKIE, setActiveClientCookie } from '$lib/server/activeClient';
+import { svelteKitHandler } from 'better-auth/svelte-kit';
+
+const handleBetterAuth: Handle = async ({ event, resolve }) => {
+	const session = await auth.api.getSession({ headers: event.request.headers });
+
+	if (session) {
+		event.locals.session = session.session;
+		event.locals.user = session.user;
+
+		// only needed under (app); actions there run before layout `load`, so it
+		// must be set here rather than in (app)/+layout.server.ts
+		if (event.route.id?.startsWith('/(app)')) {
+			const [therapistRow] = await db
+				.select({ id: therapist.id })
+				.from(therapist)
+				.where(eq(therapist.userId, session.user.id));
+			if (therapistRow) {
+				event.locals.therapistId = therapistRow.id;
+			}
+		}
+
+		// same deal for (portal): a user can be a client of multiple therapists, so
+		// pick whichever one is "active". Defaults to the newest, remembered via cookie
+		// once a switcher lets them pick a different one.
+		if (event.route.id?.startsWith('/(portal)')) {
+			const clientRows = await listClientsForUser(session.user.id);
+
+			// requestedId only picks an active client if it's actually one of this
+			// user's own rows — never trust the cookie value on its own.
+			const requestedId = event.cookies.get(ACTIVE_CLIENT_COOKIE);
+			const activeClient = clientRows.find((row) => row.id === requestedId) ?? clientRows[0];
+
+			if (activeClient) {
+				event.locals.clientId = activeClient.id;
+				if (activeClient.id !== requestedId) {
+					setActiveClientCookie(event.cookies, activeClient.id);
+				}
+			}
+		}
+	}
+
+	return svelteKitHandler({ event, resolve, auth, building });
+};
+
+export const handle: Handle = handleBetterAuth;

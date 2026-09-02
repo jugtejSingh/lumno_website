@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/radius.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/shadows.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/base.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/styles.css">
+  <script src="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/_ds_bundle.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+  <style>:root{--font-body:'Manrope','Helvetica Neue',Arial,sans-serif;}</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { margin: 0; }
+    a { color: var(--accent-primary); text-decoration: none; }
+    a:hover { color: var(--accent-primary-hover); }
+  </style>
+</helmet>
+<div style="display:flex;height:100vh;background:var(--surface-app);font-family:var(--font-body)">
+  <div style="width:220px;flex-shrink:0;border-right:1px solid var(--border-subtle);padding:16px;display:flex;flex-direction:column;gap:4px">
+    <a href="Home.dc.html" style="font-family:var(--font-display);font-style:italic;font-size:26px;margin-bottom:18px;padding-left:4px;color:var(--text-primary)">Lumno</a>
+    <a href="Dashboard.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Dashboard" hint-size="100%,40px"></x-import></a>
+    <a href="Calendar.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Calendar" active="{{ true }}" hint-size="100%,40px"></x-import></a>
+    <a href="Payments.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Payments" hint-size="100%,40px"></x-import></a>
+    <a href="Notes.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Notes" hint-size="100%,40px"></x-import></a>
+    <a href="Referrals.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Referrals" hint-size="100%,40px"></x-import></a>
+    <a href="Settings.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Settings" hint-size="100%,40px"></x-import></a>
+    <div style="flex:1"></div>
+    <a href="Login.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Log out" hint-size="100%,40px"></x-import></a>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border-subtle)">
+      <div style="font-weight:700;font-size:15px;color:var(--text-primary)">Calendar</div>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Avatar" name="Dana Reyes" size="30" hint-size="30,30"></x-import>
+    </div>
+    <div style="flex:1;padding:24px;overflow-y:auto;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="font-family:var(--font-display);font-size:30px;color:var(--text-primary)">{{ monthLabel }}</div>
+          <div style="display:flex;gap:6px">
+            <button onClick="{{ prevMonth }}" style="width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);background:var(--surface-card);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="chevron-left" style="width:16px;height:16px"></i></button>
+            <button onClick="{{ nextMonth }}" style="width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);background:var(--surface-card);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <x-import component-from-global-scope="LumnoDesignSystem_956520.Button" variant="secondary" onClick="{{ goToday }}" hint-size="auto,40px">Today</x-import>
+          <x-import component-from-global-scope="LumnoDesignSystem_956520.Button" variant="secondary" onClick="{{ openSettings }}" hint-size="auto,40px">Settings</x-import>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">
+        <sc-for list="{{ weekdayLabels }}" as="wd" hint-placeholder-count="7">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);letter-spacing:var(--ls-wide);text-transform:uppercase;text-align:center;padding:4px 0">{{ wd }}</div>
+        </sc-for>
+        <sc-for list="{{ weeks }}" as="week" hint-placeholder-count="5">
+          <div style="display:contents">
+            <sc-for list="{{ week.days }}" as="day" hint-placeholder-count="7">
+              <div onClick="{{ day.open }}" style="{{ day.cellStyle }}">
+                <sc-if value="{{ day.day }}" hint-placeholder-val="{{ true }}">
+                  <div style="{{ day.numStyle }}">{{ day.day }}</div>
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <sc-for list="{{ day.sessions }}" as="s" hint-placeholder-count="2">
+                      <div style="background:{{ s.color }};border-radius:var(--radius-sm);padding:3px 6px;font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        <span style="font-weight:700">{{ s.time }}</span> {{ s.name }}
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ day.extraCount }}" hint-placeholder-val="{{ false }}">
+                      <div style="font-size:11px;color:var(--text-muted);padding-left:2px">+{{ day.extraCount }} more</div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <x-import component-from-global-scope="LumnoDesignSystem_956520.Dialog" open="{{ dayDialogOpen }}" title="{{ dayDialogTitle }}" onClose="{{ closeDay }}" hint-size="1,1">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <sc-for list="{{ dayDialogSessions }}" as="s" hint-placeholder-count="2">
+        <x-import component-from-global-scope="LumnoDesignSystem_956520.Card" hint-size="100%,60px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <x-import component-from-global-scope="LumnoDesignSystem_956520.Avatar" name="{{ s.name }}" hint-size="34,34"></x-import>
+            <div style="flex:1">
+              <div style="font-weight:700">{{ s.name }}</div>
+              <div style="font-size:13px;color:var(--text-muted)">{{ s.time }}</div>
+            </div>
+            <x-import component-from-global-scope="LumnoDesignSystem_956520.Tag" color="sage" hint-size="auto,20px">reminder set</x-import>
+          </div>
+        </x-import>
+      </sc-for>
+      <sc-if value="{{ dayDialogEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="color:var(--text-muted);font-size:14px;padding:8px 0">No sessions booked. Enjoy the quiet.</div>
+      </sc-if>
+    </div>
+  </x-import>
+
+  <x-import component-from-global-scope="LumnoDesignSystem_956520.Dialog" open="{{ settingsOpen }}" title="Calendar settings" onClose="{{ closeSettings }}" hint-size="1,1">
+    <div style="display:flex;flex-direction:column;gap:16px;width:340px">
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Select" label="Reminder sent" options="{{ leadOptions }}" value="{{ reminderLead }}" onChange="{{ setReminderLead }}" hint-size="100%,60px"></x-import>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Switch" label="Email reminders" checked="{{ emailReminders }}" onChange="{{ setEmailReminders }}" hint-size="100%,24px"></x-import>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Switch" label="SMS reminders" checked="{{ smsReminders }}" onChange="{{ setSmsReminders }}" hint-size="100%,24px"></x-import>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Select" label="Buffer between sessions" options="{{ bufferOptions }}" value="{{ buffer }}" onChange="{{ setBuffer }}" hint-size="100%,60px"></x-import>
+      <div style="display:flex;gap:10px">
+        <x-import component-from-global-scope="LumnoDesignSystem_956520.Input" label="Working hours from" value="{{ workStart }}" onChange="{{ setWorkStart }}" hint-size="1,60"></x-import>
+        <x-import component-from-global-scope="LumnoDesignSystem_956520.Input" label="Working hours to" value="{{ workEnd }}" onChange="{{ setWorkEnd }}" hint-size="1,60"></x-import>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const SESSIONS_BY_DAY = {
+  3: [{ time: '9:30 AM', name: 'Priya Nair' }],
+  5: [{ time: '10:00 AM', name: 'James Okoro' }],
+  7: [{ time: '2:00 PM', name: 'Maria Chen' }],
+  10: [{ time: '9:30 AM', name: 'Priya Nair' }, { time: '1:00 PM', name: 'Leo Fischer' }],
+  12: [{ time: '11:00 AM', name: 'Sofia Delgado' }],
+  14: [{ time: '10:00 AM', name: 'James Okoro' }],
+  17: [{ time: '9:30 AM', name: 'Priya Nair' }],
+  19: [{ time: '2:00 PM', name: 'Maria Chen' }, { time: '4:00 PM', name: 'Leo Fischer' }],
+  21: [{ time: '10:00 AM', name: 'James Okoro' }],
+  24: [{ time: '9:30 AM', name: 'Priya Nair' }, { time: '1:00 PM', name: 'Leo Fischer' }, { time: '3:00 PM', name: 'Sofia Delgado' }],
+  26: [{ time: '2:00 PM', name: 'Maria Chen' }],
+  28: [{ time: '10:00 AM', name: 'James Okoro' }],
+};
+const CLIENT_COLORS = { 'Maria Chen': 'var(--coral-300)', 'James Okoro': 'var(--plum-300)', 'Priya Nair': 'var(--sage-300)', 'Leo Fischer': 'var(--citrus-300)', 'Sofia Delgado': 'var(--plum-300)' };
+
+class Component extends DCLogic {
+  state = {
+    year: 2026, month: 7, dayDialog: null, settingsOpen: false,
+    reminderLead: '24 hours before', emailReminders: true, smsReminders: false,
+    buffer: '15 minutes', workStart: '9:00 AM', workEnd: '5:00 PM',
+  };
+  weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  leadOptions = ['1 hour before', '3 hours before', '24 hours before', '48 hours before'];
+  bufferOptions = ['None', '15 minutes', '30 minutes'];
+  today = new Date(2026, 7, 19);
+
+  componentDidMount() { this.renderIcons(); }
+  componentDidUpdate() { this.renderIcons(); }
+  renderIcons() { if (window.lucide) window.lucide.createIcons({ nameAttr: 'data-lucide' }); }
+
+  openDay(day, sessions) {
+    const label = new Date(this.state.year, this.state.month, day).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    this.setState({ dayDialog: { label, sessions } });
+  }
+  closeDay = () => this.setState({ dayDialog: null });
+  openSettings = () => this.setState({ settingsOpen: true });
+  closeSettings = () => this.setState({ settingsOpen: false });
+  prevMonth = () => this.setState((s) => s.month === 0 ? { month: 11, year: s.year - 1 } : { month: s.month - 1 });
+  nextMonth = () => this.setState((s) => s.month === 11 ? { month: 0, year: s.year + 1 } : { month: s.month + 1 });
+  goToday = () => this.setState({ year: 2026, month: 7 });
+
+  buildWeeks() {
+    const { year, month } = this.state;
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    const weeks = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      weeks.push({
+        id: i, days: cells.slice(i, i + 7).map((d, di) => {
+          if (d === null) return { id: i + '-' + di, day: null, sessions: [], cellStyle: 'min-height:92px;border-radius:var(--radius-sm);' };
+          const sessions = (month === 7 && year === 2026 ? SESSIONS_BY_DAY[d] : null) || [];
+          const isToday = d === this.today.getDate() && month === this.today.getMonth() && year === this.today.getFullYear();
+          const visible = sessions.slice(0, 2).map((s) => ({ ...s, color: CLIENT_COLORS[s.name] || 'var(--beige-300)' }));
+          const extra = sessions.length - visible.length;
+          return {
+            id: i + '-' + di, day: d, sessions: visible, extraCount: extra > 0 ? extra : 0,
+            cellStyle: `min-height:92px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;background:${isToday ? 'var(--plum-100)' : 'var(--surface-canvas)'};border:1px solid ${isToday ? 'var(--plum-300)' : 'var(--border-subtle)'};display:flex;flex-direction:column;gap:6px`,
+            numStyle: `font-size:13px;font-weight:700;color:${isToday ? 'var(--plum-700)' : 'var(--text-primary)'}`,
+            open: () => this.openDay(d, sessions),
+          };
+        })
+      });
+    }
+    return weeks;
+  }
+
+  renderVals() {
+    const monthLabel = new Date(this.state.year, this.state.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return {
+      monthLabel, weekdayLabels: this.weekdayLabels, weeks: this.buildWeeks(),
+      prevMonth: this.prevMonth, nextMonth: this.nextMonth, goToday: this.goToday, openSettings: this.openSettings,
+      dayDialogOpen: !!this.state.dayDialog, dayDialogTitle: this.state.dayDialog ? this.state.dayDialog.label : '',
+      dayDialogSessions: this.state.dayDialog ? this.state.dayDialog.sessions : [],
+      dayDialogEmpty: !!(this.state.dayDialog && this.state.dayDialog.sessions.length === 0),
+      closeDay: this.closeDay,
+      settingsOpen: this.state.settingsOpen, closeSettings: this.closeSettings,
+      leadOptions: this.leadOptions, bufferOptions: this.bufferOptions,
+      reminderLead: this.state.reminderLead, emailReminders: this.state.emailReminders, smsReminders: this.state.smsReminders,
+      buffer: this.state.buffer, workStart: this.state.workStart, workEnd: this.state.workEnd,
+      setReminderLead: (e) => this.setState({ reminderLead: e.target.value }),
+      setEmailReminders: (v) => this.setState({ emailReminders: v }),
+      setSmsReminders: (v) => this.setState({ smsReminders: v }),
+      setBuffer: (e) => this.setState({ buffer: e.target.value }),
+      setWorkStart: (e) => this.setState({ workStart: e.target.value }),
+      setWorkEnd: (e) => this.setState({ workEnd: e.target.value }),
+    };
+  }
+}
+</script>
+</body>
+</html>

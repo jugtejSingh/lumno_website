@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/radius.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/shadows.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/tokens/base.css">
+  <link rel="stylesheet" href="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/styles.css">
+  <script src="_ds/lumno-design-system-956520e3-f2c4-4c83-b4ca-b9c329d93743/_ds_bundle.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+  <style>:root{--font-body:'Manrope','Helvetica Neue',Arial,sans-serif;}</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { margin: 0; }
+    a { color: var(--accent-primary); text-decoration: none; }
+    a:hover { color: var(--accent-primary-hover); }
+  </style>
+</helmet>
+<div style="display:flex;height:100vh;background:var(--surface-app);font-family:var(--font-body)">
+  <div style="width:220px;flex-shrink:0;border-right:1px solid var(--border-subtle);padding:16px;display:flex;flex-direction:column;gap:4px">
+    <a href="Home.dc.html" style="font-family:var(--font-display);font-style:italic;font-size:26px;margin-bottom:18px;padding-left:4px;color:var(--text-primary)">Lumno</a>
+    <a href="Dashboard.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Dashboard" hint-size="100%,40px"></x-import></a>
+    <a href="Calendar.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Calendar" hint-size="100%,40px"></x-import></a>
+    <a href="Payments.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Payments" active="{{ true }}" hint-size="100%,40px"></x-import></a>
+    <a href="Notes.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Notes" hint-size="100%,40px"></x-import></a>
+    <a href="Referrals.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Referrals" hint-size="100%,40px"></x-import></a>
+    <a href="Settings.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Settings" hint-size="100%,40px"></x-import></a>
+    <div style="flex:1"></div>
+    <a href="Login.dc.html"><x-import component-from-global-scope="LumnoDesignSystem_956520.SidebarNavItem" label="Log out" hint-size="100%,40px"></x-import></a>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border-subtle)">
+      <div style="font-weight:700;font-size:15px;color:var(--text-primary)">Payments</div>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Avatar" name="Dana Reyes" size="30" hint-size="30,30"></x-import>
+    </div>
+    <div style="flex:1;padding:24px;overflow-y:auto">
+      <div style="display:flex;flex-direction:column;gap:24px;max-width:1040px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end">
+          <div style="font-family:var(--font-display);font-size:32px;color:var(--text-primary)">Payments</div>
+          <x-import component-from-global-scope="LumnoDesignSystem_956520.Button" variant="pop" onClick="{{ openRecord }}" hint-size="auto,40px">+ Record payment</x-import>
+        </div>
+
+        <div style="display:flex;gap:14px">
+          <x-import component-from-global-scope="LumnoDesignSystem_956520.StatCard" label="Revenue this month" value="{{ revenue }}" delta="+12% vs last month" accent="sage" hint-size="1,1"></x-import>
+          <x-import component-from-global-scope="LumnoDesignSystem_956520.StatCard" label="Outstanding" value="{{ outstanding }}" accent="citrus" hint-size="1,1"></x-import>
+          <x-import component-from-global-scope="LumnoDesignSystem_956520.StatCard" label="Paid invoices" value="{{ paidCount }}" accent="plum" hint-size="1,1"></x-import>
+        </div>
+
+        <div style="display:flex;gap:24px;align-items:flex-start">
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:15px;font-weight:700;color:var(--text-primary)">Invoices</div>
+            <sc-for list="{{ invoices }}" as="inv" hint-placeholder-count="4">
+              <x-import component-from-global-scope="LumnoDesignSystem_956520.Card" hint-size="100%,66px">
+                <div style="display:flex;align-items:center;gap:14px">
+                  <x-import component-from-global-scope="LumnoDesignSystem_956520.Avatar" name="{{ inv.name }}" hint-size="34,34"></x-import>
+                  <div style="flex:1">
+                    <div style="font-weight:700">{{ inv.name }}</div>
+                    <div style="font-size:13px;color:var(--text-muted)">{{ inv.date }}</div>
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:14px">{{ inv.amount }}</div>
+                  <x-import component-from-global-scope="LumnoDesignSystem_956520.Badge" tone="{{ inv.tone }}" hint-size="auto,22px">{{ inv.status }}</x-import>
+                </div>
+              </x-import>
+            </sc-for>
+          </div>
+
+          <div style="width:320px;flex-shrink:0">
+            <x-import component-from-global-scope="LumnoDesignSystem_956520.Card" hint-size="100%,340px">
+              <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text-primary)">Configure payments</div>
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <x-import component-from-global-scope="LumnoDesignSystem_956520.Input" label="Default session rate" value="{{ rate }}" onChange="{{ setRate }}" hint-size="100%,60px"></x-import>
+                <x-import component-from-global-scope="LumnoDesignSystem_956520.Select" label="Payout method" options="{{ payoutOptions }}" value="{{ payout }}" onChange="{{ setPayout }}" hint-size="100%,60px"></x-import>
+                <x-import component-from-global-scope="LumnoDesignSystem_956520.Switch" label="Auto-send invoices" checked="{{ autoInvoice }}" onChange="{{ setAutoInvoice }}" hint-size="100%,24px"></x-import>
+                <x-import component-from-global-scope="LumnoDesignSystem_956520.Switch" label="Auto-send payment reminders" checked="{{ autoReminders }}" onChange="{{ setAutoReminders }}" hint-size="100%,24px"></x-import>
+                <x-import component-from-global-scope="LumnoDesignSystem_956520.Button" variant="primary" hint-size="100%,40px">Save settings</x-import>
+              </div>
+            </x-import>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <x-import component-from-global-scope="LumnoDesignSystem_956520.Dialog" open="{{ recordOpen }}" title="Record a payment" onClose="{{ closeRecord }}" hint-size="1,1">
+    <div style="display:flex;flex-direction:column;gap:14px;width:320px">
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Select" label="Client" options="{{ clientNames }}" hint-size="100%,60px"></x-import>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Input" label="Amount" placeholder="$150" hint-size="100%,60px"></x-import>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Select" label="Method" options="{{ methodOptions }}" hint-size="100%,60px"></x-import>
+      <x-import component-from-global-scope="LumnoDesignSystem_956520.Button" variant="primary" onClick="{{ closeRecord }}" hint-size="100%,40px">Record payment</x-import>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    recordOpen: false, rate: '$150', payout: 'Bank transfer', autoInvoice: true, autoReminders: true,
+  };
+  invoices = [
+    { name: 'Maria Chen', amount: '$150', date: 'Aug 12', status: 'paid', tone: 'success' },
+    { name: 'James Okoro', amount: '$150', date: 'Aug 14', status: 'pending', tone: 'warning' },
+    { name: 'Priya Nair', amount: '$150', date: 'Aug 8', status: 'paid', tone: 'success' },
+    { name: 'Sofia Delgado', amount: '$150', date: 'Jul 30', status: 'overdue', tone: 'danger' },
+  ];
+  payoutOptions = ['Bank transfer', 'PayPal', 'Check'];
+  methodOptions = ['Card on file', 'Bank transfer', 'Cash'];
+  openRecord = () => this.setState({ recordOpen: true });
+  closeRecord = () => this.setState({ recordOpen: false });
+  renderVals() {
+    return {
+      revenue: '$1,860', outstanding: '$300', paidCount: 11,
+      invoices: this.invoices, clientNames: this.invoices.map((i) => i.name),
+      payoutOptions: this.payoutOptions, methodOptions: this.methodOptions,
+      rate: this.state.rate, payout: this.state.payout, autoInvoice: this.state.autoInvoice, autoReminders: this.state.autoReminders,
+      setRate: (e) => this.setState({ rate: e.target.value }),
+      setPayout: (e) => this.setState({ payout: e.target.value }),
+      setAutoInvoice: (v) => this.setState({ autoInvoice: v }),
+      setAutoReminders: (v) => this.setState({ autoReminders: v }),
+      recordOpen: this.state.recordOpen, openRecord: this.openRecord, closeRecord: this.closeRecord,
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+@import './lib/styles/tokens/fonts.css';
+@import './lib/styles/tokens/colors.css';
+@import './lib/styles/tokens/typography.css';
+@import './lib/styles/tokens/spacing.css';
+@import './lib/styles/tokens/radius.css';
+@import './lib/styles/tokens/shadows.css';
+@import './lib/styles/tokens/base.css';
+
+body {
+	margin: 0;
+	font-family: var(--font-body);
+}
+
+a {
+	color: var(--accent-primary);
+}
+
+a:hover {
+	color: var(--accent-primary-hover);
+}
