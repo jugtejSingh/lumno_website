@@ -8,6 +8,8 @@
 	<div class="footer-links">
 		<a href="/">Home</a>
 		<a href="/login">Log in</a>
+		<a href="/privacy">Privacy</a>
+		<a href="/terms">Terms</a>
 	</div>
 </footer>
 
