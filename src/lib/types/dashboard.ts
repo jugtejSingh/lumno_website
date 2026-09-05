@@ -9,6 +9,6 @@ export type UpcomingSession = {
 	name: string;
 	next: string;
 	status: string;
-	tone: 'success' | 'warning';
+	tone: 'success';
 	notesHref: string;
 };

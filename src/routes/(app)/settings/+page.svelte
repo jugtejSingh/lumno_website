@@ -3,9 +3,11 @@
 	import Avatar from '$lib/components/utils/Avatar.svelte';
 	import Input from '$lib/components/utils/Input.svelte';
 	import Textarea from '$lib/components/utils/Textarea.svelte';
+	import Select from '$lib/components/utils/Select.svelte';
 	import Tag from '$lib/components/utils/Tag.svelte';
 	import Switch from '$lib/components/utils/Switch.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
+	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 
@@ -26,19 +28,37 @@
 
 	const colors = ['plum', 'coral', 'sage', 'citrus'] as const;
 
+	const FORMAT_OPTIONS = [
+		{ value: '', label: 'Not set' },
+		{ value: 'remote', label: 'Remote' },
+		{ value: 'in_person', label: 'In-person' },
+		{ value: 'hybrid', label: 'Remote & in-person' }
+	];
+	const formatLabels = FORMAT_OPTIONS.map((o) => o.label);
+
 	let name = $state(data.profile.name);
 	let bio = $state(data.profile.bio);
-	let rate = $state(data.profile.rate);
-	let visible = $state(data.profile.visible);
-	let email = $state(data.profile.email);
-	let password = $state('');
-	let specialties = $state(data.profile.specialties);
+	let location = $state(data.profile.location ?? '');
+	let years = $state(data.profile.yearsExperience?.toString() ?? '');
+	let rate = $state(data.profile.sessionRate?.toString() ?? '');
+	let formatLabel = $state(
+		FORMAT_OPTIONS.find((o) => o.value === (data.profile.sessionFormat ?? ''))?.label ?? 'Not set'
+	);
+	let visible = $state(data.profile.referralVisible);
+	let showYears = $state(data.profile.referralShowYears);
+	let showRate = $state(data.profile.referralShowRate);
+	let specialties = $state(data.profile.tags);
 	let newTag = $state('');
 	let saveLabel = $state('Save changes');
+
+	// account section stays non-functional (out of scope for the referrals pass)
+	let email = $state('');
+	let password = $state('');
 
 	const specialtyTags = $derived(
 		specialties.map((label, i) => ({ label, color: colors[i % colors.length] }))
 	);
+	const formatValue = $derived(FORMAT_OPTIONS.find((o) => o.label === formatLabel)?.value ?? '');
 
 	function removeTag(label: string) {
 		specialties = specialties.filter((t) => t !== label);
@@ -46,15 +66,11 @@
 
 	function addTagOnEnter(e: KeyboardEvent) {
 		if (e.key !== 'Enter') return;
+		e.preventDefault();
 		const v = newTag.trim();
-		if (!v) return;
+		if (!v || specialties.includes(v)) return;
 		specialties = [...specialties, v];
 		newTag = '';
-	}
-
-	function save() {
-		saveLabel = 'Saved';
-		setTimeout(() => (saveLabel = 'Save changes'), 1400);
 	}
 
 	function updatePassword() {
@@ -62,18 +78,35 @@
 	}
 </script>
 
-<div class="settings">
+<form
+	class="settings"
+	method="POST"
+	action="?/saveReferralProfile"
+	use:enhance={() => {
+		return async ({ update }) => {
+			await update({ reset: false });
+			saveLabel = 'Saved';
+			setTimeout(() => (saveLabel = 'Save changes'), 1400);
+		};
+	}}
+>
 	<div class="header">
 		<div class="title">Settings</div>
-		<Button variant="primary" onclick={save}>{saveLabel}</Button>
+		<Button variant="primary" type="submit">{saveLabel}</Button>
 	</div>
+
+	<input type="hidden" name="tags" value={specialties.join(',')} />
+	<input type="hidden" name="sessionFormat" value={formatValue} />
+	<input type="hidden" name="referralVisible" value={visible ? 'on' : ''} />
+	<input type="hidden" name="referralShowYears" value={showYears ? 'on' : ''} />
+	<input type="hidden" name="referralShowRate" value={showRate ? 'on' : ''} />
 
 	<Card>
 		<div class="section">
 			<div class="section-title">Referral profile</div>
 			<div class="name-row">
 				<Avatar {name} size={44} />
-				<div class="name-field"><Input label="Name" bind:value={name} /></div>
+				<div class="name-field"><Input label="Name" name="name" bind:value={name} /></div>
 			</div>
 			<div>
 				<div class="field-label">Specialties</div>
@@ -88,8 +121,21 @@
 					onkeydown={addTagOnEnter}
 				/>
 			</div>
-			<Textarea label="Bio" placeholder="A few sentences other therapists will see" bind:value={bio} rows={3} />
-			<div class="rate-field"><Input label="Session rate" bind:value={rate} /></div>
+			<Textarea
+				label="Bio"
+				name="bio"
+				placeholder="A few sentences other therapists will see"
+				bind:value={bio}
+				rows={3}
+			/>
+			<div class="grid-2">
+				<Select label="Session format" options={formatLabels} bind:value={formatLabel} />
+				<Input label="Location" name="location" bind:value={location} />
+			</div>
+			<div class="grid-2">
+				<Input label="Years of experience" name="yearsExperience" bind:value={years} />
+				<Input label="Session rate" name="sessionRate" bind:value={rate} />
+			</div>
 		</div>
 	</Card>
 
@@ -105,6 +151,8 @@
 					You're hidden from the Referrals page. Turn this on when you're open to taking referrals.
 				{/if}
 			</div>
+			<Switch label="Show my years of experience" bind:checked={showYears} />
+			<Switch label="Show my session rate" bind:checked={showRate} />
 		</div>
 	</Card>
 
@@ -144,7 +192,7 @@
 			<div><Button variant="secondary" onclick={updatePassword}>Update password</Button></div>
 		</div>
 	</Card>
-</div>
+</form>
 
 <style>
 	.settings {
@@ -202,18 +250,16 @@
 		margin-bottom: 8px;
 	}
 
-	.rate-field {
-		width: 220px;
+	.grid-2 {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 12px;
 	}
 
 	.helper {
 		font-size: 13px;
 		color: var(--text-muted);
 		line-height: var(--lh-relaxed);
-	}
-
-	.helper.error {
-		color: var(--accent-danger, #c0392b);
 	}
 
 	.plan-row {

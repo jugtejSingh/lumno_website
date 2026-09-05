@@ -14,7 +14,8 @@ import { getNotificationSettings, updateNotificationSettings } from '$lib/server
 import { isGoogleCalendarConnected } from '$lib/server/googleCalendar';
 import { auth } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
-import { addWalkInClient, listClients } from '$lib/server/clients';
+import { listClients } from '$lib/server/clients';
+import { addCharge } from '$lib/server/payments';
 import { listDayKindsForMonth } from '$lib/server/schedule';
 import {
 	getTherapistScheduleSettings,
@@ -117,8 +118,9 @@ export const actions: Actions = {
 	addAppointment: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
-		let clientId = formData.get('clientId')?.toString() ?? '';
+		const clientId = formData.get('clientId')?.toString() ?? '';
 		const customName = formData.get('customName')?.toString().trim() ?? '';
+		const rateRaw = formData.get('rate')?.toString().trim() || '';
 		const notes = formData.get('notes')?.toString().trim() || null;
 		const year = Number(formData.get('year'));
 		const month = Number(formData.get('month'));
@@ -127,11 +129,7 @@ export const actions: Actions = {
 		const endTime = formData.get('endTime')?.toString() ?? '';
 		const modality = formData.get('modality')?.toString() === 'in_person' ? 'in_person' : 'online';
 
-		if (customName) {
-			const walkIn = await addWalkInClient(therapistId, customName);
-			clientId = walkIn.id;
-		}
-		if (!clientId) {
+		if (!customName && !clientId) {
 			return fail(400, { message: 'Pick a client or enter a name' });
 		}
 		const [startHourRaw, startMinuteRaw] = startTime.split(':');
@@ -141,7 +139,7 @@ export const actions: Actions = {
 		}
 
 		const result = await createAppointmentForTherapist(therapistId, {
-			clientId,
+			...(customName ? { customName } : { clientId }),
 			year,
 			month,
 			day,
@@ -155,6 +153,16 @@ export const actions: Actions = {
 
 		if (result.error) {
 			return fail(400, { message: addAppointmentErrorMessages[result.error] });
+		}
+
+		// walk-ins have no client row to carry a rate, so charge the session up front
+		// instead — the amount the therapist just typed, defaulting to 0 if left blank
+		if (customName) {
+			await addCharge(therapistId, {
+				customName,
+				appointmentId: result.appointment!.id,
+				amount: rateRaw ? Number(rateRaw) : 0
+			});
 		}
 
 		await attachMeetingLinkIfOnline(result.appointment!);
@@ -213,7 +221,9 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		await updateNotificationSettings(therapistId, {
 			sendMeetLinks: formData.get('sendMeetLinks') === 'on',
-			sendBookingEmails: formData.get('sendBookingEmails') === 'on'
+			sendBookingEmails: formData.get('sendBookingEmails') === 'on',
+			sendSessionReminderEmails: formData.get('sendSessionReminderEmails') === 'on',
+			sendPaymentReminderEmails: formData.get('sendPaymentReminderEmails') === 'on'
 		});
 	},
 

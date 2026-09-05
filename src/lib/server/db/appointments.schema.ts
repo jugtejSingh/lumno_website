@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
 	pgTable,
 	text,
@@ -8,6 +8,7 @@ import {
 	boolean,
 	index,
 	pgEnum,
+	check,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
@@ -53,7 +54,19 @@ export const therapistSettings = pgTable('therapist_settings', {
 	sendMeetLinks: boolean('send_meet_links').notNull().default(true),
 	// whether the booking-confirmed / cancelled / rescheduled client emails go out. Independent
 	// of sendMeetLinks and of Google connection — unrelated to the always-on verification/invite mail
-	sendBookingEmails: boolean('send_booking_emails').notNull().default(true)
+	sendBookingEmails: boolean('send_booking_emails').notNull().default(true),
+	// whether the 24h/1h session reminder emails go out. Same on/off pattern as
+	// sendBookingEmails, gates sendSessionReminders() in reminderEmails.ts
+	sendSessionReminderEmails: boolean('send_session_reminder_emails').notNull().default(true),
+	// whether the weekly payment-due reminder emails go out. Independent of the session
+	// reminder toggle above — gates sendPaymentReminders() in reminderEmails.ts
+	sendPaymentReminderEmails: boolean('send_payment_reminder_emails').notNull().default(true),
+	// opted in to being listed on other therapists' Referrals page at all
+	referralVisible: boolean('referral_visible').notNull().default(false),
+	// sub-toggles: only meaningful while referralVisible is true. Enforced server-side
+	// in listReferralTherapists, not just hidden in the UI.
+	referralShowYears: boolean('referral_show_years').notNull().default(true),
+	referralShowRate: boolean('referral_show_rate').notNull().default(true)
 });
 
 export const availabilityException = pgTable(
@@ -81,9 +94,10 @@ export const appointment = pgTable(
 		therapistId: text('therapist_id')
 			.notNull()
 			.references(() => therapist.id, { onDelete: 'cascade' }),
-		clientId: text('client_id')
-			.notNull()
-			.references(() => client.id, { onDelete: 'cascade' }),
+		// null for a custom-name appointment (see customName) — no client row is created for those
+		clientId: text('client_id').references(() => client.id, { onDelete: 'cascade' }),
+		// set instead of clientId for a one-off booking under a free-text name, never both
+		customName: text('custom_name'),
 		// UTC instants; frontend converts for display
 		startAt: timestamp('start_at', { withTimezone: true }).notNull(),
 		endAt: timestamp('end_at', { withTimezone: true }).notNull(),
@@ -101,6 +115,10 @@ export const appointment = pgTable(
 		// Google Calendar event id backing meetLink — needed to patch/delete the event on
 		// reschedule/cancel, since Google's API keys off the event id, not the link
 		googleEventId: text('google_event_id'),
+		// set once the 24h/1h-before reminder email has gone out; null means not sent yet.
+		// prevents resending on every cron tick that finds the appointment still in the window
+		reminder24hSentAt: timestamp('reminder_24h_sent_at', { withTimezone: true }),
+		reminder1hSentAt: timestamp('reminder_1h_sent_at', { withTimezone: true }),
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')
 			.defaultNow()
@@ -109,7 +127,11 @@ export const appointment = pgTable(
 	},
 	(table) => [
 		index('appointment_therapistId_startAt_idx').on(table.therapistId, table.startAt),
-		index('appointment_clientId_startAt_idx').on(table.clientId, table.startAt)
+		index('appointment_clientId_startAt_idx').on(table.clientId, table.startAt),
+		check(
+			'appointment_client_xor_customName',
+			sql`(${table.clientId} is not null)::int + (${table.customName} is not null)::int = 1`
+		)
 	]
 );
 

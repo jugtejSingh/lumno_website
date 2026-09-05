@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm';
-import { pgTable, text, integer, boolean, timestamp, uniqueIndex, index, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, boolean, timestamp, uniqueIndex, index, pgEnum, check } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
 import { therapist, client } from './users.schema';
 import { appointment } from './appointments.schema';
@@ -67,9 +67,11 @@ export const payment = pgTable(
 		therapistId: text('therapist_id')
 			.notNull()
 			.references(() => therapist.id, { onDelete: 'cascade' }),
-		clientId: text('client_id')
-			.notNull()
-			.references(() => client.id, { onDelete: 'cascade' }),
+		// exactly one of clientId/customName is set — see the check constraint below
+		clientId: text('client_id').references(() => client.id, { onDelete: 'cascade' }),
+		// set instead of clientId for a one-off charge under a free-text name;
+		// no client row is created for those
+		customName: text('custom_name'),
 		// nullable: a therapist can add an ad-hoc charge not tied to a booking.
 		// not unique: an appointment can carry more than one payment row
 		// (e.g. the base session fee plus a separate late-fee row)
@@ -88,7 +90,11 @@ export const payment = pgTable(
 	},
 	(table) => [
 		index('payment_clientId_idx').on(table.clientId),
-		index('payment_appointmentId_idx').on(table.appointmentId)
+		index('payment_appointmentId_idx').on(table.appointmentId),
+		check(
+			'payment_client_xor_customName',
+			sql`(${table.clientId} is not null)::int + (${table.customName} is not null)::int = 1`
+		)
 	]
 );
 

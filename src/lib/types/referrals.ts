@@ -4,11 +4,19 @@ export type SpecialtyTag = {
 };
 
 export type ReferralTherapist = {
-	id: number;
+	id: string;
 	name: string;
-	format: string;
-	years: number;
+	format: string | null;
+	location: string | null;
+	years: number | null;
 	specialtyTags: SpecialtyTag[];
 	bio: string;
-	rate: string;
+	rate: string | null;
+};
+
+export type ReferralListPage = {
+	therapists: ReferralTherapist[];
+	total: number;
+	page: number;
+	perPage: number;
 };

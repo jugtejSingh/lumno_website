@@ -1,10 +1,22 @@
 import { relations } from 'drizzle-orm';
-import { pgTable, text, integer, date, timestamp, index, pgEnum, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import {
+	pgTable,
+	text,
+	integer,
+	date,
+	timestamp,
+	index,
+	pgEnum,
+	boolean,
+	type AnyPgColumn
+} from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
 import { user } from './auth.schema';
 import { organization } from './organizations.schema';
 
 export const clientStatusEnum = pgEnum('client_status', ['active', 'paused', 'left']);
+
+export const therapistFormatEnum = pgEnum('therapist_format', ['remote', 'in_person', 'hybrid']);
 
 export const therapist = pgTable('therapist', {
 	id: text('id')
@@ -29,6 +41,13 @@ export const therapist = pgTable('therapist', {
 	organizationId: text('organization_id').references((): AnyPgColumn => organization.id, {
 		onDelete: 'set null'
 	}),
+	yearsExperience: integer('years_experience'),
+	// per-session rate in whole units of `currency`; shown on the referral card when
+	// therapistSettings.referralShowRate is on. Separate from client.rate (what a
+	// specific client pays).
+	sessionRate: integer('session_rate'),
+	// how this therapist sees clients; shown on their referral card alongside `location`
+	sessionFormat: therapistFormatEnum('session_format'),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	updatedAt: timestamp('updated_at')
 		.defaultNow()
@@ -62,6 +81,9 @@ export const client = pgTable(
 		// set/cleared by syncClientActivationForCap (billing.ts) as the therapist's
 		// plan cap changes. While set: not bookable, not counted against the cap.
 		deactivatedAt: timestamp('deactivated_at'),
+		// last time a payment-due nag went out to this client; null means never sent.
+		// throttles the weekly reminder cron to at most one send per 7 days per client
+		lastPaymentReminderAt: timestamp('last_payment_reminder_at', { withTimezone: true }),
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')
 			.defaultNow()

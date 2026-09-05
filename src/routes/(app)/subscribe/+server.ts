@@ -1,6 +1,5 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
 import {
 	CREATING_SENTINEL,
 	claimPendingSlot,
@@ -8,7 +7,7 @@ import {
 	finalizePendingSlot,
 	getOrCreateSubscription
 } from '$lib/server/billing';
-import { cancelSubscription, createSubscription, planIdFor } from '$lib/server/razorpay';
+import { cancelSubscription, createSubscription, planIdFor, razorpayKeyId } from '$lib/server/razorpay';
 
 // A pending sub id is reused only while comfortably inside Razorpay's 30-minute
 // expire_by window (subscriptions.create) — otherwise it's treated as expired
@@ -95,11 +94,14 @@ async function changePlan(
 	}
 
 	const subId = await createOrReusePendingSub(therapistId, planNumber, subscription);
-	return json({ subscriptionId: subId, key: env.RAZORPAY_KEY_ID });
+	return json({ subscriptionId: subId, key: razorpayKeyId() });
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const therapistId = locals.therapistId!;
+	if (!locals.therapistId) {
+		error(401, 'unauthenticated');
+	}
+	const therapistId = locals.therapistId;
 	const body = await request.json();
 	const planNumber = Number(body.plan);
 	if (planNumber !== 1 && planNumber !== 2) {
@@ -130,5 +132,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const subId = await createOrReusePendingSub(therapistId, planNumber, subscription);
-	return json({ subscriptionId: subId, key: env.RAZORPAY_KEY_ID });
+	return json({ subscriptionId: subId, key: razorpayKeyId() });
 };

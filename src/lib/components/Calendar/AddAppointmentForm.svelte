@@ -24,6 +24,7 @@
 	let useCustomName = $state(false);
 	let clientId = $state(clients[0]?.id ?? '');
 	let customName = $state('');
+	let rate = $state('');
 	let startTime = $state('09:00');
 	let endTime = $state('10:00');
 	let modality = $state('online');
@@ -66,6 +67,10 @@
 		<label class="field">
 			<span class="field-label">Name</span>
 			<input class="field-input" type="text" name="customName" bind:value={customName} />
+		</label>
+		<label class="field">
+			<span class="field-label">Rate (optional)</span>
+			<input class="field-input" type="number" min="0" name="rate" bind:value={rate} />
 		</label>
 	{:else}
 		<label class="field">

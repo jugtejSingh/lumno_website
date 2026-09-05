@@ -19,7 +19,7 @@
 
 <style>
 	.features {
-		padding: 20px 48px 100px;
+		padding: 20px 64px 100px;
 		max-width: 1200px;
 		margin: 0 auto;
 	}

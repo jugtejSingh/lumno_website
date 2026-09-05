@@ -13,16 +13,16 @@
 --beige-900:oklch(17% 0.014 42);
 
 /* ---- Accents ---- */
---plum-300:oklch(78% 0.09 328);
---plum-400:oklch(64% 0.13 327);
---plum-500:oklch(50% 0.15 328);
---plum-600:oklch(40% 0.14 330);
---plum-700:oklch(30% 0.11 331);
+--plum-300:oklch(85% 0.045 350);
+--plum-400:oklch(72% 0.07 350);
+--plum-500:oklch(58% 0.09 352);
+--plum-600:oklch(46% 0.08 354);
+--plum-700:oklch(34% 0.06 356);
 
---coral-300:oklch(86% 0.09 40);
---coral-400:oklch(75% 0.15 38);
---coral-500:oklch(68% 0.19 35);
---coral-600:oklch(58% 0.18 32);
+--coral-300:oklch(84% 0.08 42);
+--coral-400:oklch(72% 0.12 40);
+--coral-500:oklch(60% 0.15 38);
+--coral-600:oklch(48% 0.14 34);
 
 --sage-300:oklch(85% 0.06 152);
 --sage-400:oklch(70% 0.09 152);

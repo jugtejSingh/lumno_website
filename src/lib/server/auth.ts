@@ -6,7 +6,7 @@ import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
-import { sendEmail } from '$lib/server/email';
+import { sendEmail, wrapEmail } from '$lib/server/email';
 
 const VERIFICATION_EMAIL_RESEND_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
@@ -46,7 +46,12 @@ export const auth = betterAuth({
 			await sendEmail(
 				authUser.email,
 				'Verify your email',
-				`<p>Click the link below to verify your email address:</p><p><a href="${url}">${url}</a></p>`
+				wrapEmail({
+					heading: 'Verify your email',
+					bodyHtml: `<p>Click the button below to verify your email address and finish setting up your Lumno account.</p>`,
+					cta: { text: 'Verify email', url }
+				}),
+				{ text: `Verify your email address:\n${url}` }
 			);
 			await db.update(user).set({ verificationEmailSentAt: new Date() }).where(eq(user.id, authUser.id));
 		}

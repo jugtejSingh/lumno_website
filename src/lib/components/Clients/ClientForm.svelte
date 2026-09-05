@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Input from '$lib/components/utils/Input.svelte';
 	import Textarea from '$lib/components/utils/Textarea.svelte';
+	import Select from '$lib/components/utils/Select.svelte';
 	import Tag from '$lib/components/utils/Tag.svelte';
 
 	let {
@@ -9,7 +10,11 @@
 		age = $bindable(''),
 		rate = $bindable(''),
 		bio = $bindable(''),
-		tags = $bindable([])
+		tags = $bindable([]),
+		status = $bindable(''),
+		showEmail = true,
+		statusOptions,
+		errors = {}
 	}: {
 		name?: string;
 		email?: string;
@@ -17,6 +22,10 @@
 		rate?: string;
 		bio?: string;
 		tags?: string[];
+		status?: string;
+		showEmail?: boolean;
+		statusOptions?: string[];
+		errors?: Record<string, string>;
 	} = $props();
 
 	let newTag = $state('');
@@ -36,8 +45,20 @@
 </script>
 
 <div class="form">
-	<Input label="Full name" name="name" placeholder="Jordan Lee" bind:value={name} />
-	<Input label="Email" name="email" type="email" placeholder="jordan@example.com" bind:value={email} />
+	<Input label="Full name" name="name" placeholder="Jordan Lee" bind:value={name} error={errors.name} />
+	{#if showEmail}
+		<Input
+			label="Email"
+			name="email"
+			type="email"
+			placeholder="jordan@example.com"
+			bind:value={email}
+			error={errors.email}
+		/>
+	{/if}
+	{#if statusOptions}
+		<Select label="Status" name="status" options={statusOptions} bind:value={status} />
+	{/if}
 	<div class="row">
 		<Input label="Age" name="age" placeholder="34" bind:value={age} />
 		<Input label="Rate per session" name="rate" placeholder="150" bind:value={rate} />

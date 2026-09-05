@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { client, user } from '$lib/server/db/schema';
 import {
-	addWalkInClient,
 	addClient,
 	resendInvite,
 	getInviteByToken,
@@ -35,20 +34,18 @@ beforeEach(async () => {
 	therapistId = (await mkTherapist()).id;
 });
 
-describe('addWalkInClient', () => {
-	it('creates a bare row with no invite', async () => {
-		const row = await addWalkInClient(therapistId, 'Walk In');
-		expect(row).toMatchObject({ name: 'Walk In', inviteToken: null, userId: null });
-	});
-});
-
 describe('addClient', () => {
 	it('creates the client, sets an invite token, and emails the invite', async () => {
 		const res = await addClient(therapistId, newClientInput(), 'https://app.test');
 		expect(res).toMatchObject({ client: { email: 'sam@example.com' } });
 		expect(res.client!.inviteToken).toBeTruthy();
 		expect(res.inviteUrl).toBe(`https://app.test/invite/${res.client!.inviteToken}`);
-		expect(sendEmail).toHaveBeenCalledWith('sam@example.com', expect.any(String), expect.any(String));
+		expect(sendEmail).toHaveBeenCalledWith(
+			'sam@example.com',
+			expect.any(String),
+			expect.any(String),
+			expect.objectContaining({ text: expect.any(String), replyTo: expect.any(String) })
+		);
 	});
 
 	it('rejects the therapist inviting their own email', async () => {

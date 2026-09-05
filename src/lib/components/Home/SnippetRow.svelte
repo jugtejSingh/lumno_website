@@ -50,6 +50,13 @@
 		min-width: 0;
 	}
 
+	@media (max-width: 720px) {
+		.snippet-row,
+		.snippet-row.reverse {
+			flex-direction: column;
+		}
+	}
+
 	.eyebrow {
 		font-size: 13px;
 		font-weight: 700;

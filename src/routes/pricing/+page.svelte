@@ -3,35 +3,96 @@
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Card from '$lib/components/utils/Card.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
+	const PLAN_NAME_TO_TIER: Record<string, 1 | 2> = { basic: 1, pro: 2 };
+
+	// Landed here from the post-login redirect (see root +layout.server.ts) with a
+	// plan the visitor picked while logged out — open checkout straight away.
+	onMount(() => {
+		const buy = page.url.searchParams.get('buy');
+		if (buy && buy in PLAN_NAME_TO_TIER) {
+			replaceState('/pricing', {});
+			choosePlan(PLAN_NAME_TO_TIER[buy]);
+		}
+	});
+
+	// Logged-out visitor picked a paid plan: remember it, send them to register,
+	// the layout redirects back here once they're in.
+	function startPlan(name: string) {
+		document.cookie = `pending_plan=${name}; path=/; max-age=3600; samesite=lax`;
+		goto('/login?tab=register');
+	}
+
+	function blockedDowngrade() {
+		toast.error("Cancel your current plan in Settings first — you can't downgrade here.");
+	}
+
 	// ponytail: placeholder display copy — the amount actually charged comes
 	// from the Razorpay plan configured behind RAZORPAY_PLAN_ID_1/2 (razorpay.ts),
-	// not from anything here. Update both places together.
-	const PLANS = [
+	// not from anything here. Update both places together (Razorpay dashboard too).
+	const PLANS: {
+		tier: 0 | 1 | 2;
+		name: string;
+		price: string;
+		period: string;
+		blurb: string;
+		features: string[];
+	}[] = [
 		{
-			tier: 0 as const,
+			tier: 0,
 			name: 'Free',
-			price: '$0',
+			price: 'Free',
 			period: '',
-			features: ['Up to 5 clients', '40 appointments / month']
+			blurb: 'Try it out with a small caseload, no card required.',
+			features: [
+				'Up to 5 clients',
+				'40 appointments / month',
+				'Calendar with Google Meet links',
+				'Automated email reminders for sessions & payments',
+				'Notes sent to clients automatically',
+				'Payment collection & invoicing'
+			]
 		},
 		{
-			tier: 1 as const,
+			tier: 1,
 			name: 'Basic',
-			price: '$29',
+			price: '₹999',
 			period: '/month',
-			features: ['Up to 50 clients', '400 appointments / month']
+			blurb: 'For a growing solo practice.',
+			features: [
+				'Up to 30 clients',
+				'Unlimited appointments',
+				'Calendar with Google Meet links',
+				'Automated email reminders for sessions & payments',
+				'Notes sent to clients automatically',
+				'Payment collection & invoicing',
+				'AI note clean-up',
+				'Referral program — invite other therapists'
+			]
 		},
 		{
-			tier: 2 as const,
+			tier: 2,
 			name: 'Pro',
-			price: '$79',
+			price: '₹1899',
 			period: '/month',
-			features: ['Unlimited clients', 'Unlimited appointments']
+			blurb: 'For a full practice, with no caseload ceiling.',
+			features: [
+				'Unlimited clients',
+				'Unlimited appointments',
+				'Calendar with Google Meet links',
+				'Automated email reminders for sessions & payments',
+				'Notes sent to clients automatically',
+				'Payment collection & invoicing',
+				'AI note clean-up',
+				'Referral program — invite other therapists'
+			]
 		}
 	];
 
@@ -44,7 +105,6 @@
 	};
 
 	let loadingTier = $state<number | null>(null);
-	let errorMessage = $state('');
 
 	function loadCheckoutScript(): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -61,7 +121,6 @@
 	}
 
 	async function choosePlan(tier: number) {
-		errorMessage = '';
 		loadingTier = tier;
 		try {
 			const res = await fetch('/subscribe', {
@@ -71,7 +130,8 @@
 			});
 			if (!res.ok) {
 				const body: { message?: string } = await res.json().catch(() => ({}));
-				errorMessage = ERROR_MESSAGES[body.message ?? ''] ?? 'Something went wrong. Try again.';
+				toast.error(ERROR_MESSAGES[body.message ?? ''] ?? 'Something went wrong. Try again.');
+				loadingTier = null;
 				return;
 			}
 			const { subscriptionId, key } = await res.json();
@@ -88,7 +148,7 @@
 			});
 			checkout.open();
 		} catch {
-			errorMessage = 'Something went wrong. Try again.';
+			toast.error('Something went wrong. Try again.');
 			loadingTier = null;
 		}
 	}
@@ -108,39 +168,45 @@
 			<div class="subtitle">Simple plans that grow with your practice.</div>
 		</div>
 
-		{#if errorMessage}
-			<div class="error-banner">{errorMessage}</div>
-		{/if}
-
 		<div class="plans">
 			{#each PLANS as plan (plan.tier)}
-				<Card>
-					<div class="plan">
-						<div class="plan-name">{plan.name}</div>
-						<div class="plan-price">{plan.price}<span class="plan-period">{plan.period}</span></div>
-						<ul class="plan-features">
-							{#each plan.features as feature (feature)}
-								<li>{feature}</li>
-							{/each}
-						</ul>
-						{#if data.currentTier === plan.tier}
-							<div class="current-badge">Current plan</div>
-						{:else if plan.tier === 0}
-							{#if data.currentTier === null}
-								<Button href="/login?tab=register" variant="secondary">Get started</Button>
+				<div class="plan-card" class:featured={plan.tier === 2}>
+					{#if plan.tier === 2}
+						<div class="popular-badge">Most popular</div>
+					{/if}
+					<Card>
+						<div class="plan">
+							<div class="plan-name">{plan.name}</div>
+							<div class="plan-price">{plan.price}<span class="plan-period">{plan.period}</span></div>
+							<div class="plan-blurb">{plan.blurb}</div>
+							<ul class="plan-features">
+								{#each plan.features as feature (feature)}
+									<li><span class="feature-mark">✓</span>{feature}</li>
+								{/each}
+							</ul>
+							{#if data.currentTier === plan.tier}
+								<div class="current-badge">Current plan</div>
+							{:else if plan.tier === 0}
+								{#if data.currentTier === null}
+									<Button href="/login?tab=register" variant="secondary">Get started</Button>
+								{:else}
+									<Button variant="secondary" onclick={blockedDowngrade}>Choose Free</Button>
+								{/if}
+							{:else if data.currentTier === null}
+								<Button variant="primary" onclick={() => startPlan(plan.name.toLowerCase())}>
+									Get started
+								</Button>
+							{:else}
+								<Button
+									variant="primary"
+									onclick={() => choosePlan(plan.tier)}
+								>
+									{loadingTier === plan.tier ? 'Loading…' : 'Choose plan'}
+								</Button>
 							{/if}
-						{:else if data.currentTier === null}
-							<Button href="/login?tab=register" variant="primary">Get started</Button>
-						{:else}
-							<Button
-								variant="primary"
-								onclick={() => choosePlan(plan.tier)}
-							>
-								{loadingTier === plan.tier ? 'Loading…' : 'Choose plan'}
-							</Button>
-						{/if}
-					</div>
-				</Card>
+						</div>
+					</Card>
+				</div>
 			{/each}
 		</div>
 	</div>
@@ -156,68 +222,95 @@
 	}
 
 	.pricing {
-		max-width: 960px;
+		max-width: 1180px;
 		margin: 0 auto;
-		padding: 64px 24px;
+		padding: 80px 24px;
 		display: flex;
 		flex-direction: column;
-		gap: 32px;
+		gap: 44px;
 	}
 
 	.header {
 		text-align: center;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 10px;
 	}
 
 	.title {
 		font-family: var(--font-display);
-		font-size: 40px;
+		font-size: 52px;
 	}
 
 	.subtitle {
-		font-size: 15px;
+		font-size: 18px;
 		color: var(--text-secondary);
-	}
-
-	.error-banner {
-		background: var(--surface-card);
-		border: 1px solid var(--accent-danger, #c0392b);
-		color: var(--accent-danger, #c0392b);
-		border-radius: var(--radius-sm);
-		padding: 12px 16px;
-		font-size: 14px;
-		text-align: center;
 	}
 
 	.plans {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-		gap: 20px;
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		gap: 28px;
+		align-items: start;
+	}
+
+	.plan-card {
+		position: relative;
+	}
+
+	.plan-card :global(.card) {
+		padding: 40px 36px;
+		height: 100%;
+	}
+
+	.plan-card.featured :global(.card) {
+		border: 2px solid var(--accent-primary);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.popular-badge {
+		position: absolute;
+		top: -14px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: var(--accent-primary);
+		color: var(--text-on-accent);
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: var(--ls-wide);
+		text-transform: uppercase;
+		padding: 5px 14px;
+		border-radius: var(--radius-pill);
+		z-index: 1;
 	}
 
 	.plan {
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
+		gap: 20px;
 		align-items: flex-start;
 	}
 
 	.plan-name {
 		font-weight: 700;
-		font-size: 15px;
+		font-size: 20px;
 	}
 
 	.plan-price {
 		font-family: var(--font-display);
-		font-size: 32px;
+		font-size: 48px;
 	}
 
 	.plan-period {
-		font-size: 14px;
+		font-size: 17px;
 		color: var(--text-secondary);
 		font-family: var(--font-body);
+	}
+
+	.plan-blurb {
+		font-size: 15px;
+		color: var(--text-secondary);
+		margin-top: -12px;
 	}
 
 	.plan-features {
@@ -226,13 +319,26 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		font-size: 14px;
+		gap: 12px;
+		font-size: 16px;
 		color: var(--text-secondary);
+		width: 100%;
+	}
+
+	.plan-features li {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+	}
+
+	.feature-mark {
+		flex-shrink: 0;
+		font-weight: 700;
+		color: var(--accent-calm);
 	}
 
 	.current-badge {
-		font-size: 13px;
+		font-size: 14px;
 		font-weight: 700;
 		color: var(--text-muted);
 	}

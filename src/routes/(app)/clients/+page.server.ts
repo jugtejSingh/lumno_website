@@ -5,7 +5,7 @@ import {
 	deleteClient,
 	listClients,
 	resendInvite,
-	setClientStatus,
+	updateClient,
 	type ClientStatus
 } from '$lib/server/clients';
 
@@ -19,6 +19,11 @@ const resendErrorMessages = {
 	not_found: 'Client not found',
 	no_email: 'This client has no email on file',
 	already_joined: 'This client already has portal access'
+} as const;
+
+const updateErrorMessages = {
+	not_found: 'Client not found',
+	limit_reached: "You've reached your plan's client limit — upgrade to bring them back"
 } as const;
 
 const validStatuses: ClientStatus[] = ['active', 'paused', 'left'];
@@ -43,11 +48,15 @@ export const actions: Actions = {
 			.map((t) => t.trim())
 			.filter(Boolean);
 
+		const fieldErrors: Record<string, string> = {};
 		if (!name.includes(' ')) {
-			return fail(400, { message: 'Please enter their first and last name.' });
+			fieldErrors.name = 'Please enter their first and last name.';
 		}
 		if (!email) {
-			return fail(400, { message: 'Email is required to invite the client' });
+			fieldErrors.email = 'Email is required to invite the client';
+		}
+		if (Object.keys(fieldErrors).length > 0) {
+			return fail(400, { fieldErrors });
 		}
 
 		const result = await addClient(
@@ -64,6 +73,9 @@ export const actions: Actions = {
 		);
 
 		if ('error' in result) {
+			if (result.error === 'duplicate' || result.error === 'self') {
+				return fail(400, { fieldErrors: { email: addErrorMessages[result.error] } });
+			}
 			return fail(400, { message: addErrorMessages[result.error] });
 		}
 	},
@@ -75,17 +87,38 @@ export const actions: Actions = {
 		await deleteClient(therapistId, clientId);
 	},
 
-	setStatus: async (event) => {
+	update: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
 		const clientId = formData.get('clientId')?.toString() ?? '';
+		const name = formData.get('name')?.toString().trim() ?? '';
+		const ageRaw = formData.get('age')?.toString().trim() || '';
+		const rateRaw = formData.get('rate')?.toString().trim() || '';
+		const bio = formData.get('bio')?.toString().trim() || null;
 		const status = formData.get('status')?.toString() ?? '';
+		const tags = (formData.get('tags')?.toString() ?? '')
+			.split(',')
+			.map((t) => t.trim())
+			.filter(Boolean);
 
+		if (!name.includes(' ')) {
+			return fail(400, { fieldErrors: { name: 'Please enter their first and last name.' } });
+		}
 		if (!validStatuses.includes(status as ClientStatus)) {
 			return fail(400, { message: 'Invalid status' });
 		}
 
-		await setClientStatus(therapistId, clientId, status as ClientStatus);
+		const result = await updateClient(therapistId, clientId, {
+			name,
+			age: ageRaw ? Number(ageRaw) : null,
+			rate: rateRaw ? Number(rateRaw) : null,
+			bio,
+			tags,
+			status: status as ClientStatus
+		});
+		if (result && 'error' in result) {
+			return fail(400, { message: updateErrorMessages[result.error] });
+		}
 	},
 
 	resendInvite: async (event) => {

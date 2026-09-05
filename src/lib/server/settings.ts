@@ -47,18 +47,24 @@ export async function updateTherapistScheduleSettings(
 export type NotificationSettings = {
 	sendMeetLinks: boolean;
 	sendBookingEmails: boolean;
+	sendSessionReminderEmails: boolean;
+	sendPaymentReminderEmails: boolean;
 };
 
 const notificationDefaults: NotificationSettings = {
 	sendMeetLinks: true,
-	sendBookingEmails: true
+	sendBookingEmails: true,
+	sendSessionReminderEmails: true,
+	sendPaymentReminderEmails: true
 };
 
 export async function getNotificationSettings(therapistId: string): Promise<NotificationSettings> {
 	const [row] = await db
 		.select({
 			sendMeetLinks: therapistSettings.sendMeetLinks,
-			sendBookingEmails: therapistSettings.sendBookingEmails
+			sendBookingEmails: therapistSettings.sendBookingEmails,
+			sendSessionReminderEmails: therapistSettings.sendSessionReminderEmails,
+			sendPaymentReminderEmails: therapistSettings.sendPaymentReminderEmails
 		})
 		.from(therapistSettings)
 		.where(eq(therapistSettings.therapistId, therapistId));

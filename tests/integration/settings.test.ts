@@ -38,10 +38,17 @@ describe('schedule settings', () => {
 
 describe('notification settings', () => {
 	it('upserts onto the same therapist_settings row', async () => {
-		await updateNotificationSettings(therapistId, { sendMeetLinks: false, sendBookingEmails: false });
+		await updateNotificationSettings(therapistId, {
+			sendMeetLinks: false,
+			sendBookingEmails: false,
+			sendSessionReminderEmails: false,
+			sendPaymentReminderEmails: false
+		});
 		expect(await getNotificationSettings(therapistId)).toEqual({
 			sendMeetLinks: false,
-			sendBookingEmails: false
+			sendBookingEmails: false,
+			sendSessionReminderEmails: false,
+			sendPaymentReminderEmails: false
 		});
 	});
 });

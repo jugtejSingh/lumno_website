@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { appointment, client, therapist, user } from '$lib/server/db/schema';
-import { sendEmail } from '$lib/server/email';
+import { sendEmail, wrapEmail } from '$lib/server/email';
 import { getNotificationSettings } from '$lib/server/settings';
 import { formatCurrency } from '$lib/format';
 
@@ -44,6 +44,7 @@ export async function sendAppointmentEmail(
 				clientEmail: client.email,
 				clientName: client.name,
 				therapistName: user.name,
+				therapistEmail: user.email,
 				timezone: therapist.timezone,
 				currency: therapist.currency
 			})
@@ -65,26 +66,36 @@ export async function sendAppointmentEmail(
 			feeLine = `<p>A fee of ${formatCurrency(extra.feeAmount, row.currency)} applies.</p>`;
 		}
 
-		let meetLine = '';
-		if (row.modality === 'online' && row.meetLink) {
-			meetLine = `<p>Join here: <a href="${row.meetLink}">${row.meetLink}</a></p>`;
-		}
+		const cta =
+			kind !== 'cancelled' && row.modality === 'online' && row.meetLink
+				? { text: 'Join session', url: row.meetLink }
+				: undefined;
+		const footerNote = `Sent on behalf of ${row.therapistName}. Reply to this email to reach them directly.`;
 
 		let subject: string;
-		let body: string;
+		let heading: string;
+		let bodyHtml: string;
+		let text: string;
 		if (kind === 'confirmed') {
 			subject = 'Your session is booked';
-			body = `<p>Your session with ${row.therapistName} is confirmed for ${when} (${modalityText}).</p>${meetLine}`;
+			heading = 'Session confirmed';
+			bodyHtml = `<p>Your session with ${row.therapistName} is confirmed for ${when} (${modalityText}).</p>`;
+			text = `Your session with ${row.therapistName} is confirmed for ${when} (${modalityText}).${row.meetLink ? ` Join here: ${row.meetLink}` : ''}`;
 		} else if (kind === 'cancelled') {
 			subject = 'Your session was cancelled';
-			body = `<p>Your session with ${row.therapistName} on ${when} has been cancelled.</p>${feeLine}`;
+			heading = 'Session cancelled';
+			bodyHtml = `<p>Your session with ${row.therapistName} on ${when} has been cancelled.</p>${feeLine}`;
+			text = `Your session with ${row.therapistName} on ${when} has been cancelled.`;
 		} else {
 			const from = extra.previousStartAt ? formatWhen(extra.previousStartAt, row.timezone) : null;
 			subject = 'Your session was rescheduled';
-			body = `<p>Your session with ${row.therapistName} has been moved${from ? ` from ${from}` : ''} to ${when} (${modalityText}).</p>${meetLine}${feeLine}`;
+			heading = 'Session rescheduled';
+			bodyHtml = `<p>Your session with ${row.therapistName} has been moved${from ? ` from ${from}` : ''} to ${when} (${modalityText}).</p>${feeLine}`;
+			text = `Your session with ${row.therapistName} has been moved${from ? ` from ${from}` : ''} to ${when} (${modalityText}).${row.meetLink ? ` Join here: ${row.meetLink}` : ''}`;
 		}
 
-		await sendEmail(row.clientEmail, subject, body);
+		const html = wrapEmail({ heading, bodyHtml, cta, footerNote });
+		await sendEmail(row.clientEmail, subject, html, { text, replyTo: row.therapistEmail });
 	} catch (err) {
 		console.error(`failed to send ${kind} email for appointment ${appointmentId}:`, err);
 	}

@@ -8,8 +8,8 @@
 	<div class="nav-links">
 		<a href="/#features">Features</a>
 		<a href="/pricing">Pricing</a>
-		<a href="/login">Log in</a>
-		<Button href="/login?tab=register" variant="primary" size="md">Get started</Button>
+		<Button href="/login" variant="secondary" size="md">Log in</Button>
+		<Button href="/login?tab=register" variant="primary" size="md">Get started for free</Button>
 	</div>
 </header>
 

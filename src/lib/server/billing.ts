@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { subscription, razorpayEvent, client } from '$lib/server/db/schema';
 
@@ -285,6 +285,10 @@ export async function usageLimit(therapistId: string, usage: string): Promise<nu
 // leaves the newest 5 deactivated. Called synchronously from the webhook
 // handler on every processed plan change (not lazily — an upgrade should
 // unlock clients immediately, not on next page load).
+//
+// status = 'left' clients are excluded entirely, not just deprioritized — they're
+// deactivated because the therapist ended things, not because of the cap, so a plan
+// upgrade must never silently reactivate one just because there's now room.
 export async function syncClientActivationForCap(therapistId: string): Promise<void> {
 	const limit = await usageLimit(therapistId, 'clients');
 	if (limit === null) {
@@ -294,7 +298,7 @@ export async function syncClientActivationForCap(therapistId: string): Promise<v
 	const rows = await db
 		.select({ id: client.id })
 		.from(client)
-		.where(eq(client.therapistId, therapistId))
+		.where(and(eq(client.therapistId, therapistId), ne(client.status, 'left')))
 		.orderBy(client.createdAt);
 	const keepIds = rows.slice(0, limit).map((row) => row.id); // slice(0, Infinity) = everyone, for Pro
 	const dropIds = rows.slice(limit).map((row) => row.id);

@@ -50,6 +50,11 @@
 	<ClientList clients={data.clients} {selectedId} bind:query onselect={select} />
 
 	<div class="detail">
+		{#if !selected}
+			<div class="detail-inner">
+				<div class="empty">No clients yet.</div>
+			</div>
+		{:else}
 		<div class="detail-inner" class:writing>
 			<div class="client-head">
 				<Avatar name={selected.name} size={40} />
@@ -150,6 +155,7 @@
 				</div>
 			{/if}
 		</div>
+		{/if}
 	</div>
 </div>
 

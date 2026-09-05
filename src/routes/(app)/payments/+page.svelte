@@ -37,9 +37,15 @@
 
 		<div class="section-title">Who owes what</div>
 		<div class="balance-list">
-			{#each data.balances as b (b.clientId)}
-				<Card interactive>
-					<button type="button" class="balance-row" onclick={() => (openClientId = b.clientId)}>
+			{#each data.balances as b (b.key)}
+				<Card interactive={!!b.clientId}>
+					<!-- walk-in (no clientId) balances have no client history to drill into — the row is just the total -->
+					<button
+						type="button"
+						class="balance-row"
+						disabled={!b.clientId}
+						onclick={() => b.clientId && (openClientId = b.clientId)}
+					>
 						<span class="balance-name">{b.name}</span>
 						<span class="balance-owed">{formatCurrency(b.owed, data.currency)}</span>
 					</button>

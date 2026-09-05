@@ -34,7 +34,13 @@
 		padding: 24px;
 	}
 
+	.card.interactive {
+		transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+	}
+
 	.card.interactive:hover {
 		box-shadow: var(--shadow-sm);
+		border-color: var(--border-strong);
+		transform: translateY(-2px);
 	}
 </style>

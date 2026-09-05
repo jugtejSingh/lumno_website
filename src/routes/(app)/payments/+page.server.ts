@@ -15,7 +15,7 @@ import {
 } from '$lib/server/payments';
 import { getPaymentSettings, updatePaymentSettings } from '$lib/server/paymentSettings';
 import { CHANGE_WINDOW_HOURS_OPTIONS, formatHours, type PackExhaustedAction } from '$lib/server/paymentPolicy';
-import { addWalkInClient, listClients } from '$lib/server/clients';
+import { listClients } from '$lib/server/clients';
 
 const packExhaustedActionOptions: PackExhaustedAction[] = ['block_booking', 'require_single_payment'];
 // "Who owes what" is a quick glance list, not the full roster — the client sidebar covers
@@ -57,23 +57,19 @@ export const actions: Actions = {
 	addCharge: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
-		let clientId = formData.get('clientId')?.toString() ?? '';
+		const clientId = formData.get('clientId')?.toString() ?? '';
 		const customName = formData.get('customName')?.toString().trim() ?? '';
 		const amount = Number(formData.get('amount'));
 		const note = formData.get('note')?.toString().trim() || null;
 
-		if (customName) {
-			const walkIn = await addWalkInClient(therapistId, customName);
-			clientId = walkIn.id;
-		}
-		if (!clientId) {
+		if (!customName && !clientId) {
 			return fail(400, { message: 'Pick a client or enter a name' });
 		}
 		if (!amount || amount < 1) {
 			return fail(400, { message: 'Enter an amount greater than 0' });
 		}
 
-		await addCharge(therapistId, { clientId, amount, note });
+		await addCharge(therapistId, { ...(customName ? { customName } : { clientId }), amount, note });
 	},
 
 	updatePayment: async (event) => {

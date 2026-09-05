@@ -6,22 +6,54 @@
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
+	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	let query = $state('');
-	let selectedId = $state<number | null>(null);
+	let query = $state(data.q);
+	let selectedId = $state<string | null>(null);
 
-	const filtered = $derived(
-		data.therapists.filter(
-			(t) =>
-				t.name.toLowerCase().includes(query.toLowerCase()) ||
-				t.specialtyTags.some((s) => s.label.toLowerCase().includes(query.toLowerCase()))
-		)
-	);
+	// debounced server-side search — resets to page 1 on every change
+	let firstRun = true;
+	$effect(() => {
+		const q = query;
+		if (firstRun) {
+			firstRun = false;
+			return;
+		}
+		const timer = setTimeout(() => {
+			const params = new URLSearchParams();
+			if (q.trim()) {
+				params.set('q', q.trim());
+			}
+			goto(`?${params.toString()}`, { keepFocus: true, noScroll: true });
+		}, 250);
+		return () => clearTimeout(timer);
+	});
 
+	const totalPages = $derived(Math.max(1, Math.ceil(data.total / data.perPage)));
 	const selected = $derived(data.therapists.find((t) => t.id === selectedId) ?? null);
+
+	function metaLine(format: string | null, location: string | null): string {
+		const parts = [];
+		if (format) {
+			parts.push(format);
+		}
+		if (location) {
+			parts.push(location);
+		}
+		return parts.join(' · ');
+	}
+
+	function pageHref(p: number): string {
+		const params = new URLSearchParams();
+		if (data.q.trim()) {
+			params.set('q', data.q.trim());
+		}
+		params.set('page', String(p));
+		return `?${params.toString()}`;
+	}
 </script>
 
 <div class="referrals">
@@ -33,14 +65,16 @@
 	<Input placeholder="Search by name or specialty" bind:value={query} />
 
 	<div class="grid">
-		{#each filtered as t (t.id)}
+		{#each data.therapists as t (t.id)}
 			<Card interactive>
 				<button type="button" class="card-btn" onclick={() => (selectedId = t.id)}>
 					<div class="card-head">
 						<Avatar name={t.name} size={38} />
 						<div class="card-head-info">
 							<div class="card-name">{t.name}</div>
-							<div class="card-format">{t.format}</div>
+							{#if metaLine(t.format, t.location)}
+								<div class="card-format">{metaLine(t.format, t.location)}</div>
+							{/if}
 						</div>
 						<Badge tone="success">Open</Badge>
 					</div>
@@ -50,14 +84,30 @@
 						{/each}
 					</div>
 					<div class="bio">{t.bio}</div>
-					<div class="rate">{t.rate} / session</div>
+					{#if t.rate}
+						<div class="rate">{t.rate} / session</div>
+					{/if}
 				</button>
 			</Card>
 		{/each}
 	</div>
 
-	{#if filtered.length === 0}
-		<div class="empty">No colleagues match that search.</div>
+	{#if data.therapists.length === 0}
+		<div class="empty">
+			{data.q ? 'No colleagues match that search.' : 'No colleagues have opted in yet.'}
+		</div>
+	{/if}
+
+	{#if totalPages > 1}
+		<div class="pager">
+			{#if data.page > 1}
+				<Button variant="secondary" size="sm" href={pageHref(data.page - 1)}>Previous</Button>
+			{/if}
+			<span class="pager-label">Page {data.page} of {totalPages}</span>
+			{#if data.page < totalPages}
+				<Button variant="secondary" size="sm" href={pageHref(data.page + 1)}>Next</Button>
+			{/if}
+		</div>
 	{/if}
 
 	<div class="footnote">
@@ -72,7 +122,16 @@
 				<Avatar name={selected.name} size={48} />
 				<div>
 					<div class="detail-name">{selected.name}</div>
-					<div class="detail-meta">{selected.format} · {selected.years} yrs experience</div>
+					{#if metaLine(selected.format, selected.location) || selected.years !== null}
+						<div class="detail-meta">
+							{[
+								metaLine(selected.format, selected.location),
+								selected.years !== null ? `${selected.years} yrs experience` : ''
+							]
+								.filter(Boolean)
+								.join(' · ')}
+						</div>
+					{/if}
 				</div>
 			</div>
 			<div class="tag-row">
@@ -81,8 +140,9 @@
 				{/each}
 			</div>
 			<div class="detail-bio">{selected.bio}</div>
-			<div class="detail-rate">{selected.rate} / session</div>
-			<Button variant="primary" onclick={() => (selectedId = null)}>Request referral</Button>
+			{#if selected.rate}
+				<div class="detail-rate">{selected.rate} / session</div>
+			{/if}
 		</div>
 	{/if}
 </Dialog>
@@ -166,6 +226,17 @@
 
 	.rate {
 		font-family: var(--font-mono);
+		font-size: 13px;
+		color: var(--text-muted);
+	}
+
+	.pager {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.pager-label {
 		font-size: 13px;
 		color: var(--text-muted);
 	}

@@ -5,34 +5,89 @@
 	import FeaturesSection from '$lib/components/Home/FeaturesSection.svelte';
 	import SnippetsSection from '$lib/components/Home/SnippetsSection.svelte';
 	import CtaBand from '$lib/components/Home/CtaBand.svelte';
-	import type { Stat, Session, Feature } from '$lib/types/home';
+	import type { PreviewPanel, Feature } from '$lib/types/home';
 
-	const stats: Stat[] = [
-		{ label: 'Sessions this week', value: '12', accent: 'plum' },
-		{ label: 'New clients', value: '3', accent: 'coral' }
-	];
-
-	const sessions: Session[] = [
+	const panels: PreviewPanel[] = [
 		{
-			name: 'Maria Chen',
-			time: 'Today · 2:00 PM',
-			tag: 'confirmed',
-			tone: 'success',
-			note: 'Mood improved this week, sleep steadier than last check-in.'
+			kind: 'booking',
+			label: 'Booking',
+			weeks: [
+				[
+					{ day: null },
+					{ day: null },
+					{ day: null },
+					{ day: 1 },
+					{ day: 2 },
+					{ day: 3 },
+					{ day: 4 }
+				],
+				[
+					{ day: 5 },
+					{ day: 6 },
+					{ day: 7 },
+					{ day: 8, sessions: [{ time: '11:00', name: 'Maria Chen', color: 'plum' }] },
+					{ day: 9 },
+					{ day: 10 },
+					{ day: 11 }
+				],
+				[
+					{ day: 12 },
+					{ day: 13 },
+					{
+						day: 14,
+						isToday: true,
+						sessions: [
+							{ time: '9:30', name: 'Priya Nair', color: 'sage' },
+							{ time: '2:00', name: 'Maria Chen', color: 'plum' },
+							{ time: '4:30', name: 'James Okoro', color: 'coral' }
+						]
+					},
+					{ day: 15 },
+					{ day: 16, sessions: [{ time: '1:00', name: 'James Okoro', color: 'coral' }] },
+					{ day: 17 },
+					{ day: 18 }
+				],
+				[
+					{ day: 19 },
+					{ day: 20 },
+					{ day: 21, sessions: [{ time: '10:00', name: 'Diego Alvarez', color: 'sage' }] },
+					{ day: 22 },
+					{ day: 23 },
+					{ day: 24 },
+					{ day: 25 }
+				],
+				[
+					{ day: 26 },
+					{ day: 27 },
+					{ day: 28 },
+					{ day: 29 },
+					{ day: 30 },
+					{ day: 31 },
+					{ day: null }
+				]
+			]
 		},
 		{
-			name: 'James Okoro',
-			time: 'Tomorrow · 10:00 AM',
-			tag: 'pending',
-			tone: 'warning',
-			note: 'Discussed communication patterns from last joint session.'
+			kind: 'payments',
+			label: 'Payments',
+			collected: '₹2,340',
+			paymentsLeft: 4,
+			breakdown: [
+				{ client: 'Maria Chen', amount: '₹480.00', status: 'paid' },
+				{ client: 'Priya Nair', amount: '₹360.00', status: 'paid' },
+				{ client: 'James Okoro', amount: '₹120.00', status: 'owed', reminderSent: true },
+				{ client: 'Diego Alvarez', amount: '₹80.00', status: 'owed', reminderSent: false }
+			]
 		},
 		{
-			name: 'Priya Nair',
-			time: 'Thu · 9:30 AM',
-			tag: 'confirmed',
-			tone: 'success',
-			note: 'Anxiety scale down to 4 out of 10, from 7 two weeks ago.'
+			kind: 'notes',
+			label: 'Notes',
+			client: 'Priya Nair',
+			rawNote:
+				'client seemed better today. anxiety down. sleep ok now. talked about work stress again, mentioned boss issue. gave breathing exercise hw',
+			cleanedNote:
+				'Client reports improved mood and steadier sleep. Anxiety trending down. Continued stress related to workplace dynamics with supervisor. Assigned breathing exercise as homework.',
+			homework: 'Practice the 4-7-8 breathing exercise nightly before bed.'
 		}
 	];
 
@@ -62,12 +117,20 @@
 			accent: 'sage'
 		},
 		{
+			title: 'Reminders',
+			desc: 'Automated reminders for upcoming sessions and payments that are due — sent without you lifting a finger.',
+			cta: 'Open calendar',
+			href: '/calendar',
+			icon: 'reminders',
+			accent: 'citrus'
+		},
+		{
 			title: 'Client notes',
 			desc: 'A clean writing space with basic formatting, kept dated and organized per client.',
 			cta: 'Open notes',
 			href: '/notes',
 			icon: 'notes',
-			accent: 'citrus'
+			accent: 'plum'
 		},
 		{
 			title: 'Clients',
@@ -102,7 +165,7 @@
 
 <div class="page">
 	<Nav />
-	<Hero {stats} {sessions} />
+	<Hero {panels} />
 	<FeaturesSection {features} />
 	<SnippetsSection />
 	<CtaBand />

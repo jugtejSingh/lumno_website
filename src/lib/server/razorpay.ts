@@ -13,16 +13,40 @@ import { env } from '$env/dynamic/private';
 // ponytail: bump if a plan is ever billed yearly and someone stays 10+ years.
 const TOTAL_COUNT = 120;
 
+// CURRENT_ENVIRONMENT === 'testing' swaps in a parallel TEST_-prefixed key set
+// (keys, webhook secret, plan ids). No fallback to live: a missing TEST_ var
+// must fail loudly, never silently transact against the live account. Anything
+// but 'testing' (including unset) = live.
+const TESTING = env.CURRENT_ENVIRONMENT === 'testing';
+
+function rzpEnv(name: string): string | undefined {
+	if (TESTING) {
+		return env[`TEST_${name}`];
+	}
+	return env[name];
+}
+
+// The frontend (Razorpay checkout.js) needs the key id — server hands it over.
+export function razorpayKeyId(): string {
+	const id = rzpEnv('RAZORPAY_KEY_ID');
+	if (!id) {
+		throw new Error('RAZORPAY_KEY_ID not set');
+	}
+	return id;
+}
+
 let client: Razorpay | undefined;
 
 export function razorpay(): Razorpay {
 	if (!client) {
-		if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
+		const keyId = rzpEnv('RAZORPAY_KEY_ID');
+		const keySecret = rzpEnv('RAZORPAY_KEY_SECRET');
+		if (!keyId || !keySecret) {
 			throw new Error('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET not set');
 		}
 		client = new Razorpay({
-			key_id: env.RAZORPAY_KEY_ID,
-			key_secret: env.RAZORPAY_KEY_SECRET
+			key_id: keyId,
+			key_secret: keySecret
 		});
 		// The SDK never sets a request timeout, so a hung connection would wait
 		// forever — and a stuck subscriptions.create() would hold the pending-slot
@@ -43,7 +67,7 @@ const PLAN_ID_ENV: Record<number, string> = {
 
 export function planIdFor(planNumber: number): string {
 	const key = PLAN_ID_ENV[planNumber];
-	const value = key ? env[key] : undefined;
+	const value = key ? rzpEnv(key) : undefined;
 	if (!value) {
 		throw new Error(`no Razorpay plan id configured for plan ${planNumber} (${key})`);
 	}
@@ -55,7 +79,7 @@ export function planIdFor(planNumber: number): string {
 // rather than throwing.
 export function planNumberFor(razorpayPlanId: string): number {
 	for (const [planNumber, key] of Object.entries(PLAN_ID_ENV)) {
-		if (env[key] === razorpayPlanId) {
+		if (rzpEnv(key) === razorpayPlanId) {
 			return Number(planNumber);
 		}
 	}
@@ -80,11 +104,12 @@ export async function cancelSubscription(id: string) {
 
 // Verify the X-Razorpay-Signature header against the raw request body.
 export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
-	if (!env.RAZORPAY_WEBHOOK_SECRET || !signature) {
+	const secret = rzpEnv('RAZORPAY_WEBHOOK_SECRET');
+	if (!secret || !signature) {
 		return false;
 	}
 	try {
-		return validateWebhookSignature(rawBody, signature, env.RAZORPAY_WEBHOOK_SECRET);
+		return validateWebhookSignature(rawBody, signature, secret);
 	} catch {
 		return false;
 	}

@@ -64,7 +64,7 @@
 		href="/payments"
 	>
 		<div class="mockup">
-			<StatCard label="Revenue this month" value="$3,240" accent="sage" delta="+$180 vs last month" />
+			<StatCard label="Revenue this month" value="₹3,240" accent="sage" delta="+₹180 vs last month" />
 			<Card>
 				<div class="pay-row">
 					<span>Priya Nair</span>
@@ -92,9 +92,15 @@
 					<div class="note-title">Priya Nair — Thu, Sep 4</div>
 					<Tag color="sage">dated</Tag>
 				</div>
-				<div class="note-line"></div>
-				<div class="note-line"></div>
-				<div class="note-line short"></div>
+				<p class="note-text">
+					Client reports improved mood and steadier sleep. Anxiety trending down. Continued
+					stress related to workplace dynamics with supervisor. Assigned breathing exercise as
+					homework.
+				</p>
+				<div class="note-homework">
+					<span class="note-homework-label">Homework</span>
+					Practice the 4-7-8 breathing exercise nightly before bed.
+				</div>
 			</Card>
 		</div>
 	</SnippetRow>
@@ -206,14 +212,26 @@
 		font-size: 14px;
 	}
 
-	.note-line {
-		height: 10px;
-		border-radius: 5px;
-		background: var(--surface-sunken);
-		margin-bottom: 10px;
+	.note-text {
+		font-size: 14px;
+		line-height: var(--lh-relaxed);
+		color: var(--text-secondary);
+		margin: 0 0 14px;
+		font-family: var(--font-serif, inherit);
 	}
 
-	.note-line.short {
-		width: 60%;
+	.note-homework {
+		font-size: 13px;
+		line-height: var(--lh-relaxed);
+		color: var(--text-primary);
+		background: var(--sage-300);
+		border-radius: var(--radius-sm);
+		padding: 10px 12px;
+	}
+
+	.note-homework-label {
+		font-weight: 700;
+		color: var(--sage-600);
+		margin-right: 6px;
 	}
 </style>

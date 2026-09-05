@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Button from '../utils/Button.svelte';
 	import SessionPreview from './SessionPreview.svelte';
-	import type { Stat, Session } from '$lib/types/home';
+	import type { PreviewPanel } from '$lib/types/home';
 
-	let { stats, sessions }: { stats: Stat[]; sessions: Session[] } = $props();
+	let { panels }: { panels: PreviewPanel[] } = $props();
 </script>
 
 <section class="hero">
@@ -15,13 +15,13 @@
 			practice that aren't the session itself.
 		</p>
 		<div class="hero-actions">
-			<Button href="/login?tab=register" variant="primary" size="lg">Get started</Button>
+			<Button href="/login?tab=register" variant="primary" size="lg">Get started for free</Button>
 			<Button href="/#features" variant="secondary" size="lg">See how it works</Button>
 		</div>
 	</div>
 
 	<div class="hero-preview">
-		<SessionPreview {stats} {sessions} />
+		<SessionPreview {panels} />
 	</div>
 </section>
 
@@ -78,6 +78,18 @@
 
 	.hero-preview {
 		flex-shrink: 0;
-		width: 440px;
+		width: 520px;
+		max-width: 100%;
+	}
+
+	@media (max-width: 860px) {
+		.hero {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.hero-preview {
+			width: 100%;
+		}
 	}
 </style>

@@ -4,7 +4,6 @@
 	import Tag from '$lib/components/utils/Tag.svelte';
 	import Badge from '$lib/components/utils/Badge.svelte';
 	import Input from '$lib/components/utils/Input.svelte';
-	import Select from '$lib/components/utils/Select.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import ClientForm from '$lib/components/Clients/ClientForm.svelte';
@@ -54,6 +53,25 @@
 		newTags = [];
 		addOpen = true;
 	}
+
+	// Edit client draft
+	let editClientId = $state<string | null>(null);
+	let editName = $state('');
+	let editAge = $state('');
+	let editRate = $state('');
+	let editBio = $state('');
+	let editTags = $state<string[]>([]);
+	let editStatus = $state('');
+
+	function openEdit(c: (typeof data.clients)[number]) {
+		editClientId = c.id;
+		editName = c.name;
+		editAge = c.age?.toString() ?? '';
+		editRate = c.rate?.toString() ?? '';
+		editBio = c.bio ?? '';
+		editTags = [...c.tags];
+		editStatus = c.status;
+	}
 </script>
 
 <div class="clients">
@@ -69,6 +87,8 @@
 
 	{#if form?.inviteUrl}
 		<div class="banner">Invite link: <code>{form.inviteUrl}</code></div>
+	{:else if form?.message && !addOpen && !editClientId}
+		<div class="banner form-error">{form.message}</div>
 	{/if}
 
 	<div class="list">
@@ -100,15 +120,7 @@
 						<Button variant="secondary" size="sm" onclick={() => (historyClientId = c.id)}>
 							View payments
 						</Button>
-						<form method="POST" action="?/setStatus" use:enhance>
-							<input type="hidden" name="clientId" value={c.id} />
-							<Select
-								name="status"
-								options={statusOptions}
-								value={c.status}
-								onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.requestSubmit()}
-							/>
-						</form>
+						<Button variant="secondary" size="sm" onclick={() => openEdit(c)}>Edit</Button>
 						{#if !c.userId}
 							<form method="POST" action="?/resendInvite" use:enhance>
 								<input type="hidden" name="clientId" value={c.id} />
@@ -156,11 +168,43 @@
 			bind:rate={newRate}
 			bind:bio={newBio}
 			bind:tags={newTags}
+			errors={form?.fieldErrors ?? {}}
 		/>
 		{#if form?.message}
 			<div class="form-error">{form.message}</div>
 		{/if}
 		<Button type="submit" variant="primary">Add & invite client</Button>
+	</form>
+</Dialog>
+
+<Dialog open={!!editClientId} title="Edit client" onclose={() => (editClientId = null)}>
+	<form
+		class="dialog-form"
+		method="POST"
+		action="?/update"
+		use:enhance={() => {
+			return async ({ result, update }) => {
+				if (result.type === 'success') editClientId = null;
+				await update();
+			};
+		}}
+	>
+		<input type="hidden" name="clientId" value={editClientId} />
+		<ClientForm
+			bind:name={editName}
+			bind:age={editAge}
+			bind:rate={editRate}
+			bind:bio={editBio}
+			bind:tags={editTags}
+			bind:status={editStatus}
+			showEmail={false}
+			{statusOptions}
+			errors={form?.fieldErrors ?? {}}
+		/>
+		{#if form?.message}
+			<div class="form-error">{form.message}</div>
+		{/if}
+		<Button type="submit" variant="primary">Save changes</Button>
 	</form>
 </Dialog>
 

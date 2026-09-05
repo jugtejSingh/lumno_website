@@ -9,19 +9,18 @@ type Executor = DbOrTx;
 
 // ---- single-session / ad-hoc charges ----------------------------------
 
-export type NewPaymentInput = {
-	clientId: string;
-	appointmentId?: string | null;
-	amount: number;
-	note?: string | null;
-};
+// exactly one of clientId/customName — same convention as the payment table itself
+export type NewPaymentInput =
+	| { clientId: string; customName?: never; appointmentId?: string | null; amount: number; note?: string | null }
+	| { clientId?: never; customName: string; appointmentId?: string | null; amount: number; note?: string | null };
 
 export async function addCharge(therapistId: string, input: NewPaymentInput, executor: Executor = db) {
 	const [row] = await executor
 		.insert(payment)
 		.values({
 			therapistId,
-			clientId: input.clientId,
+			clientId: input.clientId ?? null,
+			customName: input.customName ?? null,
 			appointmentId: input.appointmentId ?? null,
 			amount: input.amount,
 			note: input.note ?? null
@@ -357,17 +356,24 @@ export async function moveFinancialLinksOnReschedule(
 
 // ---- the "who hasn't paid" view -----------------------------------------
 
-export type ClientBalanceSummary = { clientId: string; name: string; owed: number };
+// clientId is null for a walk-in (customName) charge — grouped by name instead, since
+// there's no client row to key on. Packs are client-only (walk-ins never buy one), so
+// every pack row has a real clientId.
+export type ClientBalanceSummary = { key: string; clientId: string | null; name: string; owed: number };
 
 // Sum of unpaid `payment` rows plus pending-payment packs, per client — what a client
 // "owes" combines both charge types, since either one is money the therapist is waiting on.
 export async function listOutstandingBalancesByClient(therapistId: string): Promise<ClientBalanceSummary[]> {
 	const paymentRows = await db
-		.select({ clientId: client.id, name: client.name, owed: sql<number>`coalesce(sum(${payment.amount}), 0)::int` })
+		.select({
+			clientId: payment.clientId,
+			name: sql<string>`coalesce(${client.name}, ${payment.customName})`,
+			owed: sql<number>`coalesce(sum(${payment.amount}), 0)::int`
+		})
 		.from(payment)
-		.innerJoin(client, eq(payment.clientId, client.id))
+		.leftJoin(client, eq(payment.clientId, client.id))
 		.where(and(eq(payment.therapistId, therapistId), eq(payment.status, 'unpaid')))
-		.groupBy(client.id, client.name);
+		.groupBy(payment.clientId, client.name, payment.customName);
 
 	const packRows = await db
 		.select({
@@ -380,16 +386,17 @@ export async function listOutstandingBalancesByClient(therapistId: string): Prom
 		.where(and(eq(paymentPack.therapistId, therapistId), eq(paymentPack.status, 'pending_payment')))
 		.groupBy(client.id, client.name);
 
-	const byClient = new Map<string, ClientBalanceSummary>();
+	const byKey = new Map<string, ClientBalanceSummary>();
 	for (const row of [...paymentRows, ...packRows]) {
-		const existing = byClient.get(row.clientId);
+		const key = row.clientId ?? `walkin:${row.name}`;
+		const existing = byKey.get(key);
 		if (existing) {
 			existing.owed += row.owed;
 		} else {
-			byClient.set(row.clientId, { ...row });
+			byKey.set(key, { key, clientId: row.clientId, name: row.name, owed: row.owed });
 		}
 	}
-	return [...byClient.values()].sort((a, b) => b.owed - a.owed);
+	return [...byKey.values()].sort((a, b) => b.owed - a.owed);
 }
 
 export type MonthlyPaymentSummary = { paid: number; unpaid: number; total: number };

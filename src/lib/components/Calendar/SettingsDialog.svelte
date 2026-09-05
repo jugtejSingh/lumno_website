@@ -19,7 +19,12 @@
 			latestBookingTime: string;
 			weeklySchedule: string[];
 		};
-		notifications: { sendMeetLinks: boolean; sendBookingEmails: boolean };
+		notifications: {
+			sendMeetLinks: boolean;
+			sendBookingEmails: boolean;
+			sendSessionReminderEmails: boolean;
+			sendPaymentReminderEmails: boolean;
+		};
 		googleConnected: boolean;
 		message?: string;
 		onclose: () => void;
@@ -31,6 +36,8 @@
 	let weeklySchedule = $state([...settings.weeklySchedule]);
 	let sendMeetLinks = $state(notifications.sendMeetLinks);
 	let sendBookingEmails = $state(notifications.sendBookingEmails);
+	let sendSessionReminderEmails = $state(notifications.sendSessionReminderEmails);
+	let sendPaymentReminderEmails = $state(notifications.sendPaymentReminderEmails);
 
 	const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 	const scheduleKindOptions = [
@@ -115,6 +122,24 @@
 		<label class="toggle-row">
 			<input type="checkbox" name="sendBookingEmails" bind:checked={sendBookingEmails} />
 			<span>Email clients when a session is booked, cancelled, or rescheduled</span>
+		</label>
+
+		<label class="toggle-row">
+			<input
+				type="checkbox"
+				name="sendSessionReminderEmails"
+				bind:checked={sendSessionReminderEmails}
+			/>
+			<span>Email clients a reminder 24 hours and 1 hour before their session</span>
+		</label>
+
+		<label class="toggle-row">
+			<input
+				type="checkbox"
+				name="sendPaymentReminderEmails"
+				bind:checked={sendPaymentReminderEmails}
+			/>
+			<span>Email clients with an outstanding balance a reminder every week</span>
 		</label>
 
 		<div class="settings-actions">

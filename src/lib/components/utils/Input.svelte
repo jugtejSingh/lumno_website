@@ -7,7 +7,8 @@
 		type = 'text',
 		name,
 		value = $bindable(''),
-		onkeydown
+		onkeydown,
+		error
 	}: {
 		label?: string;
 		placeholder?: string;
@@ -15,6 +16,7 @@
 		name?: string;
 		value?: string;
 		onkeydown?: (e: KeyboardEvent) => void;
+		error?: string;
 	} = $props();
 </script>
 
@@ -23,6 +25,9 @@
 		<span class="field-label">{label}</span>
 	{/if}
 	<input class="field-input" {type} {name} {placeholder} bind:value {onkeydown} />
+	{#if error}
+		<span class="field-error">{error}</span>
+	{/if}
 </label>
 
 <style>
@@ -30,6 +35,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
+	}
+
+	.field-error {
+		font-size: 12px;
+		color: var(--accent-danger, #c0392b);
 	}
 
 	.field-label {

@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, lte, ne, asc, desc } from 'drizzle-orm';
+import { and, eq, gte, lt, lte, ne, asc, desc, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
 import { appointment, therapist, client, user } from '$lib/server/db/schema';
 import { zonedDayBounds, getZonedDateParts, zonedDateToUTC } from '$lib/server/timezone';
@@ -28,11 +28,13 @@ export async function attachMeetingLinkIfOnline(
 		.from(therapist)
 		.innerJoin(user, eq(therapist.userId, user.id))
 		.where(eq(therapist.id, appt.therapistId));
-	const [clientRow] = await executor.select({ email: client.email, name: client.name }).from(client).where(eq(client.id, appt.clientId));
+	const clientRow = appt.clientId
+		? (await executor.select({ email: client.email, name: client.name }).from(client).where(eq(client.id, appt.clientId)))[0]
+		: undefined;
 	if (!therapistRow) return appt;
 
 	const meetEvent = await createMeetEvent(therapistRow.userId, {
-		summary: `Therapy session: ${therapistRow.therapistName} & ${clientRow?.name ?? 'client'}`,
+		summary: `Therapy session: ${therapistRow.therapistName} & ${clientRow?.name ?? appt.customName ?? 'client'}`,
 		startAt: appt.startAt,
 		endAt: appt.endAt,
 		attendeeEmail: clientRow?.email
@@ -198,10 +200,10 @@ export async function listAppointmentsForMonth(therapistId: string, year: number
 			status: appointment.status,
 			notes: appointment.notes,
 			meetLink: appointment.meetLink,
-			clientName: client.name
+			clientName: sql<string>`coalesce(${client.name}, ${appointment.customName})`
 		})
 		.from(appointment)
-		.innerJoin(client, eq(appointment.clientId, client.id))
+		.leftJoin(client, eq(appointment.clientId, client.id))
 		.where(
 			and(
 				eq(appointment.therapistId, therapistId),
@@ -216,8 +218,7 @@ export async function listAppointmentsForMonth(therapistId: string, year: number
 	return rows.map((row) => ({ ...row, ...getZonedDateParts(row.startAt, timezone) }));
 }
 
-export type NewAppointmentInput = {
-	clientId: string;
+export type AppointmentSlotInput = {
 	year: number;
 	month: number; // 0-indexed
 	day: number;
@@ -229,6 +230,10 @@ export type NewAppointmentInput = {
 	notes?: string | null;
 	rescheduledFromId?: string | null;
 };
+
+// exactly one of clientId/customName — same convention as the appointment table itself
+export type NewAppointmentInput = AppointmentSlotInput &
+	({ clientId: string; customName?: never } | { clientId?: never; customName: string });
 
 export type CreateAppointmentResult = {
 	appointment?: typeof appointment.$inferSelect;
@@ -279,10 +284,16 @@ export async function createAppointmentForTherapist(
 
 	// clientId comes straight from the caller's form input, not the session — never trust it
 	// belongs to this therapist without checking, or one therapist could book/charge against
-	// another therapist's client just by knowing their id.
-	const [clientRow] = await executor.select({ therapistId: client.therapistId }).from(client).where(eq(client.id, input.clientId));
-	if (clientRow?.therapistId !== therapistId) {
-		return { error: 'invalid_client' as const };
+	// another therapist's client just by knowing their id. A customName booking has no client
+	// row to own, so there's nothing to check.
+	if (input.clientId) {
+		const [clientRow] = await executor
+			.select({ therapistId: client.therapistId })
+			.from(client)
+			.where(eq(client.id, input.clientId));
+		if (clientRow?.therapistId !== therapistId) {
+			return { error: 'invalid_client' as const };
+		}
 	}
 
 	const startAt = zonedDateToUTC(input.year, input.month, input.day, input.startHour, input.startMinute, timezone);
@@ -305,7 +316,8 @@ export async function createAppointmentForTherapist(
 			.insert(appointment)
 			.values({
 				therapistId,
-				clientId: input.clientId,
+				clientId: input.clientId ?? null,
+				customName: input.customName ?? null,
 				startAt,
 				endAt,
 				modality: input.modality,
@@ -326,9 +338,12 @@ export async function createAppointmentForTherapist(
 // depends on the ORIGINAL appointment's start time and the therapist's settings — nothing
 // else about the request changes what's owed.
 async function resolveOutcomeFor(therapistId: string, appt: typeof appointment.$inferSelect): Promise<PolicyOutcome> {
-	const [clientRow] = await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId));
+	// walk-in (customName) appointments have no client row, so no rate — fee always 0
+	const rate = appt.clientId
+		? ((await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId)))[0]?.rate ?? 0)
+		: 0;
 	const settings = await getPaymentSettings(therapistId);
-	return resolvePolicyOutcome(appt.startAt, settings, clientRow?.rate ?? 0);
+	return resolvePolicyOutcome(appt.startAt, settings, rate);
 }
 
 export type CancelAppointmentResult = { outcome: PolicyOutcome } | { error: 'not_found' | 'charge_required' };
@@ -372,8 +387,9 @@ export async function cancelAppointment(
 		if (!manualTier) {
 			return { error: 'charge_required' as const };
 		}
-		const [clientRow] = await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId));
-		const baseAmount = clientRow?.rate ?? 0;
+		const baseAmount = appt.clientId
+			? ((await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId)))[0]?.rate ?? 0)
+			: 0;
 		outcome = { tier: manualTier, feeAmount: Math.round(baseAmount * tierFraction(manualTier)) };
 	} else {
 		outcome = await resolveOutcomeFor(therapistId, appt);
@@ -392,7 +408,7 @@ export async function cancelAppointment(
 			await addCharge(
 				therapistId,
 				{
-					clientId: appt.clientId,
+					...(appt.clientId ? { clientId: appt.clientId } : { customName: appt.customName! }),
 					appointmentId,
 					amount: outcome.feeAmount,
 					note: feeNote('cancellation', outcome.tier)
@@ -446,7 +462,7 @@ export async function finishReschedule(
 			await addCharge(
 				therapistId,
 				{
-					clientId: oldAppt.clientId,
+					...(oldAppt.clientId ? { clientId: oldAppt.clientId } : { customName: oldAppt.customName! }),
 					appointmentId: inserted.appointment.id,
 					amount: outcome.feeAmount,
 					note: feeNote('reschedule', outcome.tier)
@@ -479,7 +495,7 @@ export async function finishReschedule(
 export async function rescheduleAppointmentForTherapist(
 	therapistId: string,
 	oldAppointmentId: string,
-	input: Omit<NewAppointmentInput, 'clientId'>
+	input: AppointmentSlotInput
 ): Promise<RescheduleAppointmentResult> {
 	const [oldAppt] = await db
 		.select()
@@ -497,7 +513,11 @@ export async function rescheduleAppointmentForTherapist(
 	return finishReschedule(therapistId, oldAppt, async (tx) => {
 		const created = await createAppointmentForTherapist(
 			therapistId,
-			{ ...input, clientId: oldAppt.clientId, rescheduledFromId: oldAppt.id },
+			{
+				...input,
+				...(oldAppt.clientId ? { clientId: oldAppt.clientId } : { customName: oldAppt.customName! }),
+				rescheduledFromId: oldAppt.id
+			},
 			tx
 		);
 		if (created.error || !created.appointment) {
