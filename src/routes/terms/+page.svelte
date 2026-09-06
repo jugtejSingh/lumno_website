@@ -12,7 +12,7 @@
 	<Nav />
 	<main class="legal">
 		<h1 class="display">Terms of Service</h1>
-		<p class="updated">Last updated: September 2, 2026</p>
+		<p class="updated">Last updated: September 6, 2026</p>
 
 		<p>
 			These terms govern use of Lumno, practice-management software for therapists. By creating
@@ -37,7 +37,9 @@
 		<h2>Payments</h2>
 		<p>
 			Paid plans are billed on a recurring basis through our payment processor until cancelled.
-			Fees are non-refundable except where required by law.
+			Refunds are not guaranteed and are considered on a case-by-case basis depending on what has
+			transpired. The exception is a refund owed because of a software fault on our side, which
+			we will honour, along with any refund required by law.
 		</p>
 
 		<h2>Acceptable use</h2>

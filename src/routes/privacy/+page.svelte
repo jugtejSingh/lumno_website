@@ -12,7 +12,7 @@
 	<Nav />
 	<main class="legal">
 		<h1 class="display">Privacy Policy</h1>
-		<p class="updated">Last updated: September 2, 2026</p>
+		<p class="updated">Last updated: September 6, 2026</p>
 
 		<p>
 			Lumno ("we", "us") provides practice-management software for therapists. This policy
@@ -34,14 +34,25 @@
 			To run the core features of the product: scheduling, reminders, payments, and notes. To
 			send transactional emails (booking confirmations, reminders). We do not sell client or
 			therapist data, and we do not use client notes for any purpose beyond displaying them back
-			to the therapist who wrote them.
+			to the therapist who wrote them. We do not run analytics, tracking, or advertising, and we
+			collect no data beyond what is needed to provide the service.
+		</p>
+
+		<h2>AI features</h2>
+		<p>
+			Some features (such as note cleanup and formatting) are performed by third-party AI
+			providers. These providers process the text only to return a result and do not store the
+			prompts or use them for training. We do not retain any additional consumer information as a
+			result of these features — the output is stored the same way as any other note, visible
+			only to the therapist who owns it.
 		</p>
 
 		<h2>Who can see it</h2>
 		<p>
 			Client notes and appointment details are visible only to the therapist who owns that
 			account. We do not access this data except as needed to provide support or maintain the
-			service.
+			service. All stored data is held securely and only for the account owner to view — no one
+			else.
 		</p>
 
 		<h2>Data retention & deletion</h2>
