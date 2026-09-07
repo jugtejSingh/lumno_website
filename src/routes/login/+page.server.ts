@@ -1,11 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { randomUUID } from 'node:crypto';
 import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { therapist } from '$lib/server/db/schema';
 import { destinationFor, destinationForRole } from '$lib/server/destination';
 import { requestTherapistUpgrade } from '$lib/server/therapistUpgrade';
+import { createTherapistProfile } from '$lib/server/therapistProfile';
 import { APIError } from 'better-auth/api';
 
 export const load: PageServerLoad = async (event) => {
@@ -85,14 +83,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await db.insert(therapist).values({
-				userId,
-				slug: randomUUID(),
-				photoUrl,
-				dateOfBirth,
-				bio,
-				tags
-			});
+			await createTherapistProfile(userId, { photoUrl, dateOfBirth, bio, tags });
 		} catch (error) {
 			const cause = error instanceof Error ? error.cause : undefined;
 			if (!(cause instanceof Error) || !('code' in cause) || cause.code !== '23503') {

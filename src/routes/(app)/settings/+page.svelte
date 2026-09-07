@@ -7,11 +7,12 @@
 	import Tag from '$lib/components/utils/Tag.svelte';
 	import Switch from '$lib/components/utils/Switch.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
+	import TimeInput from '$lib/components/utils/TimeInput.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import type { PageData } from './$types';
+	import type { PageData, ActionData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const TIER_NAMES: Record<number, string> = { 0: 'Free', 1: 'Basic', 2: 'Pro' };
 	let cancelling = $state(false);
@@ -36,6 +37,18 @@
 	];
 	const formatLabels = FORMAT_OPTIONS.map((o) => o.label);
 
+	const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+	const scheduleKindOptions = [
+		{ value: 'online', label: 'Online' },
+		{ value: 'in_person', label: 'In Person' },
+		{ value: 'off', label: 'Holiday' }
+	];
+	const packExhaustedOptions = [
+		{ value: 'block_booking', label: 'Block new bookings' },
+		{ value: 'require_single_payment', label: 'Charge per session' }
+	];
+
+	// ---- referral profile ----
 	let name = $state(data.profile.name);
 	let bio = $state(data.profile.bio);
 	let location = $state(data.profile.location ?? '');
@@ -49,9 +62,32 @@
 	let showRate = $state(data.profile.referralShowRate);
 	let specialties = $state(data.profile.tags);
 	let newTag = $state('');
+
+	// ---- schedule ----
+	let bufferMinutes = $state(data.schedule.bufferMinutes);
+	let workStart = $state(data.schedule.earliestBookingTime.slice(0, 5));
+	let workEnd = $state(data.schedule.latestBookingTime.slice(0, 5));
+	let weeklySchedule = $state([...data.schedule.weeklySchedule]);
+
+	// ---- notifications ----
+	let sendMeetLinks = $state(data.notifications.sendMeetLinks);
+	let sendBookingEmails = $state(data.notifications.sendBookingEmails);
+	let sendSessionReminderEmails = $state(data.notifications.sendSessionReminderEmails);
+	let sendPaymentReminderEmails = $state(data.notifications.sendPaymentReminderEmails);
+
+	// ---- payments ----
+	let packsEnabled = $state(data.payments.packsEnabled);
+	let packExhaustedAction = $state(data.payments.packExhaustedAction);
+	let freeChangeWindowHours = $state(data.payments.freeChangeWindowHours);
+	let partialChangeWindowHours = $state(
+		data.payments.partialChangeWindowHours === null
+			? ''
+			: String(data.payments.partialChangeWindowHours)
+	);
+
 	let saveLabel = $state('Save changes');
 
-	// account section stays non-functional (out of scope for the referrals pass)
+	// account section stays non-functional (out of scope)
 	let email = $state('');
 	let password = $state('');
 
@@ -81,7 +117,7 @@
 <form
 	class="settings"
 	method="POST"
-	action="?/saveReferralProfile"
+	action="?/save"
 	use:enhance={() => {
 		return async ({ update }) => {
 			await update({ reset: false });
@@ -95,11 +131,28 @@
 		<Button variant="primary" type="submit">{saveLabel}</Button>
 	</div>
 
+	{#if form?.message}
+		<div class="form-error">{form.message}</div>
+	{/if}
+
 	<input type="hidden" name="tags" value={specialties.join(',')} />
 	<input type="hidden" name="sessionFormat" value={formatValue} />
 	<input type="hidden" name="referralVisible" value={visible ? 'on' : ''} />
 	<input type="hidden" name="referralShowYears" value={showYears ? 'on' : ''} />
 	<input type="hidden" name="referralShowRate" value={showRate ? 'on' : ''} />
+	<input type="hidden" name="sendMeetLinks" value={sendMeetLinks ? 'on' : ''} />
+	<input type="hidden" name="sendBookingEmails" value={sendBookingEmails ? 'on' : ''} />
+	<input
+		type="hidden"
+		name="sendSessionReminderEmails"
+		value={sendSessionReminderEmails ? 'on' : ''}
+	/>
+	<input
+		type="hidden"
+		name="sendPaymentReminderEmails"
+		value={sendPaymentReminderEmails ? 'on' : ''}
+	/>
+	<input type="hidden" name="packsEnabled" value={packsEnabled ? 'on' : ''} />
 
 	<Card>
 		<div class="section">
@@ -158,6 +211,103 @@
 
 	<Card>
 		<div class="section">
+			<div class="section-title">Schedule</div>
+			<label class="field">
+				<span class="field-label">Buffer between sessions (minutes)</span>
+				<input
+					class="field-input"
+					type="number"
+					name="bufferMinutes"
+					min="0"
+					step="5"
+					bind:value={bufferMinutes}
+				/>
+			</label>
+			<div class="grid-2">
+				<TimeInput label="Working hours from" name="earliestBookingTime" bind:value={workStart} />
+				<TimeInput label="Working hours to" name="latestBookingTime" bind:value={workEnd} />
+			</div>
+			<div class="field">
+				<span class="field-label">Weekly pattern</span>
+				<div class="week-list">
+					{#each weekdayLabels as label, i (label)}
+						<label class="week-row">
+							<span class="week-day">{label}</span>
+							<select class="field-input" name="weeklySchedule" bind:value={weeklySchedule[i]}>
+								{#each scheduleKindOptions as k (k.value)}
+									<option value={k.value}>{k.label}</option>
+								{/each}
+							</select>
+						</label>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</Card>
+
+	<Card>
+		<div class="section">
+			<div class="section-title">Notifications</div>
+			{#if data.googleConnected}
+				<Switch label="Add a Google Meet link to online sessions" bind:checked={sendMeetLinks} />
+			{:else}
+				<div class="helper">
+					Connect Google Calendar (below) to add a Meet link to online sessions automatically.
+				</div>
+			{/if}
+			<Switch
+				label="Email clients when a session is booked, cancelled, or rescheduled"
+				bind:checked={sendBookingEmails}
+			/>
+			<Switch
+				label="Email clients a reminder 24 hours and 1 hour before their session"
+				bind:checked={sendSessionReminderEmails}
+			/>
+			<Switch
+				label="Email clients with an outstanding balance a reminder every week"
+				bind:checked={sendPaymentReminderEmails}
+			/>
+		</div>
+	</Card>
+
+	<Card>
+		<div class="section">
+			<div class="section-title">Payments</div>
+			<Switch label="Enable pre-paid session packs" bind:checked={packsEnabled} />
+			<label class="field">
+				<span class="field-label">When a pack runs out</span>
+				<select class="field-input" name="packExhaustedAction" bind:value={packExhaustedAction}>
+					{#each packExhaustedOptions as o (o.value)}
+						<option value={o.value}>{o.label}</option>
+					{/each}
+				</select>
+			</label>
+			<label class="field">
+				<span class="field-label">Free cancellation / reschedule window</span>
+				<select class="field-input" name="freeChangeWindowHours" bind:value={freeChangeWindowHours}>
+					{#each data.hourOptions as o (o.hours)}
+						<option value={o.hours}>{o.label}</option>
+					{/each}
+				</select>
+			</label>
+			<label class="field">
+				<span class="field-label">50% fee window</span>
+				<select
+					class="field-input"
+					name="partialChangeWindowHours"
+					bind:value={partialChangeWindowHours}
+				>
+					<option value="">No partial tier — straight to 100%</option>
+					{#each data.hourOptions as o (o.hours)}
+						<option value={o.hours}>{o.label}</option>
+					{/each}
+				</select>
+			</label>
+		</div>
+	</Card>
+
+	<Card>
+		<div class="section">
 			<div class="section-title">Plan</div>
 			<div class="plan-row">
 				<div class="plan-label">
@@ -194,12 +344,23 @@
 	</Card>
 </form>
 
+{#if !data.googleConnected}
+	<form class="connect-form" method="POST" action="?/connectGoogleCalendar">
+		<Button type="submit" variant="secondary">Connect Google Calendar</Button>
+	</form>
+{/if}
+
 <style>
 	.settings {
 		display: flex;
 		flex-direction: column;
 		gap: 24px;
 		max-width: 640px;
+	}
+
+	.connect-form {
+		max-width: 640px;
+		margin-top: 16px;
 	}
 
 	.header {
@@ -236,11 +397,49 @@
 		flex: 1;
 	}
 
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
 	.field-label {
 		font-size: 13px;
 		font-weight: 600;
 		color: var(--text-secondary);
 		margin-bottom: 6px;
+	}
+
+	.field-input {
+		font-family: var(--font-body);
+		font-size: 14px;
+		color: var(--text-primary);
+		background: var(--surface-card);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 10px 12px;
+	}
+
+	.week-list {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.week-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+
+	.week-day {
+		font-size: 13px;
+		color: var(--text-primary);
+	}
+
+	.week-row .field-input {
+		width: 160px;
 	}
 
 	.tag-row {
@@ -260,6 +459,11 @@
 		font-size: 13px;
 		color: var(--text-muted);
 		line-height: var(--lh-relaxed);
+	}
+
+	.form-error {
+		color: var(--danger, #b3261e);
+		font-size: 13px;
 	}
 
 	.plan-row {

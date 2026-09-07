@@ -3,7 +3,6 @@
 	import StatCard from '$lib/components/utils/StatCard.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import SessionPacksList from '$lib/components/Payments/SessionPacksList.svelte';
-	import PaymentSettingsForm from '$lib/components/Payments/PaymentSettingsForm.svelte';
 	import AddChargeDialog from '$lib/components/Payments/AddChargeDialog.svelte';
 	import AddPackDialog from '$lib/components/Payments/AddPackDialog.svelte';
 	import ClientPaymentsDialog from '$lib/components/Payments/ClientPaymentsDialog.svelte';
@@ -57,16 +56,6 @@
 		</div>
 
 		<SessionPacksList packs={data.packs} message={form?.message} onAddPack={() => (addPackOpen = true)} />
-
-		<PaymentSettingsForm
-			packsEnabled={data.paymentSettings.packsEnabled}
-			packExhaustedAction={data.paymentSettings.packExhaustedAction}
-			packExhaustedActionOptions={data.packExhaustedActionOptions}
-			hourOptions={data.hourOptions}
-			freeChangeWindowHours={data.paymentSettings.freeChangeWindowHours}
-			partialChangeWindowHours={data.paymentSettings.partialChangeWindowHours}
-			message={form?.message}
-		/>
 	</div>
 </div>
 

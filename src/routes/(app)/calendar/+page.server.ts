@@ -10,20 +10,9 @@ import {
 	markPastAppointmentsCompleted
 } from '$lib/server/appointments';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
-import { getNotificationSettings, updateNotificationSettings } from '$lib/server/settings';
-import { isGoogleCalendarConnected } from '$lib/server/googleCalendar';
-import { auth } from '$lib/server/auth';
-import { redirect } from '@sveltejs/kit';
 import { listClients } from '$lib/server/clients';
 import { addCharge } from '$lib/server/payments';
 import { listDayKindsForMonth } from '$lib/server/schedule';
-import {
-	getTherapistScheduleSettings,
-	updateTherapistScheduleSettings,
-	type ScheduleKind
-} from '$lib/server/settings';
-
-const validScheduleKinds: ScheduleKind[] = ['online', 'in_person', 'off'];
 
 const addAppointmentErrorMessages = {
 	invalid_range: 'End time must be after start time',
@@ -72,13 +61,10 @@ export const load: PageServerLoad = async (event) => {
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
 	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
 
-	const [appointments, clients, dayKinds, settings, notifications, googleConnected] = await Promise.all([
+	const [appointments, clients, dayKinds] = await Promise.all([
 		listAppointmentsForMonth(therapist.id, year, month),
 		listClients(therapist.id),
-		listDayKindsForMonth(therapist.id, year, month),
-		getTherapistScheduleSettings(therapist.id),
-		getNotificationSettings(therapist.id),
-		isGoogleCalendarConnected(therapist.userId)
+		listDayKindsForMonth(therapist.id, year, month)
 	]);
 	appointments.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
 
@@ -111,7 +97,7 @@ export const load: PageServerLoad = async (event) => {
 		});
 	}
 
-	return { year, month, sessionsByDay, settings, notifications, googleConnected, clients, dayKinds };
+	return { year, month, sessionsByDay, clients, dayKinds };
 };
 
 export const actions: Actions = {
@@ -214,66 +200,5 @@ export const actions: Actions = {
 		if ('error' in result) {
 			return fail(400, { message: rescheduleErrorMessages[result.error] });
 		}
-	},
-
-	updateNotifications: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		await updateNotificationSettings(therapistId, {
-			sendMeetLinks: formData.get('sendMeetLinks') === 'on',
-			sendBookingEmails: formData.get('sendBookingEmails') === 'on',
-			sendSessionReminderEmails: formData.get('sendSessionReminderEmails') === 'on',
-			sendPaymentReminderEmails: formData.get('sendPaymentReminderEmails') === 'on'
-		});
-	},
-
-	connectGoogleCalendar: async (event) => {
-		let url: string | undefined;
-		try {
-			const result = await auth.api.linkSocialAccount({
-				body: {
-					provider: 'google',
-					callbackURL: '/calendar',
-					scopes: ['https://www.googleapis.com/auth/calendar.events']
-				},
-				headers: event.request.headers
-			});
-			url = result.url;
-		} catch {
-			return fail(500, { message: 'Could not start Google Calendar connection' });
-		}
-		if (!url) {
-			return fail(500, { message: 'Could not start Google Calendar connection' });
-		}
-		return redirect(302, url);
-	},
-
-	updateSettings: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const bufferMinutes = Number(formData.get('bufferMinutes'));
-		const earliestBookingTime = formData.get('earliestBookingTime')?.toString() ?? '';
-		const latestBookingTime = formData.get('latestBookingTime')?.toString() ?? '';
-		const weeklySchedule = formData.getAll('weeklySchedule').map((v) => v.toString());
-
-		if (!earliestBookingTime || !latestBookingTime) {
-			return fail(400, { message: 'Pick both working hours' });
-		}
-		if (latestBookingTime <= earliestBookingTime) {
-			return fail(400, { message: 'Working hours must end after they start' });
-		}
-		if (!Number.isFinite(bufferMinutes) || bufferMinutes < 0) {
-			return fail(400, { message: 'Buffer must be a non-negative number of minutes' });
-		}
-		if (weeklySchedule.length !== 7 || !weeklySchedule.every((k) => validScheduleKinds.includes(k as ScheduleKind))) {
-			return fail(400, { message: 'Pick a valid type for every day of the week' });
-		}
-
-		await updateTherapistScheduleSettings(therapistId, {
-			bufferMinutes,
-			earliestBookingTime,
-			latestBookingTime,
-			weeklySchedule: weeklySchedule as ScheduleKind[]
-		});
 	}
 };

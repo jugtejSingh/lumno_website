@@ -1,9 +1,8 @@
 import { and, eq, gte, lt } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { therapist, therapistSettings, availabilityException } from '$lib/server/db/schema';
+import { therapist, availabilityException } from '$lib/server/db/schema';
 import { zonedDayBounds, getZonedWeekday } from '$lib/server/timezone';
-
-const allOnlineWeek = ['online', 'online', 'online', 'online', 'online', 'online', 'online'] as const;
+import { getTherapistScheduleSettings } from '$lib/server/settings';
 
 /** Effective schedule kind ('online' | 'in_person' | 'off') for each day of the month. */
 export async function listDayKindsForMonth(therapistId: string, year: number, month: number) {
@@ -13,11 +12,7 @@ export async function listDayKindsForMonth(therapistId: string, year: number, mo
 		.where(eq(therapist.id, therapistId));
 	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
 
-	const [settingsRow] = await db
-		.select({ weeklySchedule: therapistSettings.weeklySchedule })
-		.from(therapistSettings)
-		.where(eq(therapistSettings.therapistId, therapistId));
-	const weeklySchedule = settingsRow?.weeklySchedule ?? [...allOnlineWeek];
+	const { weeklySchedule } = await getTherapistScheduleSettings(therapistId);
 
 	const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 	const { start } = zonedDayBounds(year, month, 1, timezone);

@@ -16,7 +16,7 @@ beforeEach(async () => {
 });
 
 describe('schedule settings', () => {
-	it('returns defaults with no row, then round-trips an update', async () => {
+	it('returns the seeded defaults, then round-trips an update', async () => {
 		expect(await getTherapistScheduleSettings(therapistId)).toMatchObject({
 			bufferMinutes: 0,
 			earliestBookingTime: '09:00'
@@ -54,9 +54,10 @@ describe('notification settings', () => {
 });
 
 describe('payment settings', () => {
-	it('returns defaults with no row', async () => {
+	it('returns the seeded defaults', async () => {
 		expect(await getPaymentSettings(therapistId)).toEqual({
 			packsEnabled: false,
+			paymentMode: 'manual',
 			packExhaustedAction: 'require_single_payment',
 			freeChangeWindowHours: 24,
 			partialChangeWindowHours: 8

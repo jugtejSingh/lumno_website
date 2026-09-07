@@ -1,9 +1,7 @@
 import { redirect } from '@sveltejs/kit';
-import { randomUUID } from 'node:crypto';
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
-import { therapist } from '$lib/server/db/schema';
 import { destinationFor } from '$lib/server/destination';
+import { createTherapistProfile } from '$lib/server/therapistProfile';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -16,9 +14,7 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	// First time signing in with Google: provision a therapist profile, same as email sign-up.
-	await db.insert(therapist).values({
-		userId: event.locals.user.id,
-		slug: randomUUID(),
+	await createTherapistProfile(event.locals.user.id, {
 		photoUrl: event.locals.user.image ?? null
 	});
 

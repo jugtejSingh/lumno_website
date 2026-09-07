@@ -3,7 +3,6 @@
 	import MonthGrid from '$lib/components/Calendar/MonthGrid.svelte';
 	import DayDialog from '$lib/components/Calendar/DayDialog.svelte';
 	import TodayDialog from '$lib/components/Calendar/TodayDialog.svelte';
-	import SettingsDialog from '$lib/components/Calendar/SettingsDialog.svelte';
 	import { goto } from '$app/navigation';
 	import type { ActionData, PageData } from './$types';
 	import type { CalendarDay, CalendarWeek } from '$lib/types/calendar';
@@ -31,7 +30,6 @@
 
 	let dayDialogDay = $state<number | null>(null);
 	let todayDialogOpen = $state(false);
-	let settingsOpen = $state(false);
 
 	const monthLabel = $derived(
 		new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -87,7 +85,6 @@
 		</div>
 		<div class="toolbar-actions">
 			<Button variant="secondary" onclick={goToday}>Today</Button>
-			<Button variant="secondary" onclick={() => (settingsOpen = true)}>Settings</Button>
 		</div>
 	</div>
 
@@ -105,15 +102,6 @@
 />
 
 <TodayDialog open={todayDialogOpen} sessions={todaySessions} onclose={() => (todayDialogOpen = false)} />
-
-<SettingsDialog
-	open={settingsOpen}
-	settings={data.settings}
-	notifications={data.notifications}
-	googleConnected={data.googleConnected}
-	message={form?.message}
-	onclose={() => (settingsOpen = false)}
-/>
 
 <style>
 	.calendar {

@@ -10,12 +10,20 @@ export const packExhaustedActionEnum = pgEnum('pack_exhausted_action', [
 ]);
 export const packStatusEnum = pgEnum('pack_status', ['pending_payment', 'active', 'completed', 'cancelled']);
 export const paymentStatusEnum = pgEnum('payment_status', ['unpaid', 'paid']);
+// how a therapist collects session payments:
+//   'manual'    — client pays off-platform, therapist ticks the row paid (today's default)
+//   'automatic' — client pays inside the portal via Razorpay Route; the webhook ticks it
+// 'automatic' only takes effect when therapist.razorpayAccountId is set and currency is INR.
+export const paymentModeEnum = pgEnum('payment_mode', ['manual', 'automatic']);
+// how a specific payment row was settled — 'manual' until a Razorpay capture flips it
+export const paidViaEnum = pgEnum('paid_via', ['manual', 'razorpay']);
 
 export const paymentSettings = pgTable('payment_settings', {
 	therapistId: text('therapist_id')
 		.primaryKey()
 		.references(() => therapist.id, { onDelete: 'cascade' }),
 	packsEnabled: boolean('packs_enabled').notNull().default(false),
+	paymentMode: paymentModeEnum('payment_mode').notNull().default('manual'),
 	// what happens once a client's pack hits 0 remaining credits
 	packExhaustedAction: packExhaustedActionEnum('pack_exhausted_action')
 		.notNull()
@@ -81,6 +89,12 @@ export const payment = pgTable(
 		// free text context for the amount, e.g. "late cancellation fee (50%)"
 		note: text('note'),
 		status: paymentStatusEnum('status').notNull().default('unpaid'),
+		// set when portal checkout starts; the webhook looks the row up by this.
+		// unique so a retried checkout can't attach a second order to the same row.
+		razorpayOrderId: text('razorpay_order_id').unique(),
+		// the captured payment id from Razorpay — reconciliation / dashboard lookups
+		razorpayPaymentId: text('razorpay_payment_id'),
+		paidVia: paidViaEnum('paid_via').notNull().default('manual'),
 		paidAt: timestamp('paid_at'),
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')

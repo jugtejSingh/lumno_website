@@ -3,6 +3,7 @@ import { db, type DbOrTx } from '$lib/server/db';
 import { appointment, therapist, therapistSettings, client, availabilityException } from '$lib/server/db/schema';
 import { zonedDayBounds, zonedDateToUTC, getZonedWeekday, parseTimeOfDay } from '$lib/server/timezone';
 import { getPaymentSettings } from '$lib/server/paymentSettings';
+import { getTherapistScheduleSettings } from '$lib/server/settings';
 import { getActivePackForClient, hasOutstandingBalance, addCharge, completePackIfExhausted } from '$lib/server/payments';
 import { attachMeetingLinkIfOnline, finishReschedule, type RescheduleAppointmentResult } from '$lib/server/appointments';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
@@ -28,14 +29,10 @@ export async function listAvailabilityForMonth(therapistId: string, year: number
 		.where(eq(therapist.id, therapistId));
 	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
 
-	const [settingsRow] = await db
-		.select()
-		.from(therapistSettings)
-		.where(eq(therapistSettings.therapistId, therapistId));
-	const weeklySchedule = settingsRow?.weeklySchedule ?? Array(7).fill('online');
-	const bufferMinutes = settingsRow?.bufferMinutes ?? 0;
-	const [earliestHour, earliestMinute] = parseTimeOfDay(settingsRow?.earliestBookingTime ?? '09:00');
-	const [latestHour, latestMinute] = parseTimeOfDay(settingsRow?.latestBookingTime ?? '20:00');
+	const { weeklySchedule, bufferMinutes, earliestBookingTime, latestBookingTime } =
+		await getTherapistScheduleSettings(therapistId);
+	const [earliestHour, earliestMinute] = parseTimeOfDay(earliestBookingTime);
+	const [latestHour, latestMinute] = parseTimeOfDay(latestBookingTime);
 	const latestTotalMinutes = latestHour * 60 + latestMinute;
 
 	const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();

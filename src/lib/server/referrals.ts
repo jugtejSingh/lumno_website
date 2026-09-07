@@ -1,5 +1,5 @@
 import { and, eq, ilike, ne, or, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { db, type DbOrTx } from '$lib/server/db';
 import { therapist, therapistSettings, user } from '$lib/server/db/schema';
 import { formatCurrency } from '$lib/format';
 import type { ReferralListPage, ReferralTherapist, SpecialtyTag } from '$lib/types/referrals';
@@ -169,8 +169,12 @@ export type ReferralProfileInput = {
 	referralShowRate: boolean;
 };
 
-export async function updateReferralProfile(therapistId: string, input: ReferralProfileInput) {
-	const [row] = await db
+export async function updateReferralProfile(
+	therapistId: string,
+	input: ReferralProfileInput,
+	executor: DbOrTx = db
+) {
+	const [row] = await executor
 		.update(therapist)
 		.set({
 			bio: input.bio,
@@ -183,15 +187,14 @@ export async function updateReferralProfile(therapistId: string, input: Referral
 		.where(eq(therapist.id, therapistId))
 		.returning({ userId: therapist.userId });
 
-	await db.update(user).set({ name: input.name }).where(eq(user.id, row.userId));
+	await executor.update(user).set({ name: input.name }).where(eq(user.id, row.userId));
 
-	const settings = {
-		referralVisible: input.referralVisible,
-		referralShowYears: input.referralShowYears,
-		referralShowRate: input.referralShowRate
-	};
-	await db
-		.insert(therapistSettings)
-		.values({ therapistId, ...settings })
-		.onConflictDoUpdate({ target: therapistSettings.therapistId, set: settings });
+	await executor
+		.update(therapistSettings)
+		.set({
+			referralVisible: input.referralVisible,
+			referralShowYears: input.referralShowYears,
+			referralShowRate: input.referralShowRate
+		})
+		.where(eq(therapistSettings.therapistId, therapistId));
 }

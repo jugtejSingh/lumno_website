@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { createTherapistProfile } from '$lib/server/therapistProfile';
 import {
 	user,
 	therapist,
@@ -48,10 +49,10 @@ export async function mkUser(overrides: Partial<typeof user.$inferInsert> = {}) 
 
 export async function mkTherapist(overrides: Partial<typeof therapist.$inferInsert> = {}) {
 	const u = await mkUser();
-	const [row] = await db
-		.insert(therapist)
-		.values({ userId: u.id, slug: `t-${randomUUID().slice(0, 8)}`, ...overrides })
-		.returning();
+	const row = await createTherapistProfile(u.id, {
+		slug: `t-${randomUUID().slice(0, 8)}`,
+		...overrides
+	});
 	return { ...row, user: u };
 }
 
@@ -66,24 +67,27 @@ export async function mkClient(
 	return row;
 }
 
+// The row already exists (seeded by createTherapistProfile) — these just patch it.
 export async function mkSettings(
 	therapistId: string,
-	overrides: Partial<typeof therapistSettings.$inferInsert> = {}
+	overrides: Partial<typeof therapistSettings.$inferInsert>
 ) {
 	const [row] = await db
-		.insert(therapistSettings)
-		.values({ therapistId, ...overrides })
+		.update(therapistSettings)
+		.set(overrides)
+		.where(eq(therapistSettings.therapistId, therapistId))
 		.returning();
 	return row;
 }
 
 export async function mkPaymentSettings(
 	therapistId: string,
-	overrides: Partial<typeof paymentSettings.$inferInsert> = {}
+	overrides: Partial<typeof paymentSettings.$inferInsert>
 ) {
 	const [row] = await db
-		.insert(paymentSettings)
-		.values({ therapistId, ...overrides })
+		.update(paymentSettings)
+		.set(overrides)
+		.where(eq(paymentSettings.therapistId, therapistId))
 		.returning();
 	return row;
 }

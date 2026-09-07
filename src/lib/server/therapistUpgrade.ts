@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { therapist, user, verification } from '$lib/server/db/schema';
+import { createTherapistProfile } from '$lib/server/therapistProfile';
 
 const UPGRADE_TTL_MS = 24 * 60 * 60 * 1000;
 const IDENTIFIER_PREFIX = 'become-therapist:';
@@ -77,7 +78,7 @@ export async function completeTherapistUpgrade(token: string) {
 	if (name) {
 		await db.update(user).set({ name }).where(eq(user.id, userId));
 	}
-	await db.insert(therapist).values({ userId, slug: randomUUID() });
+	await createTherapistProfile(userId);
 
 	return { success: true as const };
 }

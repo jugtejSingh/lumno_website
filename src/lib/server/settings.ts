@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { db, type DbOrTx } from '$lib/server/db';
 import { therapistSettings } from '$lib/server/db/schema';
 
 export type ScheduleKind = 'online' | 'in_person' | 'off';
@@ -14,13 +14,6 @@ export type TherapistScheduleSettings = {
 	weeklySchedule: WeeklySchedule;
 };
 
-const defaults: TherapistScheduleSettings = {
-	bufferMinutes: 0,
-	earliestBookingTime: '09:00',
-	latestBookingTime: '20:00',
-	weeklySchedule: ['online', 'online', 'online', 'online', 'online', 'online', 'online']
-};
-
 export async function getTherapistScheduleSettings(therapistId: string): Promise<TherapistScheduleSettings> {
 	const [row] = await db
 		.select({
@@ -31,17 +24,19 @@ export async function getTherapistScheduleSettings(therapistId: string): Promise
 		})
 		.from(therapistSettings)
 		.where(eq(therapistSettings.therapistId, therapistId));
-	return row ?? defaults;
+	// ponytail: row seeded at therapist creation (therapistProfile.ts), always present
+	return row!;
 }
 
 export async function updateTherapistScheduleSettings(
 	therapistId: string,
-	input: TherapistScheduleSettings
+	input: TherapistScheduleSettings,
+	executor: DbOrTx = db
 ) {
-	await db
-		.insert(therapistSettings)
-		.values({ therapistId, ...input })
-		.onConflictDoUpdate({ target: therapistSettings.therapistId, set: input });
+	await executor
+		.update(therapistSettings)
+		.set(input)
+		.where(eq(therapistSettings.therapistId, therapistId));
 }
 
 export type NotificationSettings = {
@@ -49,13 +44,6 @@ export type NotificationSettings = {
 	sendBookingEmails: boolean;
 	sendSessionReminderEmails: boolean;
 	sendPaymentReminderEmails: boolean;
-};
-
-const notificationDefaults: NotificationSettings = {
-	sendMeetLinks: true,
-	sendBookingEmails: true,
-	sendSessionReminderEmails: true,
-	sendPaymentReminderEmails: true
 };
 
 export async function getNotificationSettings(therapistId: string): Promise<NotificationSettings> {
@@ -68,12 +56,17 @@ export async function getNotificationSettings(therapistId: string): Promise<Noti
 		})
 		.from(therapistSettings)
 		.where(eq(therapistSettings.therapistId, therapistId));
-	return row ?? notificationDefaults;
+	// ponytail: row seeded at therapist creation (therapistProfile.ts), always present
+	return row!;
 }
 
-export async function updateNotificationSettings(therapistId: string, input: NotificationSettings) {
-	await db
-		.insert(therapistSettings)
-		.values({ therapistId, ...input })
-		.onConflictDoUpdate({ target: therapistSettings.therapistId, set: input });
+export async function updateNotificationSettings(
+	therapistId: string,
+	input: NotificationSettings,
+	executor: DbOrTx = db
+) {
+	await executor
+		.update(therapistSettings)
+		.set(input)
+		.where(eq(therapistSettings.therapistId, therapistId));
 }
