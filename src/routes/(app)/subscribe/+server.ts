@@ -7,7 +7,12 @@ import {
 	finalizePendingSlot,
 	getOrCreateSubscription
 } from '$lib/server/billing';
-import { cancelSubscription, createSubscription, planIdFor, razorpayKeyId } from '$lib/server/razorpay';
+import {
+	cancelSubscription,
+	createSubscription,
+	planIdFor,
+	razorpayKeyId
+} from '$lib/server/razorpay';
 
 // A pending sub id is reused only while comfortably inside Razorpay's 30-minute
 // expire_by window (subscriptions.create) — otherwise it's treated as expired
@@ -31,7 +36,12 @@ async function createOrReusePendingSub(
 
 	// Reuse — a fresh pending sub for this exact plan already exists (refresh,
 	// back-button, second tab). Create nothing on Razorpay.
-	if (pending && pending !== CREATING_SENTINEL && subscription.pendingPlanId === planId && pendingFresh) {
+	if (
+		pending &&
+		pending !== CREATING_SENTINEL &&
+		subscription.pendingPlanId === planId &&
+		pendingFresh
+	) {
 		return pending;
 	}
 
@@ -56,7 +66,8 @@ async function createOrReusePendingSub(
 	let newSub;
 	try {
 		newSub = await createSubscription(planNumber, { therapistId });
-	} catch {
+	} catch (err) {
+		console.error('razorpay subscriptions.create failed', err);
 		// Release the slot so the therapist can retry immediately, not in 60s.
 		await clearPendingSlot(therapistId, CREATING_SENTINEL);
 		error(500, 'subscription_creation_failed');
@@ -98,10 +109,7 @@ async function changePlan(
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.therapistId) {
-		error(401, 'unauthenticated');
-	}
-	const therapistId = locals.therapistId;
+	const therapistId = locals.therapistId!;
 	const body = await request.json();
 	const planNumber = Number(body.plan);
 	if (planNumber !== 1 && planNumber !== 2) {

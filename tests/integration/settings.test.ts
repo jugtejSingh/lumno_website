@@ -67,8 +67,6 @@ describe('payment settings', () => {
 	it('rejects a partial window that is not shorter than the free window', async () => {
 		await expect(
 			updatePaymentSettings(therapistId, {
-				packsEnabled: true,
-				packExhaustedAction: 'block_booking',
 				freeChangeWindowHours: 12,
 				partialChangeWindowHours: 24
 			})
@@ -77,14 +75,12 @@ describe('payment settings', () => {
 
 	it('saves a valid update', async () => {
 		await updatePaymentSettings(therapistId, {
-			packsEnabled: true,
-			packExhaustedAction: 'block_booking',
 			freeChangeWindowHours: 48,
 			partialChangeWindowHours: 12
 		});
 		expect(await getPaymentSettings(therapistId)).toMatchObject({
-			packsEnabled: true,
-			freeChangeWindowHours: 48
+			freeChangeWindowHours: 48,
+			partialChangeWindowHours: 12
 		});
 	});
 });

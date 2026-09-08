@@ -1,12 +1,20 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { handleWebhookEvent, syncClientActivationForCap } from '$lib/server/billing';
+import {
+	handleWebhookEvent,
+	recordWebhookEvent,
+	syncClientActivationForCap
+} from '$lib/server/billing';
 import { cancelSubscription, planNumberFor, verifyWebhookSignature } from '$lib/server/razorpay';
+import { revokeConnectionByAccountId } from '$lib/server/razorpayConnection';
+import { handleSessionInvoicePaid } from '$lib/server/sessionPayments';
 
 // Just the fields we read out of a Razorpay subscription webhook payload.
 // https://razorpay.com/docs/webhooks/payloads/subscriptions/
 interface RazorpayWebhookPayload {
 	event: string;
+	// account.app.authorization_revoked carries the account id at the top level.
+	account_id?: string;
 	payload: {
 		subscription?: {
 			entity: {
@@ -22,6 +30,7 @@ interface RazorpayWebhookPayload {
 				id: string;
 				amount: number;
 				currency: string;
+				order_id?: string; // set for order-backed payments (portal invoices)
 			};
 		};
 	};
@@ -46,6 +55,43 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const payload: RazorpayWebhookPayload = JSON.parse(rawBody);
+
+	// ── Partner-OAuth events — branch before the subscription check ──────────
+	// (design doc §12.10). Both dedupe on the razorpay_event unique signature.
+
+	if (payload.event === 'payment.captured') {
+		const pay = payload.payload.payment?.entity;
+		// order_id absent → a subscription/standalone payment, not a portal
+		// invoice; handleSessionInvoicePaid would no-op anyway, so skip early.
+		if (pay?.order_id) {
+			const fresh = await recordWebhookEvent({
+				signature,
+				event: payload.event,
+				razorpayPaymentId: pay.id,
+				amount: pay.amount
+			});
+			if (fresh) {
+				await handleSessionInvoicePaid({
+					orderId: pay.order_id,
+					razorpayPaymentId: pay.id,
+					amountMinor: pay.amount
+				});
+			}
+			return new Response(null, { status: 200 });
+		}
+	}
+
+	if (payload.event === 'account.app.authorization_revoked') {
+		const accountId = payload.account_id;
+		if (accountId) {
+			const fresh = await recordWebhookEvent({ signature, event: payload.event });
+			if (fresh) {
+				await revokeConnectionByAccountId(accountId);
+			}
+		}
+		return new Response(null, { status: 200 });
+	}
+
 	const subEntity = payload.payload.subscription?.entity;
 	const payEntity = payload.payload.payment?.entity;
 	const therapistId = subEntity?.notes?.therapistId;

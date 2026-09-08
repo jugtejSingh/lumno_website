@@ -5,15 +5,28 @@ import { db } from '$lib/server/db';
 import { therapist, user, client as clientTable } from '$lib/server/db/schema';
 import { listClientsForUser } from '$lib/server/clients';
 import { setActiveClientCookie } from '$lib/server/activeClient';
-import { listUpcomingAppointmentsForClient, cancelAppointment, markPastAppointmentsCompleted } from '$lib/server/appointments';
-import { listAvailabilityForMonth, createAppointmentForClient, rescheduleAppointmentForClient } from '$lib/server/availability';
+import {
+	listUpcomingAppointmentsForClient,
+	cancelAppointment,
+	markPastAppointmentsCompleted
+} from '$lib/server/appointments';
+import {
+	listAvailabilityForMonth,
+	createAppointmentForClient,
+	rescheduleAppointmentForClient
+} from '$lib/server/availability';
 import { listSharedNotesForClient } from '$lib/server/notes';
-import { listVisiblePaymentsForClient, getActivePackForClient } from '$lib/server/payments';
+import { listVisiblePaymentsForClient } from '$lib/server/payments';
 import { getPaymentSettings } from '$lib/server/paymentSettings';
+import { connectionHealth } from '$lib/server/razorpayConnection';
+import { startInvoiceCheckout } from '$lib/server/sessionPayments';
 import { formatCancellationPolicy } from '$lib/server/paymentPolicy';
 import { formatCurrency } from '$lib/format';
 
-const modalityLabel: Record<string, string> = { online: 'Online session', in_person: 'In-person session' };
+const modalityLabel: Record<string, string> = {
+	online: 'Online session',
+	in_person: 'In-person session'
+};
 
 export const load: PageServerLoad = async (event) => {
 	const { client } = await event.parent();
@@ -34,14 +47,20 @@ export const load: PageServerLoad = async (event) => {
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
 	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
 
-	const [upcoming, slotsByDay, sharedNoteRows, payments, activePack, paymentSettings] = await Promise.all([
-		listUpcomingAppointmentsForClient(client.id, timezone),
-		listAvailabilityForMonth(client.therapistId, year, month),
-		listSharedNotesForClient(client.id),
-		listVisiblePaymentsForClient(client.id),
-		getActivePackForClient(client.id),
-		getPaymentSettings(client.therapistId)
-	]);
+	const [upcoming, slotsByDay, sharedNoteRows, payments, paymentSettings, rzpHealth] =
+		await Promise.all([
+			listUpcomingAppointmentsForClient(client.id, timezone),
+			listAvailabilityForMonth(client.therapistId, year, month),
+			listSharedNotesForClient(client.id),
+			listVisiblePaymentsForClient(client.id),
+			getPaymentSettings(client.therapistId),
+			connectionHealth(client.therapistId)
+		]);
+
+	// ponytail: gate on 'connected' per design §12.9. 'expiring' also has live
+	// tokens but refreshExpiresAt is pushed 180d out on every refresh, so it
+	// realistically never shows before the Phase 3 cron lands.
+	const portalPayEnabled = currency === 'INR' && rzpHealth === 'connected';
 
 	const sessions = upcoming.map((appt) => ({
 		id: appt.id,
@@ -52,8 +71,12 @@ export const load: PageServerLoad = async (event) => {
 		meetLink: appt.meetLink
 	}));
 
-	const balanceDue = payments.filter((p) => p.status === 'unpaid').reduce((sum, p) => sum + p.amount, 0);
-	const paidTotal = payments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+	const balanceDue = payments
+		.filter((p) => p.status === 'unpaid')
+		.reduce((sum, p) => sum + p.amount, 0);
+	const paidTotal = payments
+		.filter((p) => p.status === 'paid')
+		.reduce((sum, p) => sum + p.amount, 0);
 
 	const invoices = payments.map((p) => ({
 		id: p.id,
@@ -62,11 +85,16 @@ export const load: PageServerLoad = async (event) => {
 		note: p.note,
 		status: p.status,
 		tone: p.status === 'paid' ? ('success' as const) : ('citrus' as const),
-		due: p.status === 'unpaid'
+		due: p.status === 'unpaid',
+		payable: p.status === 'unpaid' && portalPayEnabled
 	}));
 
 	const sharedNotes = sharedNoteRows.map((n) => ({
-		date: n.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+		date: n.createdAt.toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		}),
 		text: n.body // markdown source, rendered client-side
 	}));
 
@@ -81,9 +109,6 @@ export const load: PageServerLoad = async (event) => {
 		sharedNotes,
 		balanceDue: formatCurrency(balanceDue, currency),
 		paidTotal: formatCurrency(paidTotal, currency),
-		activePack: activePack
-			? { remaining: activePack.remaining, sessionCount: activePack.sessionCount, amount: formatCurrency(activePack.amount, currency) }
-			: null,
 		cancellationPolicy: formatCancellationPolicy(paymentSettings)
 	};
 };
@@ -91,7 +116,8 @@ export const load: PageServerLoad = async (event) => {
 const bookSessionErrorMessages = {
 	unavailable: 'That time is no longer available',
 	overlap: 'That time was just booked — pick another',
-	balance_due: 'You have an outstanding balance — please settle it with your therapist before booking',
+	balance_due:
+		'You have an outstanding balance — please settle it with your therapist before booking',
 	pack_exhausted: 'Your session pack is used up — contact your therapist to book another session',
 	client_inactive: 'Your therapist needs to upgrade their plan before you can book a new session'
 } as const;
@@ -173,7 +199,11 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const appointmentId = formData.get('appointmentId')?.toString() ?? '';
 
-		const result = await cancelAppointment(clientRow.therapistId, appointmentId, event.locals.clientId);
+		const result = await cancelAppointment(
+			clientRow.therapistId,
+			appointmentId,
+			event.locals.clientId
+		);
 		if ('error' in result) {
 			return fail(400, { message: 'That session could not be found' });
 		}
@@ -199,15 +229,39 @@ export const actions: Actions = {
 		const day = Number(formData.get('day'));
 		const startTime = formData.get('startTime')?.toString() ?? '';
 
-		const result = await rescheduleAppointmentForClient(clientRow.therapistId, event.locals.clientId, appointmentId, {
-			year,
-			month,
-			day,
-			startTime
-		});
+		const result = await rescheduleAppointmentForClient(
+			clientRow.therapistId,
+			event.locals.clientId,
+			appointmentId,
+			{
+				year,
+				month,
+				day,
+				startTime
+			}
+		);
 
 		if ('error' in result) {
 			return fail(400, { message: rescheduleErrorMessages[result.error] });
 		}
+	},
+
+	payInvoice: async (event) => {
+		if (!event.locals.clientId) {
+			return fail(401);
+		}
+		const paymentId = (await event.request.formData()).get('paymentId')?.toString() ?? '';
+		const result = await startInvoiceCheckout(event.locals.clientId, paymentId);
+		if (!result.ok) {
+			return fail(400, { message: result.message });
+		}
+		return {
+			checkout: {
+				orderId: result.orderId,
+				key: result.key,
+				amountMinor: result.amountMinor,
+				therapistName: result.therapistName
+			}
+		};
 	}
 };

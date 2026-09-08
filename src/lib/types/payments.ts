@@ -1,12 +1,3 @@
-export type PackRow = {
-	id: string;
-	clientName: string;
-	sessionCount: number;
-	amount: number;
-	status: 'pending_payment' | 'active' | 'completed' | 'cancelled';
-	remaining: number;
-};
-
 export type ClientBalance = {
 	clientId: string;
 	name: string;

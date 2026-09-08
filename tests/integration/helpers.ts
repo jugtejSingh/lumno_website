@@ -18,6 +18,9 @@ import {
 
 const TABLES = [
 	'client_note',
+	'razorpay_event',
+	'razorpay_reconcile_exception',
+	'therapist_razorpay_connection',
 	'payment',
 	'payment_pack',
 	'payment_settings',

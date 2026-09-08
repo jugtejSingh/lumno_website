@@ -4,11 +4,6 @@ import {
 	getMonthlyPaymentSummary,
 	listOutstandingBalancesByClient,
 	setPaymentStatus,
-	listPacksForTherapist,
-	createPack,
-	updatePack,
-	markPackPaid,
-	cancelPack,
 	addCharge,
 	updatePayment,
 	deletePayment
@@ -23,10 +18,9 @@ export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
 	const now = new Date();
 
-	const [summary, balances, packs, clients] = await Promise.all([
+	const [summary, balances, clients] = await Promise.all([
 		getMonthlyPaymentSummary(therapist.id, now.getFullYear(), now.getMonth()),
 		listOutstandingBalancesByClient(therapist.id),
-		listPacksForTherapist(therapist.id),
 		listClients(therapist.id)
 	]);
 
@@ -34,7 +28,6 @@ export const load: PageServerLoad = async (event) => {
 		summary,
 		balances: balances.slice(0, TOP_BALANCES_SHOWN),
 		currency: therapist.currency,
-		packs,
 		clients: clients.map((c) => ({ id: c.id, name: c.name }))
 	};
 };
@@ -84,55 +77,5 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const paymentId = formData.get('paymentId')?.toString() ?? '';
 		await deletePayment(therapistId, paymentId);
-	},
-
-	addPack: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const clientId = formData.get('clientId')?.toString() ?? '';
-		const sessionCount = Number(formData.get('sessionCount'));
-		const amount = Number(formData.get('amount'));
-
-		if (!clientId || !sessionCount || sessionCount < 1 || !amount || amount < 1) {
-			return fail(400, { message: 'Pick a client and enter a session count and amount greater than 0' });
-		}
-
-		await createPack(therapistId, { clientId, sessionCount, amount });
-	},
-
-	updatePack: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const packId = formData.get('packId')?.toString() ?? '';
-		const sessionCount = Number(formData.get('sessionCount'));
-		const amount = Number(formData.get('amount'));
-
-		const result = await updatePack(therapistId, packId, { sessionCount, amount });
-		if ('error' in result) {
-			return fail(400, { message: 'Session count can’t go below sessions already used' });
-		}
-	},
-
-	markPackPaid: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const packId = formData.get('packId')?.toString() ?? '';
-
-		const result = await markPackPaid(therapistId, packId);
-		if ('error' in result) {
-			return fail(400, {
-				message:
-					result.error === 'client_has_active_pack'
-						? `This client still has ${result.remaining} session(s) left on their current pack`
-						: 'Pack not found'
-			});
-		}
-	},
-
-	cancelPack: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const packId = formData.get('packId')?.toString() ?? '';
-		await cancelPack(therapistId, packId);
 	}
 };

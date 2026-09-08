@@ -26,7 +26,10 @@ declare global {
 	interface Window {
 		Razorpay: new (options: {
 			key: string;
-			subscription_id: string;
+			subscription_id?: string; // subscription checkout (pricing page)
+			order_id?: string; // order checkout (portal invoice payment)
+			amount?: number; // paise — order checkout only
+			currency?: string;
 			name?: string;
 			handler?: (response: unknown) => void;
 			modal?: { ondismiss?: () => void };

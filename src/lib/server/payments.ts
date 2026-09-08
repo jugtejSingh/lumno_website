@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, inArray, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
+import type { PgUpdateSetSource } from 'drizzle-orm/pg-core';
 import { db, type DbOrTx } from '$lib/server/db';
 import { payment, paymentPack, appointment, client } from '$lib/server/db/schema';
 
@@ -34,9 +35,17 @@ export async function updatePayment(
 	paymentId: string,
 	input: { amount?: number; note?: string | null }
 ) {
+	const set: PgUpdateSetSource<typeof payment> = { ...input };
+	if (input.amount !== undefined) {
+		// A Razorpay order is minted for a fixed amount, so an order attached to this
+		// row is now stale — drop it and the next "Pay now" creates a fresh one (the
+		// orphaned order just expires). Paid rows keep theirs: that's the audit link.
+		set.razorpayOrderId = sql`case when ${payment.status} = 'unpaid' then null else ${payment.razorpayOrderId} end`;
+		set.razorpayOrderCreatedAt = sql`case when ${payment.status} = 'unpaid' then null else ${payment.razorpayOrderCreatedAt} end`;
+	}
 	await db
 		.update(payment)
-		.set(input)
+		.set(set)
 		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)));
 }
 

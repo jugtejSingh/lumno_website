@@ -77,9 +77,10 @@ export async function claimPendingSlot(therapistId: string, seen: string | null)
 	// eq(x, null) is never true in SQL (NULL comparisons are UNKNOWN) — the
 	// isNull() branch below is what covers the seen === null case, so only add
 	// the eq() branch when seen is an actual id.
-	const slotFree = seen === null
-		? isNull(subscription.pendingSubId)
-		: or(isNull(subscription.pendingSubId), eq(subscription.pendingSubId, seen));
+	const slotFree =
+		seen === null
+			? isNull(subscription.pendingSubId)
+			: or(isNull(subscription.pendingSubId), eq(subscription.pendingSubId, seen));
 
 	const [claimed] = await db
 		.update(subscription)
@@ -87,7 +88,13 @@ export async function claimPendingSlot(therapistId: string, seen: string | null)
 		.where(
 			and(
 				eq(subscription.therapistId, therapistId),
-				or(slotFree, lt(subscription.pendingSince, sql`now() - interval '${sql.raw(String(STALE_SECONDS))} seconds'`))
+				or(
+					slotFree,
+					lt(
+						subscription.pendingSince,
+						sql`now() - interval '${sql.raw(String(STALE_SECONDS))} seconds'`
+					)
+				)
 			)
 		)
 		.returning({ id: subscription.id });
@@ -96,7 +103,11 @@ export async function claimPendingSlot(therapistId: string, seen: string | null)
 
 // Write the real created-subscription id into the slot we hold, replacing the
 // sentinel. Matches edvion's finalize_pending.
-export async function finalizePendingSlot(therapistId: string, subId: string, planId: string): Promise<void> {
+export async function finalizePendingSlot(
+	therapistId: string,
+	subId: string,
+	planId: string
+): Promise<void> {
 	await db
 		.update(subscription)
 		.set({ pendingSubId: subId, pendingPlanId: planId, pendingSince: new Date() })
@@ -247,6 +258,31 @@ export async function handleWebhookEvent(
 
 		return { processed: true, oldSubId };
 	});
+}
+
+// Layer-1 dedup (the razorpay_event unique `signature`) for webhook events that
+// don't run through handleWebhookEvent — the partner-OAuth `payment.captured`
+// and `account.app.authorization_revoked` branches. Returns false when this
+// signature was already recorded, i.e. a replay the caller should skip.
+export async function recordWebhookEvent(fields: {
+	signature: string;
+	event: string;
+	therapistId?: string | null;
+	razorpayPaymentId?: string | null;
+	amount?: number | null;
+}): Promise<boolean> {
+	const [inserted] = await db
+		.insert(razorpayEvent)
+		.values({
+			signature: fields.signature,
+			event: fields.event,
+			therapistId: fields.therapistId ?? null,
+			razorpayPaymentId: fields.razorpayPaymentId ?? null,
+			amount: fields.amount ?? null
+		})
+		.onConflictDoNothing({ target: razorpayEvent.signature })
+		.returning({ id: razorpayEvent.id });
+	return Boolean(inserted);
 }
 
 export type EffectivePlan = {

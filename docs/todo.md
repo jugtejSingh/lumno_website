@@ -7,3 +7,5 @@ Would be cool to have a notes picture in picture with google meets so the person
 Referrals per person for a month off
 
 Payment to send email ads to people to book that havent in over a month
+
+Continue with google for clients

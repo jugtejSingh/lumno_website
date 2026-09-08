@@ -1,6 +1,14 @@
 import { and, eq, gt, isNull, lte, sql } from 'drizzle-orm';
+import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
-import { appointment, client, therapist, therapistSettings, user } from '$lib/server/db/schema';
+import {
+	appointment,
+	client,
+	therapist,
+	therapistRazorpayConnection,
+	therapistSettings,
+	user
+} from '$lib/server/db/schema';
 import { payment, paymentPack } from '$lib/server/db/payments.schema';
 import { sendEmail, wrapEmail } from '$lib/server/email';
 import { formatCurrency } from '$lib/format';
@@ -101,6 +109,53 @@ async function sendSessionReminderBatch(
 // Nags clients with an outstanding balance, throttled to once every 7 days per client via
 // lastPaymentReminderAt. Gated on the therapist's sendPaymentReminderEmails setting and on
 // the client having an email (walk-ins have no client row to nag). Never throws.
+// Failure-driven reconnect nudge: the authorization_revoked webhook (Phase 2) and,
+// later, getAccessToken hitting a 4xx on refresh (Phase 3). Throttled off
+// reconnectEmailSentAt so a therapist whose token died isn't emailed on every
+// cron tick. storeConnection clears the timestamp on a successful reconnect.
+export async function sendRazorpayReconnectEmail(
+	therapistId: string,
+	reason: 'revoked' | 'refresh_failed'
+): Promise<void> {
+	const [row] = await db
+		.select({
+			email: user.email,
+			sentAt: therapistRazorpayConnection.reconnectEmailSentAt
+		})
+		.from(therapistRazorpayConnection)
+		.innerJoin(therapist, eq(therapist.id, therapistRazorpayConnection.therapistId))
+		.innerJoin(user, eq(user.id, therapist.userId))
+		.where(eq(therapistRazorpayConnection.therapistId, therapistId));
+
+	if (!row || !row.email) {
+		return;
+	}
+	if (row.sentAt && Date.now() - row.sentAt.getTime() < DAY_MS) {
+		return;
+	}
+
+	// Link to the settings page, not the OAuth kick-off endpoint: a logged-out
+	// therapist gets bounced to /login with no return-to, and a bare +server route
+	// is a dead end after that. The settings banner carries the Reconnect link.
+	const url = `${env.ORIGIN}/settings`;
+	const lead =
+		reason === 'revoked'
+			? 'Your Razorpay account was disconnected from Lumno, so clients can no longer pay their invoices in the portal.'
+			: 'Lumno lost access to your Razorpay account, so clients can no longer pay their invoices in the portal.';
+	const html = wrapEmail({
+		heading: 'Reconnect Razorpay to resume portal payments',
+		bodyHtml: `<p>${lead}</p><p>Open Settings and choose <strong>Reconnect</strong> under Payments. It takes a few seconds and restores portal payments right away. Existing invoices are unaffected — clients can still pay you directly in the meantime.</p>`,
+		cta: { text: 'Open Settings', url }
+	});
+	await sendEmail(row.email, 'Reconnect Razorpay to resume portal payments', html, {
+		text: `${lead}\n\nOpen Settings and choose Reconnect under Payments: ${url}`
+	});
+	await db
+		.update(therapistRazorpayConnection)
+		.set({ reconnectEmailSentAt: new Date() })
+		.where(eq(therapistRazorpayConnection.therapistId, therapistId));
+}
+
 export async function sendPaymentReminders(): Promise<void> {
 	const cooldownCutoff = new Date(Date.now() - WEEK_MS);
 

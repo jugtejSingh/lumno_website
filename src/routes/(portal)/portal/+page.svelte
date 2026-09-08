@@ -8,14 +8,72 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import PortalMonthGrid from '$lib/components/Calendar/PortalMonthGrid.svelte';
 	import BookSlotDialog from '$lib/components/Calendar/BookSlotDialog.svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let bookDay = $state<number | null>(null);
 	let rescheduleId = $state<string | null>(null);
+	let payingId = $state<string | null>(null);
+
+	function loadCheckoutScript(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (window.Razorpay) {
+				resolve();
+				return;
+			}
+			const script = document.createElement('script');
+			script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+			script.onload = () => resolve();
+			script.onerror = () => reject(new Error('failed to load checkout script'));
+			document.head.appendChild(script);
+		});
+	}
+
+	const PAY_ERRORS: Record<string, string> = {
+		invoice_not_found: 'That invoice could not be found.',
+		not_payable: 'That invoice is no longer payable.',
+		currency_unsupported: 'Online payment is not available for this practice.',
+		payments_unavailable: 'Your therapist is not set up to take payments right now.',
+		checkout_failed: 'Could not start checkout. Please try again.'
+	};
+
+	async function openInvoiceCheckout(checkout: {
+		orderId: string;
+		key: string;
+		amountMinor: number;
+		therapistName: string;
+	}) {
+		try {
+			await loadCheckoutScript();
+			new window.Razorpay({
+				key: checkout.key,
+				order_id: checkout.orderId,
+				amount: checkout.amountMinor,
+				currency: 'INR',
+				name: checkout.therapistName,
+				// The webhook flips the invoice to paid; this is just UX feedback.
+				handler: () => {
+					toast.success('Payment received — updating your invoice…');
+					payingId = null;
+					invalidateAll();
+					// The webhook usually lands a few seconds after Checkout closes, so
+					// the first refresh often still sees "unpaid". One more catches it.
+					// ponytail: fixed delay; poll until paid if this proves flaky.
+					setTimeout(() => {
+						invalidateAll();
+					}, 5000);
+				},
+				modal: { ondismiss: () => (payingId = null) }
+			}).open();
+		} catch {
+			toast.error('Could not open checkout. Please try again.');
+			payingId = null;
+		}
+	}
 
 	const bookSlots = $derived(bookDay !== null ? (data.slotsByDay[bookDay] ?? []) : []);
 
@@ -25,7 +83,10 @@
 	}
 
 	const monthLabel = $derived(
-		new Date(data.year, data.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+		new Date(data.year, data.month, 1).toLocaleDateString('en-US', {
+			month: 'long',
+			year: 'numeric'
+		})
 	);
 
 	function gotoMonth(nextYear: number, nextMonth: number) {
@@ -37,7 +98,10 @@
 	}
 
 	function nextMonth() {
-		gotoMonth(data.month === 11 ? data.year + 1 : data.year, data.month === 11 ? 0 : data.month + 1);
+		gotoMonth(
+			data.month === 11 ? data.year + 1 : data.year,
+			data.month === 11 ? 0 : data.month + 1
+		);
 	}
 </script>
 
@@ -57,12 +121,16 @@
 						<div class="row-title">{s.when}</div>
 						<div class="row-sub">{s.type}</div>
 						{#if s.meetLink}
-							<a class="row-meet" href={s.meetLink} target="_blank" rel="noreferrer">Join Google Meet</a>
+							<a class="row-meet" href={s.meetLink} target="_blank" rel="noreferrer"
+								>Join Google Meet</a
+							>
 						{/if}
 					</div>
 					<Badge tone={s.tone}>{s.status}</Badge>
 					<div class="row-actions">
-						<Button variant="secondary" size="sm" onclick={() => (rescheduleId = s.id)}>Reschedule</Button>
+						<Button variant="secondary" size="sm" onclick={() => (rescheduleId = s.id)}
+							>Reschedule</Button
+						>
 						<form
 							method="POST"
 							action="?/cancelSession"
@@ -84,7 +152,9 @@
 		{#if rescheduleId}
 			<div class="reschedule-banner">
 				Pick a new time below for your session.
-				<button type="button" class="reschedule-cancel" onclick={() => (rescheduleId = null)}>Cancel</button>
+				<button type="button" class="reschedule-cancel" onclick={() => (rescheduleId = null)}
+					>Cancel</button
+				>
 			</div>
 		{/if}
 
@@ -105,14 +175,6 @@
 
 	<div id="payments" class="section">
 		<div class="section-title">Payments</div>
-		{#if data.activePack}
-			<Card>
-				<div class="pack-banner">
-					You're on a pack: {data.activePack.remaining} of {data.activePack.sessionCount} sessions remaining · {data.activePack.amount}
-					total
-				</div>
-			</Card>
-		{/if}
 		<div class="stat-row">
 			<StatCard label="Balance due" value={data.balanceDue} accent="citrus" />
 			<StatCard label="Paid total" value={data.paidTotal} accent="sage" />
@@ -127,6 +189,40 @@
 						</div>
 						<div class="amount">{inv.amount}</div>
 						<Badge tone={inv.tone}>{inv.status}</Badge>
+						{#if inv.payable}
+							<form
+								method="POST"
+								action="?/payInvoice"
+								use:enhance={() => {
+									payingId = inv.id;
+									return async ({ result }) => {
+										if (result.type === 'success' && result.data?.checkout) {
+											await openInvoiceCheckout(
+												result.data.checkout as {
+													orderId: string;
+													key: string;
+													amountMinor: number;
+													therapistName: string;
+												}
+											);
+										} else {
+											payingId = null;
+											const message =
+												result.type === 'failure'
+													? (PAY_ERRORS[String(result.data?.message)] ??
+														'Could not start checkout. Please try again.')
+													: 'Could not start checkout. Please try again.';
+											toast.error(message);
+										}
+									};
+								}}
+							>
+								<input type="hidden" name="paymentId" value={inv.id} />
+								<Button type="submit" size="sm">
+									{payingId === inv.id ? 'Opening…' : 'Pay now'}
+								</Button>
+							</form>
+						{/if}
 					</div>
 				</Card>
 			{/each}
@@ -296,11 +392,6 @@
 		font-size: 14px;
 		color: var(--text-secondary);
 		line-height: var(--lh-relaxed);
-	}
-
-	.pack-banner {
-		font-size: 14px;
-		color: var(--text-primary);
 	}
 
 	.row-actions {

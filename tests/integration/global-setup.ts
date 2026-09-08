@@ -23,9 +23,11 @@ export default async function setup() {
 	// setup.ts also does this per worker; do it here too for drizzle-kit below
 	process.env.DATABASE_URL = testUrl;
 
+	// drizzle.config.ts prefers DIRECT_DATABASE_URL — override it too, or the push
+	// lands on the dev DB instead of the local test one.
 	execSync('npx drizzle-kit push --force', {
 		stdio: 'inherit',
-		env: { ...process.env, DATABASE_URL: testUrl }
+		env: { ...process.env, DATABASE_URL: testUrl, DIRECT_DATABASE_URL: testUrl }
 	});
 
 	const sql = postgres(testUrl);

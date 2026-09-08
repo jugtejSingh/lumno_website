@@ -1,4 +1,4 @@
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { building } from '$app/environment';
 import { auth } from '$lib/server/auth';
@@ -45,6 +45,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 				}
 			}
 		}
+	}
+
+	// Single gate for everything under (app) — pages, actions, and standalone
+	// +server.ts endpoints alike (layout `load` doesn't run for the last two).
+	// Downstream (app) code can treat locals.therapistId as non-null.
+	if (event.route.id?.startsWith('/(app)') && !event.locals.therapistId) {
+		redirect(302, event.locals.user ? '/portal' : '/login');
 	}
 
 	return svelteKitHandler({ event, resolve, auth, building });

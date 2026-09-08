@@ -2,9 +2,7 @@
 	import Card from '$lib/components/utils/Card.svelte';
 	import StatCard from '$lib/components/utils/StatCard.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
-	import SessionPacksList from '$lib/components/Payments/SessionPacksList.svelte';
 	import AddChargeDialog from '$lib/components/Payments/AddChargeDialog.svelte';
-	import AddPackDialog from '$lib/components/Payments/AddPackDialog.svelte';
 	import ClientPaymentsDialog from '$lib/components/Payments/ClientPaymentsDialog.svelte';
 	import ClientSidebar from '$lib/components/Payments/ClientSidebar.svelte';
 	import { formatCurrency } from '$lib/format';
@@ -13,7 +11,6 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let openClientId = $state<string | null>(null);
-	let addPackOpen = $state(false);
 	let addChargeOpen = $state(false);
 
 	const openClientName = $derived(data.clients.find((c) => c.id === openClientId)?.name ?? '');
@@ -54,14 +51,10 @@
 				<div class="empty">No outstanding balances.</div>
 			{/if}
 		</div>
-
-		<SessionPacksList packs={data.packs} message={form?.message} onAddPack={() => (addPackOpen = true)} />
 	</div>
 </div>
 
 <AddChargeDialog open={addChargeOpen} clients={data.clients} message={form?.message} onclose={() => (addChargeOpen = false)} />
-
-<AddPackDialog open={addPackOpen} clients={data.clients} message={form?.message} onclose={() => (addPackOpen = false)} />
 
 <ClientPaymentsDialog
 	clientId={openClientId}

@@ -1,15 +1,14 @@
 import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
 import { paymentSettings } from '$lib/server/db/schema';
-import type { PaymentSettings, PackExhaustedAction } from '$lib/server/paymentPolicy';
+import type { PaymentSettings } from '$lib/server/paymentPolicy';
 
 export type { PaymentSettings, PaymentMode, PackExhaustedAction, ChangeTier, PolicyOutcome } from '$lib/server/paymentPolicy';
 
-// The pack + cancellation-policy form. paymentMode is a separate control with its
-// own setter, so it is deliberately not in here — this update never touches it.
+// The cancellation-policy form. paymentMode is a separate control with its own
+// setter, so it is deliberately not in here — this update never touches it.
+// ponytail: packsEnabled / packExhaustedAction have no UI yet, so they stay at their DB defaults.
 type PackPolicySettings = {
-	packsEnabled: boolean;
-	packExhaustedAction: PackExhaustedAction;
 	freeChangeWindowHours: number;
 	partialChangeWindowHours: number | null;
 };

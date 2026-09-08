@@ -12,6 +12,7 @@
 	let { data }: { data: PageData } = $props();
 
 	const PLAN_NAME_TO_TIER: Record<string, 1 | 2> = { basic: 1, pro: 2 };
+	const TIER_TO_PLAN_NAME: Record<number, string> = { 1: 'basic', 2: 'pro' };
 
 	// Landed here from the post-login redirect (see root +layout.server.ts) with a
 	// plan the visitor picked while logged out — open checkout straight away.
@@ -22,13 +23,6 @@
 			choosePlan(PLAN_NAME_TO_TIER[buy]);
 		}
 	});
-
-	// Logged-out visitor picked a paid plan: remember it, send them to register,
-	// the layout redirects back here once they're in.
-	function startPlan(name: string) {
-		document.cookie = `pending_plan=${name}; path=/; max-age=3600; samesite=lax`;
-		goto('/login?tab=register');
-	}
 
 	function blockedDowngrade() {
 		toast.error("Cancel your current plan in Settings first — you can't downgrade here.");
@@ -128,6 +122,13 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ plan: tier })
 			});
+			// Logged out: hooks 302'd us to /login. Remember the plan, send them to
+			// register; the root layout bounces back here with ?buy= once they're in.
+			if (res.redirected) {
+				document.cookie = `pending_plan=${TIER_TO_PLAN_NAME[tier]}; path=/; max-age=3600; samesite=lax`;
+				await goto('/login?tab=register');
+				return;
+			}
 			if (!res.ok) {
 				const body: { message?: string } = await res.json().catch(() => ({}));
 				toast.error(ERROR_MESSAGES[body.message ?? ''] ?? 'Something went wrong. Try again.');
@@ -192,16 +193,15 @@
 								{:else}
 									<Button variant="secondary" onclick={blockedDowngrade}>Choose Free</Button>
 								{/if}
-							{:else if data.currentTier === null}
-								<Button variant="primary" onclick={() => startPlan(plan.name.toLowerCase())}>
-									Get started
-								</Button>
 							{:else}
-								<Button
-									variant="primary"
-									onclick={() => choosePlan(plan.tier)}
-								>
-									{loadingTier === plan.tier ? 'Loading…' : 'Choose plan'}
+								<Button variant="primary" onclick={() => choosePlan(plan.tier)}>
+									{#if loadingTier === plan.tier}
+										Loading…
+									{:else if data.currentTier === null}
+										Get started
+									{:else}
+										Choose plan
+									{/if}
 								</Button>
 							{/if}
 						</div>

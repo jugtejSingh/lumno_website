@@ -12,18 +12,26 @@ import {
 	type ScheduleKind
 } from '$lib/server/settings';
 import { getPaymentSettings, updatePaymentSettings } from '$lib/server/paymentSettings';
+import { connectionHealth } from '$lib/server/razorpayConnection';
 import { isGoogleCalendarConnected } from '$lib/server/googleCalendar';
 import { CHANGE_WINDOW_HOURS_OPTIONS, formatHours } from '$lib/server/paymentPolicy';
 
 const FORMATS = ['remote', 'in_person', 'hybrid'] as const;
 const SCHEDULE_KINDS: ScheduleKind[] = ['online', 'in_person', 'off'];
-const PACK_EXHAUSTED_ACTIONS = ['block_booking', 'require_single_payment'] as const;
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { therapist } = await parent();
 	const therapistId = locals.therapistId!;
 
-	const [profile, schedule, notifications, payments, subscription, googleConnected] = await Promise.all([
+	const [
+		profile,
+		schedule,
+		notifications,
+		payments,
+		subscription,
+		googleConnected,
+		razorpayHealth
+	] = await Promise.all([
 		getReferralProfile(therapistId),
 		getTherapistScheduleSettings(therapistId),
 		getNotificationSettings(therapistId),
@@ -32,7 +40,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		// its plan number so the card can show "Pro — payment failed" instead of
 		// silently reading as Free. See the webhook handler's plan-retention comment.
 		getOrCreateSubscription(therapistId),
-		isGoogleCalendarConnected(therapist.userId)
+		isGoogleCalendarConnected(therapist.userId),
+		connectionHealth(therapistId)
 	]);
 
 	const billing = {
@@ -41,9 +50,27 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		cancelScheduled: subscription.cancelScheduled
 	};
 
-	const hourOptions = CHANGE_WINDOW_HOURS_OPTIONS.map((hours) => ({ hours, label: formatHours(hours) }));
+	const hourOptions = CHANGE_WINDOW_HOURS_OPTIONS.map((hours) => ({
+		hours,
+		label: formatHours(hours)
+	}));
 
-	return { profile, schedule, notifications, payments, billing, googleConnected, hourOptions };
+	const razorpay = {
+		health: razorpayHealth,
+		currencySupported: therapist.currency === 'INR',
+		notice: url.searchParams.get('payments')
+	};
+
+	return {
+		profile,
+		schedule,
+		notifications,
+		payments,
+		billing,
+		googleConnected,
+		hourOptions,
+		razorpay
+	};
 };
 
 function parseIntOrNull(value: string): number | null {
@@ -130,11 +157,7 @@ export const actions: Actions = {
 			sendPaymentReminderEmails: form.get('sendPaymentReminderEmails') === 'on'
 		};
 
-		// ---- payments (pack + cancellation policy) ----
-		const packExhaustedActionRaw = form.get('packExhaustedAction')?.toString() ?? '';
-		if (!(PACK_EXHAUSTED_ACTIONS as readonly string[]).includes(packExhaustedActionRaw)) {
-			return fail(400, { message: 'Pick what happens when a pack runs out' });
-		}
+		// ---- payments (cancellation policy) ----
 		const freeChangeWindowHours = Number(form.get('freeChangeWindowHours'));
 		if (!Number.isFinite(freeChangeWindowHours) || freeChangeWindowHours < 0) {
 			return fail(400, { message: 'Free change window must be a non-negative number of hours' });
@@ -148,12 +171,11 @@ export const actions: Actions = {
 				partialChangeWindowHours >= freeChangeWindowHours)
 		) {
 			return fail(400, {
-				message: 'Partial change window must be a non-negative number of hours, shorter than the free window'
+				message:
+					'Partial change window must be a non-negative number of hours, shorter than the free window'
 			});
 		}
 		const payments = {
-			packsEnabled: form.get('packsEnabled') === 'on',
-			packExhaustedAction: packExhaustedActionRaw as (typeof PACK_EXHAUSTED_ACTIONS)[number],
 			freeChangeWindowHours,
 			partialChangeWindowHours
 		};

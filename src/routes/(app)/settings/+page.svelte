@@ -37,15 +37,19 @@
 	];
 	const formatLabels = FORMAT_OPTIONS.map((o) => o.label);
 
-	const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+	const weekdayLabels = [
+		'Sunday',
+		'Monday',
+		'Tuesday',
+		'Wednesday',
+		'Thursday',
+		'Friday',
+		'Saturday'
+	];
 	const scheduleKindOptions = [
 		{ value: 'online', label: 'Online' },
 		{ value: 'in_person', label: 'In Person' },
 		{ value: 'off', label: 'Holiday' }
-	];
-	const packExhaustedOptions = [
-		{ value: 'block_booking', label: 'Block new bookings' },
-		{ value: 'require_single_payment', label: 'Charge per session' }
 	];
 
 	// ---- referral profile ----
@@ -76,14 +80,24 @@
 	let sendPaymentReminderEmails = $state(data.notifications.sendPaymentReminderEmails);
 
 	// ---- payments ----
-	let packsEnabled = $state(data.payments.packsEnabled);
-	let packExhaustedAction = $state(data.payments.packExhaustedAction);
 	let freeChangeWindowHours = $state(data.payments.freeChangeWindowHours);
 	let partialChangeWindowHours = $state(
 		data.payments.partialChangeWindowHours === null
 			? ''
 			: String(data.payments.partialChangeWindowHours)
 	);
+
+	// ---- Razorpay connection ----
+	const rzp = data.razorpay;
+	const RZP_NOTICES: Record<string, string> = {
+		connected: 'Razorpay connected — clients can now pay their invoices in the portal.',
+		declined: 'Razorpay connection was cancelled.',
+		state_error: "Couldn't complete the Razorpay connection. Please try again.",
+		account_changed:
+			'You connected a different Razorpay account — past invoices stay linked to the old one.',
+		not_inr: 'Portal payments are INR-only. Set your currency to INR before connecting Razorpay.'
+	};
+	const rzpNotice = $derived(rzp.notice ? RZP_NOTICES[rzp.notice] : undefined);
 
 	let saveLabel = $state('Save changes');
 
@@ -152,7 +166,6 @@
 		name="sendPaymentReminderEmails"
 		value={sendPaymentReminderEmails ? 'on' : ''}
 	/>
-	<input type="hidden" name="packsEnabled" value={packsEnabled ? 'on' : ''} />
 
 	<Card>
 		<div class="section">
@@ -273,15 +286,35 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">Payments</div>
-			<Switch label="Enable pre-paid session packs" bind:checked={packsEnabled} />
-			<label class="field">
-				<span class="field-label">When a pack runs out</span>
-				<select class="field-input" name="packExhaustedAction" bind:value={packExhaustedAction}>
-					{#each packExhaustedOptions as o (o.value)}
-						<option value={o.value}>{o.label}</option>
-					{/each}
-				</select>
-			</label>
+
+			{#if rzpNotice}
+				<div class="rzp-notice" class:rzp-notice-bad={rzp.notice === 'state_error'}>
+					{rzpNotice}
+				</div>
+			{/if}
+
+			<div
+				class="rzp-banner"
+				class:rzp-banner-amber={rzp.health === 'expiring'}
+				class:rzp-banner-red={rzp.health === 'action_needed'}
+				data-sveltekit-reload
+			>
+				{#if rzp.health === 'connected'}
+					<span>Payments connected · renews automatically</span>
+				{:else if rzp.health === 'expiring'}
+					<span>Reconnect Razorpay to keep portal payments working</span>
+					<a class="rzp-link" href="/settings/payments/connect">Reconnect</a>
+				{:else if rzp.health === 'action_needed'}
+					<span>Portal payments are paused — reconnect Razorpay to resume</span>
+					<a class="rzp-link" href="/settings/payments/connect">Reconnect</a>
+				{:else if rzp.currencySupported}
+					<span>Connect Razorpay to let clients pay their invoices in the portal</span>
+					<a class="rzp-link" href="/settings/payments/connect">Connect Razorpay</a>
+				{:else}
+					<span>Portal payments are available for INR practices only.</span>
+				{/if}
+			</div>
+
 			<label class="field">
 				<span class="field-label">Free cancellation / reschedule window</span>
 				<select class="field-input" name="freeChangeWindowHours" bind:value={freeChangeWindowHours}>
@@ -464,6 +497,51 @@
 	.form-error {
 		color: var(--danger, #b3261e);
 		font-size: 13px;
+	}
+
+	.rzp-notice {
+		font-size: 13px;
+		color: var(--text-secondary);
+		background: var(--surface-canvas);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 8px 12px;
+	}
+
+	.rzp-notice-bad {
+		color: var(--danger, #b3261e);
+	}
+
+	.rzp-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
+		font-size: 13px;
+		color: var(--text-secondary);
+		background: var(--surface-canvas);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 10px 12px;
+	}
+
+	.rzp-banner-amber {
+		color: #8a5a00;
+		background: #fff6e5;
+		border-color: #f0d9a8;
+	}
+
+	.rzp-banner-red {
+		color: #b3261e;
+		background: #fdecea;
+		border-color: #f3c1bc;
+	}
+
+	.rzp-link {
+		font-weight: 700;
+		color: inherit;
+		white-space: nowrap;
 	}
 
 	.plan-row {
