@@ -16,9 +16,16 @@
 	let mode = $state<'login' | 'register'>(page.url.searchParams.get('tab') === 'register' ? 'register' : 'login');
 
 	const isTherapist = $derived(role === 'Therapist');
-	const loginSubtitle = $derived(
-		isTherapist ? 'Log in to your practice' : 'Log in to view your sessions, payments, and notes'
-	);
+	const headTitle = $derived(mode === 'register' ? 'Create your account' : 'Welcome back');
+	const headSubtitle = $derived.by(() => {
+		if (mode === 'register') {
+			return 'Set up your practice in about two minutes';
+		}
+		if (isTherapist) {
+			return 'Log in to your practice';
+		}
+		return 'Log in to view your sessions, payments, and notes';
+	});
 
 	function selectTherapist() {
 		role = 'Therapist';
@@ -43,13 +50,18 @@
 	</div>
 
 	<div class="center">
-		<div class="auth-card">
+		<div class="auth-card" class:wide={mode === 'register'} class:short={!isTherapist}>
 			{#if checkEmail}
 				<div class="banner">Check your email to verify your account before logging in.</div>
 			{/if}
 			{#if therapistReady}
 				<div class="banner">Your therapist profile is ready. Log in to get started.</div>
 			{/if}
+
+			<div class="card-head">
+				<div class="form-title">{headTitle}</div>
+				<div class="form-subtitle">{headSubtitle}</div>
+			</div>
 
 			<div class="role-pill">
 				<button type="button" class="pill-btn" class:active={isTherapist} onclick={selectTherapist}
@@ -74,18 +86,13 @@
 				</div>
 			{/if}
 
-			{#if isTherapist}
-				<form class="google-form" method="POST" action="?/signInGoogle" use:enhance>
-					<Button type="submit" variant="secondary">Continue with Google</Button>
-				</form>
-				<div class="divider"><span>or</span></div>
-			{/if}
+			<form class="google-form" method="POST" action="?/signInGoogle" use:enhance>
+				<Button type="submit" variant="secondary">Continue with Google</Button>
+			</form>
 
 			{#if mode === 'login'}
 				<form class="form-block" method="POST" action="?/signInEmail" use:enhance>
-					<div class="form-title">Welcome back</div>
-					<div class="form-subtitle">{loginSubtitle}</div>
-						<input type="hidden" name="role" value={role} />
+					<input type="hidden" name="role" value={role} />
 					<div class="form-fields">
 						<Input label="Email" name="email" placeholder="you@practice.com" type="email" />
 						<Input label="Password" name="password" placeholder="••••••••" type="password" />
@@ -100,19 +107,27 @@
 							Don't have an account?
 							<button type="button" class="link-btn" onclick={() => (mode = 'register')}>Register</button>
 						</div>
+					{:else}
+						<div class="switch-line">
+							If your account doesn't exist, ask your therapist to send you an invite.
+						</div>
 					{/if}
 				</form>
 			{:else}
 				<form class="form-block" method="POST" action="?/signUpEmail" use:enhance>
-					<div class="form-title">Create your account</div>
-					<div class="form-subtitle">Set up your practice in about two minutes</div>
 					<div class="form-fields">
-						<Input label="Full name" name="name" placeholder="Dana Reyes" />
-						<Input label="Practice name" name="practice" placeholder="Reyes Therapy" />
-						<Input label="Email" name="email" placeholder="you@practice.com" type="email" />
-						<Input label="Password" name="password" placeholder="••••••••" type="password" />
-						<Input label="Profile picture URL (optional)" name="photoUrl" placeholder="https://..." />
-						<Input label="Date of birth" name="dateOfBirth" type="date" />
+						<div class="field-row">
+							<Input label="Full name" name="name" placeholder="Dana Reyes" />
+							<Input label="Practice name" name="practice" placeholder="Reyes Therapy" />
+						</div>
+						<div class="field-row">
+							<Input label="Email" name="email" placeholder="you@practice.com" type="email" />
+							<Input label="Password" name="password" placeholder="••••••••" type="password" />
+						</div>
+						<div class="field-row">
+							<Input label="Profile picture URL (optional)" name="photoUrl" placeholder="https://..." />
+							<Input label="Date of birth" name="dateOfBirth" type="date" />
+						</div>
 						<Textarea
 							label="Bio"
 							name="bio"
@@ -165,12 +180,40 @@
 	}
 
 	.auth-card {
-		width: 380px;
+		width: min(380px, 100%);
 		background: var(--surface-card);
 		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-md);
 		padding: 36px;
+		/* ponytail: shared frame so Therapist/Client cards match in shape; inner content can differ */
+		min-height: 540px;
+		transition:
+			width var(--duration-base) var(--ease-out),
+			min-height var(--duration-base) var(--ease-out);
+	}
+
+	.auth-card.wide {
+		width: min(440px, 100%);
+	}
+
+	.auth-card.short {
+		min-height: 420px;
+	}
+
+	@media (max-width: 480px) {
+		.header {
+			padding: 16px 20px;
+		}
+
+		.center {
+			padding: 20px;
+		}
+
+		.auth-card {
+			padding: 24px;
+			min-height: 0;
+		}
 	}
 
 	.banner {
@@ -211,25 +254,12 @@
 		box-shadow: var(--shadow-xs);
 	}
 
+	.google-form {
+		margin-top: 16px;
+	}
+
 	.google-form :global(.btn) {
 		width: 100%;
-	}
-
-	.divider {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		margin: 16px 0;
-		font-size: 12px;
-		color: var(--text-muted);
-	}
-
-	.divider::before,
-	.divider::after {
-		content: '';
-		flex: 1;
-		height: 1px;
-		background: var(--border-subtle);
 	}
 
 	.mode-tabs {
@@ -276,6 +306,18 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
+	}
+
+	.field-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 14px;
+	}
+
+	@media (max-width: 480px) {
+		.field-row {
+			grid-template-columns: 1fr;
+		}
 	}
 
 	.form-error {
