@@ -9,14 +9,14 @@ import {
 	type OAuthTokenResponse
 } from '$lib/server/razorpay';
 import { storeConnection } from '$lib/server/razorpayConnection';
-import { OAUTH_STATE_COOKIE } from '../+server';
+import { _OAUTH_STATE_COOKIE } from '../+server';
 
 // Therapist auth is enforced in hooks.server.ts for the whole (app) group.
 export const GET: RequestHandler = async ({ locals, url, cookies }) => {
 	const therapistId = locals.therapistId!;
 
-	const cookieState = cookies.get(OAUTH_STATE_COOKIE);
-	cookies.delete(OAUTH_STATE_COOKIE, { path: '/' }); // single use
+	const cookieState = cookies.get(_OAUTH_STATE_COOKIE);
+	cookies.delete(_OAUTH_STATE_COOKIE, { path: '/' }); // single use
 
 	if (url.searchParams.get('error')) {
 		redirect(302, '/settings?payments=declined');

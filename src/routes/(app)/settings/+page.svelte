@@ -88,7 +88,7 @@
 	);
 
 	// ---- Razorpay connection ----
-	const rzp = data.razorpay;
+	const rzp = $derived(data.razorpay);
 	const RZP_NOTICES: Record<string, string> = {
 		connected: 'Razorpay connected — clients can now pay their invoices in the portal.',
 		declined: 'Razorpay connection was cancelled.',

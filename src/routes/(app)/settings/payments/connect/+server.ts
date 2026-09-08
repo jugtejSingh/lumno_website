@@ -11,7 +11,7 @@ import { razorpayOAuthConfig } from '$lib/server/razorpay';
 // CSRF: a random nonce in an httpOnly cookie, compared on callback (double-submit).
 // It's inherently bound to the logged-in therapist's session, so no state table
 // (design doc §12.2). sameSite: 'lax' so it survives the Razorpay round-trip.
-export const OAUTH_STATE_COOKIE = 'rzp_oauth_state';
+export const _OAUTH_STATE_COOKIE = 'rzp_oauth_state';
 
 export const GET: RequestHandler = async ({ locals, cookies }) => {
 	const therapistId = locals.therapistId!;
@@ -27,7 +27,7 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
 	const state = randomBytes(32).toString('hex');
 	// `secure` is left to SvelteKit's default (true, except on http://localhost) so
 	// the round-trip also works against a local dev server.
-	cookies.set(OAUTH_STATE_COOKIE, state, {
+	cookies.set(_OAUTH_STATE_COOKIE, state, {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',

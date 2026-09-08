@@ -12,7 +12,9 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
+	// svelte-ignore state_referenced_locally
 	const wantedClient = data.clients.find((c) => c.name === page.url.searchParams.get('client'));
+	// svelte-ignore state_referenced_locally
 	let selectedId = $state(wantedClient?.id ?? data.clients[0]?.id);
 	let query = $state('');
 	let writingType = $state<'private' | 'shared' | null>(null);
