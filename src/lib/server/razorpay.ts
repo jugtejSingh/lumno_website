@@ -21,20 +21,17 @@ const TESTING = env.CURRENT_ENVIRONMENT === 'testing';
 
 function rzpEnv(name: string): string | undefined {
 	if (TESTING) {
-		// ponytail: the test key id is named RAZORPAY_KEY_TEST, not RAZORPAY_KEY_ID_TEST.
-		if (name === 'RAZORPAY_KEY_ID') {
-			return env.RAZORPAY_KEY_TEST;
-		}
 		return env[`${name}_TEST`];
 	}
 	return env[name];
 }
 
 // The frontend (Razorpay checkout.js) needs the key id — server hands it over.
+// The key id lives in RAZORPAY_KEY / RAZORPAY_KEY_TEST (no _ID suffix).
 export function razorpayKeyId(): string {
-	const id = rzpEnv('RAZORPAY_KEY_ID');
+	const id = rzpEnv('RAZORPAY_KEY');
 	if (!id) {
-		throw new Error('RAZORPAY_KEY_ID not set');
+		throw new Error('RAZORPAY_KEY not set');
 	}
 	return id;
 }
@@ -43,10 +40,10 @@ let client: Razorpay | undefined;
 
 export function razorpay(): Razorpay {
 	if (!client) {
-		const keyId = rzpEnv('RAZORPAY_KEY_ID');
+		const keyId = rzpEnv('RAZORPAY_KEY');
 		const keySecret = rzpEnv('RAZORPAY_KEY_SECRET');
 		if (!keyId || !keySecret) {
-			throw new Error('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET not set');
+			throw new Error('RAZORPAY_KEY / RAZORPAY_KEY_SECRET not set');
 		}
 		client = new Razorpay({
 			key_id: keyId,

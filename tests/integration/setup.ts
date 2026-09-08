@@ -27,5 +27,5 @@ process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 
 // keep the real integrations inert if any module reads these on import
 process.env.RESEND_API_KEY ??= 'test';
-process.env.RAZORPAY_KEY_ID ??= 'test';
+process.env.RAZORPAY_KEY ??= 'test';
 process.env.RAZORPAY_KEY_SECRET ??= 'test';
