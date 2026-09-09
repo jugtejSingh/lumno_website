@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import type { AvailableSlot } from '$lib/server/availability';
 

@@ -8,7 +8,7 @@
 	import Switch from '$lib/components/utils/Switch.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData, ActionData } from './$types';
 

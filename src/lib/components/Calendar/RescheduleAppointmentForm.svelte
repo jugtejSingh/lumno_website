@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import Button from '$lib/components/utils/Button.svelte';
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
 	import type { CalendarSession } from '$lib/types/calendar';

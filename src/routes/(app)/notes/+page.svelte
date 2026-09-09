@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { marked } from 'marked';
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import Card from '$lib/components/utils/Card.svelte';
 	import Avatar from '$lib/components/utils/Avatar.svelte';
 	import Tag from '$lib/components/utils/Tag.svelte';

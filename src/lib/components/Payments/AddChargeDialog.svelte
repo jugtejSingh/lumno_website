@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import Select from '$lib/components/utils/Select.svelte';
 	import Input from '$lib/components/utils/Input.svelte';

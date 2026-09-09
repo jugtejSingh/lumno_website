@@ -9,7 +9,7 @@
 	import ClientForm from '$lib/components/Clients/ClientForm.svelte';
 	import PaymentHistoryList from '$lib/components/Payments/PaymentHistoryList.svelte';
 	import { formatCurrency } from '$lib/format';
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -132,8 +132,8 @@
 						<form
 							method="POST"
 							action="?/delete"
-							use:enhance={() => {
-								if (!confirm(`Permanently delete ${c.name}?`)) return ({ cancel }) => cancel();
+							use:enhance={({ cancel }) => {
+								if (!confirm(`Permanently delete ${c.name}?`)) cancel();
 							}}
 						>
 							<input type="hidden" name="clientId" value={c.id} />

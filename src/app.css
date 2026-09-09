@@ -18,3 +18,35 @@ a {
 a:hover {
 	color: var(--accent-primary-hover);
 }
+
+/* set by $lib/enhance while a form action is in flight */
+form[aria-busy='true'] {
+	cursor: progress;
+}
+
+form[aria-busy='true'] button[type='submit']:disabled {
+	opacity: 0.6;
+	cursor: progress;
+	position: relative;
+	color: transparent;
+}
+
+form[aria-busy='true'] button[type='submit']:disabled::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	margin: auto;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	color: var(--text-primary);
+	animation: form-spin 0.7s linear infinite;
+}
+
+@keyframes form-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}

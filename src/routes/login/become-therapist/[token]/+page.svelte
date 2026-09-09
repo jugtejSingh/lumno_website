@@ -2,7 +2,7 @@
 	import Logo from '$lib/components/utils/Logo.svelte';
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

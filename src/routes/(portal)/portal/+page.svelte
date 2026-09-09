@@ -9,7 +9,7 @@
 	import PortalMonthGrid from '$lib/components/Calendar/PortalMonthGrid.svelte';
 	import BookSlotDialog from '$lib/components/Calendar/BookSlotDialog.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import { toast } from 'svelte-sonner';
 	import type { ActionData, PageData } from './$types';
 

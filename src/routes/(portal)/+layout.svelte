@@ -4,6 +4,7 @@
 	import Avatar from '$lib/components/utils/Avatar.svelte';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
+	import { enhance } from '$lib/enhance';
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
@@ -23,7 +24,7 @@
 			</a>
 		{/each}
 		<div class="sidebar-spacer"></div>
-		<form method="POST" action="/logout" class="sidebar-link">
+		<form method="POST" action="/logout" class="sidebar-link" use:enhance>
 			<button type="submit" class="sidebar-link-btn"><SidebarNavItem label="Log out" /></button>
 		</form>
 	</aside>
@@ -32,7 +33,7 @@
 			<div class="app-header-title">Client portal</div>
 			<div class="app-header-actions">
 				{#if data.clients.length > 1}
-					<form method="POST" action="/portal?/switchClient" class="client-switcher">
+					<form method="POST" action="/portal?/switchClient" class="client-switcher" use:enhance>
 						<select
 							name="clientId"
 							value={data.client?.id}

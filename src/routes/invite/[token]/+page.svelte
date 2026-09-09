@@ -3,7 +3,7 @@
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

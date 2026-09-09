@@ -1,11 +1,16 @@
 <script lang="ts">
 	import '../app.css';
 	import { Toaster } from 'svelte-sonner';
+	import { navigating } from '$app/state';
 
 	let { children } = $props();
 </script>
 
 <Toaster richColors position="top-center" />
+
+{#if navigating.to}
+	<div class="nav-progress" role="progressbar" aria-label="Loading page"></div>
+{/if}
 
 <svelte:head>
 	<title>Lumno — Practice management for therapists</title>
@@ -22,3 +27,27 @@
 </svelte:head>
 
 {@render children()}
+
+<style>
+	.nav-progress {
+		position: fixed;
+		top: 0;
+		left: 0;
+		height: 3px;
+		width: 100%;
+		z-index: 9999;
+		background: var(--accent-primary);
+		transform-origin: left;
+		animation: nav-progress 1.2s ease-out forwards;
+	}
+
+	/* ponytail: fake progress; it stalls at 90% until the navigation resolves */
+	@keyframes nav-progress {
+		from {
+			transform: scaleX(0);
+		}
+		to {
+			transform: scaleX(0.9);
+		}
+	}
+</style>

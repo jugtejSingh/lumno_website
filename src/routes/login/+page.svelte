@@ -5,7 +5,7 @@
 	import Textarea from '$lib/components/utils/Textarea.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import { page } from '$app/state';
-	import { enhance } from '$app/forms';
+	import { enhance } from '$lib/enhance';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
