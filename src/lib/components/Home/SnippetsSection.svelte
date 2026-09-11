@@ -75,14 +75,6 @@
 					<Tag color="citrus">due</Tag>
 				</div>
 			</Card>
-			<div class="coming-soon">
-				<div class="coming-soon-title">Automated payments coming in 2 weeks</div>
-				<ul class="coming-soon-list">
-					<li>Take cards directly in the client portal</li>
-					<li>International payments, so catering to NRIs is easy</li>
-					<li>And many more soon</li>
-				</ul>
-			</div>
 		</div>
 	</SnippetRow>
 
@@ -206,25 +198,6 @@
 
 	.pay-row + .pay-row {
 		border-top: 1px solid var(--border-subtle);
-	}
-
-	.coming-soon {
-		font-size: 13px;
-		line-height: var(--lh-relaxed);
-		color: var(--text-primary);
-		background: var(--sage-300);
-		border-radius: var(--radius-sm);
-		padding: 10px 12px;
-	}
-
-	.coming-soon-title {
-		font-weight: 700;
-		color: var(--sage-600);
-	}
-
-	.coming-soon-list {
-		margin: 4px 0 0;
-		padding-left: 18px;
 	}
 
 	.note-header {
