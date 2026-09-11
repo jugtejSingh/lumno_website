@@ -8,7 +8,9 @@ import { setActiveClientCookie } from '$lib/server/activeClient';
 import {
 	listUpcomingAppointmentsForClient,
 	cancelAppointment,
-	markPastAppointmentsCompleted
+	markPastAppointmentsCompleted,
+	parseDateParts,
+	parseTimeParts
 } from '$lib/server/appointments';
 import {
 	listAvailabilityForMonth,
@@ -17,7 +19,8 @@ import {
 } from '$lib/server/availability';
 import { listSharedNotesForClient } from '$lib/server/notes';
 import { listVisiblePaymentsForClient } from '$lib/server/payments';
-import { getPaymentSettings } from '$lib/server/paymentSettings';
+import { getPaymentSettings, getManualPayDetails } from '$lib/server/paymentSettings';
+import { signedUrl } from '$lib/server/storage';
 import { connectionHealth } from '$lib/server/razorpayConnection';
 import { startInvoiceCheckout } from '$lib/server/sessionPayments';
 import { formatCancellationPolicy } from '$lib/server/paymentPolicy';
@@ -47,20 +50,32 @@ export const load: PageServerLoad = async (event) => {
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
 	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
 
-	const [upcoming, slotsByDay, sharedNoteRows, payments, paymentSettings, rzpHealth] =
+	const [upcoming, slotsByDay, sharedNoteRows, payments, paymentSettings, rzpHealth, manualPayRow] =
 		await Promise.all([
 			listUpcomingAppointmentsForClient(client.id, timezone),
 			listAvailabilityForMonth(client.therapistId, year, month),
 			listSharedNotesForClient(client.id),
 			listVisiblePaymentsForClient(client.id),
 			getPaymentSettings(client.therapistId),
-			connectionHealth(client.therapistId)
+			connectionHealth(client.therapistId),
+			getManualPayDetails(client.therapistId)
 		]);
 
 	// ponytail: gate on 'connected' per design §12.9. 'expiring' also has live
 	// tokens but refreshExpiresAt is pushed 180d out on every refresh, so it
 	// realistically never shows before the Phase 3 cron lands.
 	const portalPayEnabled = currency === 'INR' && rzpHealth === 'connected';
+
+	// Manual-mode payment details. Only offered when the client can't pay in the
+	// portal — once Razorpay is live there is no off-platform path.
+	let manualPay: { qrUrl: string | null; bankDetails: string | null } | null = null;
+	if (!portalPayEnabled && (manualPayRow.qrKey || manualPayRow.bankDetails)) {
+		let qrUrl: string | null = null;
+		if (manualPayRow.qrKey) {
+			qrUrl = await signedUrl(manualPayRow.qrKey);
+		}
+		manualPay = { qrUrl, bankDetails: manualPayRow.bankDetails };
+	}
 
 	const sessions = upcoming.map((appt) => ({
 		id: appt.id,
@@ -108,6 +123,8 @@ export const load: PageServerLoad = async (event) => {
 		invoices,
 		sharedNotes,
 		balanceDue: formatCurrency(balanceDue, currency),
+		hasBalanceDue: balanceDue > 0,
+		manualPay,
 		paidTotal: formatCurrency(paidTotal, currency),
 		cancellationPolicy: formatCancellationPolicy(paymentSettings)
 	};
@@ -166,15 +183,16 @@ export const actions: Actions = {
 		}
 
 		const formData = await event.request.formData();
-		const year = Number(formData.get('year'));
-		const month = Number(formData.get('month'));
-		const day = Number(formData.get('day'));
+		const date = parseDateParts(formData);
 		const startTime = formData.get('startTime')?.toString() ?? '';
+		if (!date || !parseTimeParts(startTime)) {
+			return fail(400, { message: 'Pick a day and a time slot' });
+		}
 
 		const result = await createAppointmentForClient(clientRow.therapistId, event.locals.clientId, {
-			year,
-			month,
-			day,
+			year: date.year,
+			month: date.month,
+			day: date.day,
 			startTime
 		});
 
@@ -224,19 +242,23 @@ export const actions: Actions = {
 
 		const formData = await event.request.formData();
 		const appointmentId = formData.get('appointmentId')?.toString() ?? '';
-		const year = Number(formData.get('year'));
-		const month = Number(formData.get('month'));
-		const day = Number(formData.get('day'));
+		const date = parseDateParts(formData);
 		const startTime = formData.get('startTime')?.toString() ?? '';
+		if (!appointmentId) {
+			return fail(400, { message: rescheduleErrorMessages.not_found });
+		}
+		if (!date || !parseTimeParts(startTime)) {
+			return fail(400, { message: 'Pick a day and a time slot' });
+		}
 
 		const result = await rescheduleAppointmentForClient(
 			clientRow.therapistId,
 			event.locals.clientId,
 			appointmentId,
 			{
-				year,
-				month,
-				day,
+				year: date.year,
+				month: date.month,
+				day: date.day,
 				startTime
 			}
 		);

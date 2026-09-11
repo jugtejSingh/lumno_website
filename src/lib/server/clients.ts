@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { client, therapist, user } from '$lib/server/db/schema';
 import { sendEmail, wrapEmail } from '$lib/server/email';
 import { usageLimit } from '$lib/server/billing';
+import { logError } from '$lib/server/log';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -22,7 +23,25 @@ function buildInviteUrl(origin: string, token: string) {
 	return `${origin}/invite/${token}`;
 }
 
-async function sendInvite(email: string, url: string, therapistName: string, therapistEmail: string) {
+// Returns whether the email went out. The client row (and its invite token) is
+// already saved by the time this runs, so a mail failure must not throw and
+// undo a successful add — the therapist can hit "Resend invite" instead.
+async function sendInvite(
+	email: string,
+	url: string,
+	therapistName: string,
+	therapistEmail: string
+): Promise<boolean> {
+	try {
+		await sendInviteEmail(email, url, therapistName, therapistEmail);
+		return true;
+	} catch (err) {
+		logError('clients.sendInvite', err, { email });
+		return false;
+	}
+}
+
+async function sendInviteEmail(email: string, url: string, therapistName: string, therapistEmail: string) {
 	await sendEmail(
 		email,
 		"You've been invited",
@@ -86,9 +105,9 @@ export async function addClient(therapistId: string, input: NewClientInput, orig
 
 	const inviteUrl = buildInviteUrl(origin, inviteToken);
 	// therapistUser is always found here — therapist.userId is a required FK, checked above
-	await sendInvite(input.email, inviteUrl, therapistUser!.name, therapistUser!.email);
+	const emailSent = await sendInvite(input.email, inviteUrl, therapistUser!.name, therapistUser!.email);
 
-	return { client: row, inviteUrl };
+	return { client: row, inviteUrl, emailSent };
 }
 
 export async function resendInvite(therapistId: string, clientId: string, origin: string) {
@@ -115,9 +134,9 @@ export async function resendInvite(therapistId: string, clientId: string, origin
 
 	const inviteUrl = buildInviteUrl(origin, inviteToken);
 	// therapistUser is always found here — therapist.userId is a required FK
-	await sendInvite(clientRow.email, inviteUrl, therapistUser!.name, therapistUser!.email);
+	const emailSent = await sendInvite(clientRow.email, inviteUrl, therapistUser!.name, therapistUser!.email);
 
-	return { inviteUrl };
+	return { inviteUrl, emailSent };
 }
 
 export async function deleteClient(therapistId: string, clientId: string) {

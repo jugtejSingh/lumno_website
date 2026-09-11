@@ -68,10 +68,9 @@ export const auth = betterAuth({
 		google: {
 			clientId: env.CLIENT_ID,
 			clientSecret: env.CLIENT_SECRET,
-			// needed so we can create a Meet link on the therapist's calendar for online
-			// appointments (see $lib/server/googleCalendar.ts); offline+consent gets us a
-			// refresh token even for existing users who already granted the base scopes
-			scope: ['https://www.googleapis.com/auth/calendar.events'],
+			// Sign-in asks for the base scopes only — clients never need calendar access.
+			// Therapists grant calendar.events from Settings (linkSocialAccount with
+			// per-call scopes); offline+consent gets us a refresh token on that link.
 			accessType: 'offline',
 			prompt: 'consent'
 		}

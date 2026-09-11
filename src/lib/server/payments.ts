@@ -43,21 +43,31 @@ export async function updatePayment(
 		set.razorpayOrderId = sql`case when ${payment.status} = 'unpaid' then null else ${payment.razorpayOrderId} end`;
 		set.razorpayOrderCreatedAt = sql`case when ${payment.status} = 'unpaid' then null else ${payment.razorpayOrderCreatedAt} end`;
 	}
-	await db
+	const rows = await db
 		.update(payment)
 		.set(set)
-		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)));
+		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)))
+		.returning({ id: payment.id });
+	return rows.length > 0;
 }
 
+// All three return whether a row was actually touched, so the actions can tell a
+// stale/foreign id apart from success instead of silently doing nothing.
 export async function setPaymentStatus(therapistId: string, paymentId: string, status: 'paid' | 'unpaid') {
-	await db
+	const rows = await db
 		.update(payment)
 		.set({ status, paidAt: status === 'paid' ? new Date() : null })
-		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)));
+		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)))
+		.returning({ id: payment.id });
+	return rows.length > 0;
 }
 
 export async function deletePayment(therapistId: string, paymentId: string) {
-	await db.delete(payment).where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)));
+	const rows = await db
+		.delete(payment)
+		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)))
+		.returning({ id: payment.id });
+	return rows.length > 0;
 }
 
 export type ClientPaymentHistoryRow = {

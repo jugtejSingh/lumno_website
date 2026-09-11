@@ -13,12 +13,35 @@ import { sendAppointmentEmail } from '$lib/server/bookingEmails';
 import { listClients } from '$lib/server/clients';
 import { addCharge } from '$lib/server/payments';
 import { listDayKindsForMonth } from '$lib/server/schedule';
+import { logError } from '$lib/server/log';
+import { parseDateParts, parseTimeParts, type OverlapConflict } from '$lib/server/appointments';
 
 const addAppointmentErrorMessages = {
 	invalid_range: 'End time must be after start time',
 	overlap: 'That overlaps another confirmed appointment',
 	invalid_client: 'That client could not be found'
 } as const;
+
+// "Overlaps another appointment" is useless without saying which one — this is the
+// therapist's own calendar, so naming the clashing slot leaks nothing.
+function overlapMessage(conflict: OverlapConflict | undefined, timezone: string): string {
+	if (!conflict) {
+		return 'That overlaps another confirmed appointment';
+	}
+	const format = new Intl.DateTimeFormat('en-US', {
+		timeZone: timezone,
+		month: 'short',
+		day: 'numeric',
+		hour: 'numeric',
+		minute: '2-digit'
+	});
+	const timeOnly = new Intl.DateTimeFormat('en-US', {
+		timeZone: timezone,
+		hour: 'numeric',
+		minute: '2-digit'
+	});
+	return `That overlaps your confirmed session on ${format.format(conflict.startAt)} – ${timeOnly.format(conflict.endAt)} (including your buffer time)`;
+}
 
 const cancelErrorMessages = {
 	not_found: 'That appointment could not be found',
@@ -103,14 +126,12 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	addAppointment: async (event) => {
 		const therapistId = event.locals.therapistId!;
+		const timezone = event.locals.therapist!.timezone;
 		const formData = await event.request.formData();
 		const clientId = formData.get('clientId')?.toString() ?? '';
 		const customName = formData.get('customName')?.toString().trim() ?? '';
 		const rateRaw = formData.get('rate')?.toString().trim() || '';
 		const notes = formData.get('notes')?.toString().trim() || null;
-		const year = Number(formData.get('year'));
-		const month = Number(formData.get('month'));
-		const day = Number(formData.get('day'));
 		const startTime = formData.get('startTime')?.toString() ?? '';
 		const endTime = formData.get('endTime')?.toString() ?? '';
 		const modality = formData.get('modality')?.toString() === 'in_person' ? 'in_person' : 'online';
@@ -118,47 +139,74 @@ export const actions: Actions = {
 		if (!customName && !clientId) {
 			return fail(400, { message: 'Pick a client or enter a name' });
 		}
-		const [startHourRaw, startMinuteRaw] = startTime.split(':');
-		const [endHourRaw, endMinuteRaw] = endTime.split(':');
-		if (!startHourRaw || !startMinuteRaw || !endHourRaw || !endMinuteRaw) {
-			return fail(400, { message: 'Pick a start and end time' });
+		const date = parseDateParts(formData);
+		if (!date) {
+			return fail(400, { message: 'That date is not valid — close the dialog and pick the day again' });
+		}
+		const start = parseTimeParts(startTime);
+		const end = parseTimeParts(endTime);
+		if (!start || !end) {
+			return fail(400, { message: 'Pick a valid start and end time' });
+		}
+		let rate = 0;
+		if (rateRaw) {
+			rate = Number(rateRaw);
+			if (!Number.isFinite(rate) || rate < 0) {
+				return fail(400, { message: 'Rate must be a number of 0 or more' });
+			}
 		}
 
 		const result = await createAppointmentForTherapist(therapistId, {
 			...(customName ? { customName } : { clientId }),
-			year,
-			month,
-			day,
-			startHour: Number(startHourRaw),
-			startMinute: Number(startMinuteRaw),
-			endHour: Number(endHourRaw),
-			endMinute: Number(endMinuteRaw),
+			year: date.year,
+			month: date.month,
+			day: date.day,
+			startHour: start.hour,
+			startMinute: start.minute,
+			endHour: end.hour,
+			endMinute: end.minute,
 			modality,
 			notes
 		});
 
 		if (result.error) {
+			if (result.error === 'overlap') {
+				return fail(409, { message: overlapMessage(result.conflict, timezone) });
+			}
 			return fail(400, { message: addAppointmentErrorMessages[result.error] });
 		}
+
+		const created = result.appointment!;
 
 		// walk-ins have no client row to carry a rate, so charge the session up front
 		// instead — the amount the therapist just typed, defaulting to 0 if left blank
 		if (customName) {
-			await addCharge(therapistId, {
-				customName,
-				appointmentId: result.appointment!.id,
-				amount: rateRaw ? Number(rateRaw) : 0
-			});
+			try {
+				await addCharge(therapistId, { customName, appointmentId: created.id, amount: rate });
+			} catch (err) {
+				// The appointment exists; only the charge row is missing. Say so instead
+				// of a 500 that makes it look like nothing was booked.
+				logError('calendar.addAppointment.charge', err, { therapistId, appointmentId: created.id });
+				return fail(500, {
+					message:
+						'The session was booked, but recording the charge failed — add it from the Payments page'
+				});
+			}
 		}
 
-		await attachMeetingLinkIfOnline(result.appointment!);
-		await sendAppointmentEmail(result.appointment!.id, 'confirmed');
+		// Both best-effort: Meet link creation logs and returns null on failure, and
+		// the email helper swallows its own errors.
+		await attachMeetingLinkIfOnline(created);
+		await sendAppointmentEmail(created.id, 'confirmed');
 	},
 
 	cancelAppointment: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
 		const appointmentId = formData.get('appointmentId')?.toString() ?? '';
+		if (!appointmentId) {
+			return fail(400, { message: cancelErrorMessages.not_found });
+		}
 		const chargeRaw = formData.get('chargeTier')?.toString();
 		const manualTier =
 			chargeRaw === 'free' || chargeRaw === 'partial' || chargeRaw === 'full' ? chargeRaw : undefined;
@@ -171,33 +219,41 @@ export const actions: Actions = {
 
 	rescheduleAppointment: async (event) => {
 		const therapistId = event.locals.therapistId!;
+		const timezone = event.locals.therapist!.timezone;
 		const formData = await event.request.formData();
 		const appointmentId = formData.get('appointmentId')?.toString() ?? '';
-		const year = Number(formData.get('year'));
-		const month = Number(formData.get('month'));
-		const day = Number(formData.get('day'));
 		const startTime = formData.get('startTime')?.toString() ?? '';
 		const endTime = formData.get('endTime')?.toString() ?? '';
 		const modality = formData.get('modality')?.toString() === 'in_person' ? 'in_person' : 'online';
 
-		const [startHourRaw, startMinuteRaw] = startTime.split(':');
-		const [endHourRaw, endMinuteRaw] = endTime.split(':');
-		if (!startHourRaw || !startMinuteRaw || !endHourRaw || !endMinuteRaw) {
-			return fail(400, { message: 'Pick a start and end time' });
+		if (!appointmentId) {
+			return fail(400, { message: rescheduleErrorMessages.not_found });
+		}
+		const date = parseDateParts(formData);
+		if (!date) {
+			return fail(400, { message: 'Pick a valid date' });
+		}
+		const start = parseTimeParts(startTime);
+		const end = parseTimeParts(endTime);
+		if (!start || !end) {
+			return fail(400, { message: 'Pick a valid start and end time' });
 		}
 
 		const result = await rescheduleAppointmentForTherapist(therapistId, appointmentId, {
-			year,
-			month,
-			day,
-			startHour: Number(startHourRaw),
-			startMinute: Number(startMinuteRaw),
-			endHour: Number(endHourRaw),
-			endMinute: Number(endMinuteRaw),
+			year: date.year,
+			month: date.month,
+			day: date.day,
+			startHour: start.hour,
+			startMinute: start.minute,
+			endHour: end.hour,
+			endMinute: end.minute,
 			modality
 		});
 
 		if ('error' in result) {
+			if (result.error === 'overlap') {
+				return fail(409, { message: overlapMessage(result.conflict, timezone) });
+			}
 			return fail(400, { message: rescheduleErrorMessages[result.error] });
 		}
 	}

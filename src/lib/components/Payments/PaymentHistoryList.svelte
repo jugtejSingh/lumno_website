@@ -4,6 +4,7 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import Badge from '$lib/components/utils/Badge.svelte';
 	import { formatCurrency } from '$lib/format';
+	import { toast } from 'svelte-sonner';
 	import type { ClientPaymentHistoryRow, ClientPaymentTotals } from '$lib/types/payments';
 
 	// Shared between the payments page's client-history modal (editable: mark paid / edit /
@@ -27,18 +28,28 @@
 	let total = $state(0);
 	let pageSize = $state(10);
 	let loading = $state(false);
+	let loadFailed = $state(false);
 
 	const totalPages = $derived(Math.max(1, Math.ceil(total / pageSize)));
 
 	async function load() {
 		loading = true;
+		loadFailed = false;
 		try {
 			const res = await fetch(`/payments/clients/${clientId}?page=${page}`);
+			if (!res.ok) {
+				throw new Error(`payment history request failed with ${res.status}`);
+			}
 			const json = await res.json();
 			rows = json.rows;
 			total = json.total;
 			pageSize = json.pageSize;
 			ontotals?.(json.totals);
+		} catch {
+			// a stale/foreign clientId or a dropped connection — leave the old rows
+			// (if any) in place and let the therapist retry
+			loadFailed = true;
+			toast.error('Could not load payment history. Please try again.');
 		} finally {
 			loading = false;
 		}
@@ -68,6 +79,11 @@
 <div class="history">
 	{#if loading && rows.length === 0}
 		<div class="empty">Loading…</div>
+	{:else if loadFailed && rows.length === 0}
+		<div class="empty">
+			Couldn't load payment history.
+			<Button variant="secondary" size="sm" onclick={load}>Retry</Button>
+		</div>
 	{:else if rows.length === 0}
 		<div class="empty">No payment history yet.</div>
 	{:else}

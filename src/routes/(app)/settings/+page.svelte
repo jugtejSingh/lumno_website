@@ -10,6 +10,7 @@
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
 	import { enhance } from '$lib/enhance';
 	import { invalidateAll } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -41,11 +42,35 @@
 	};
 	let cancelling = $state(false);
 
+	// Slugs thrown by /cancel — anything else (network drop, 500 without a body)
+	// gets the generic line.
+	const CANCEL_ERROR_MESSAGES: Record<string, string> = {
+		no_active_subscription: "There's no active plan to cancel.",
+		already_cancelled: 'This plan is already cancelled.',
+		cancellation_failed: "We couldn't reach the payment provider. Please try again in a minute."
+	};
+
 	async function cancelPlan() {
 		cancelling = true;
 		try {
-			await fetch('/cancel', { method: 'POST' });
+			const res = await fetch('/cancel', { method: 'POST' });
+			if (!res.ok) {
+				let slug = '';
+				try {
+					const body = await res.json();
+					if (body && typeof body.message === 'string') {
+						slug = body.message;
+					}
+				} catch {
+					// no JSON body — fall through to the generic message
+				}
+				toast.error(CANCEL_ERROR_MESSAGES[slug] ?? 'Could not cancel the plan. Please try again.');
+				return;
+			}
+			toast.success('Your plan will end at the close of this billing period.');
 			await invalidateAll();
+		} catch {
+			toast.error('Could not cancel the plan. Check your connection and try again.');
 		} finally {
 			cancelling = false;
 		}
@@ -110,6 +135,8 @@
 			? ''
 			: String(data.payments.partialChangeWindowHours)
 	);
+	let payBankDetails = $state(data.manualPay.bankDetails);
+	let removePayQr = $state(false);
 
 	// ---- Razorpay connection ----
 	// Automated payments disabled for now — uncomment this block and the banner in
@@ -160,6 +187,7 @@
 	class="settings"
 	method="POST"
 	action="?/save"
+	enctype="multipart/form-data"
 	use:enhance={() => {
 		return async ({ update }) => {
 			await update({ reset: false });
@@ -176,6 +204,9 @@
 	{#if form?.message}
 		<div class="form-error">{form.message}</div>
 	{/if}
+	{#if data.calendarError}
+		<div class="form-error">{data.calendarError}</div>
+	{/if}
 
 	<input type="hidden" name="tags" value={specialties.join(',')} />
 	<input type="hidden" name="sessionFormat" value={formatValue} />
@@ -183,6 +214,7 @@
 	<input type="hidden" name="referralShowYears" value={showYears ? 'on' : ''} />
 	<input type="hidden" name="referralShowRate" value={showRate ? 'on' : ''} />
 	<input type="hidden" name="sendMeetLinks" value={sendMeetLinks ? 'on' : ''} />
+	<input type="hidden" name="removePayQr" value={removePayQr ? 'on' : ''} />
 	<input type="hidden" name="sendBookingEmails" value={sendBookingEmails ? 'on' : ''} />
 	<input
 		type="hidden"
@@ -377,6 +409,31 @@
 					{/each}
 				</select>
 			</label>
+
+			<div class="section-title">How Clients Pay You</div>
+			<div class="helper">
+				Shown to clients in their portal next to any unpaid invoice. Upload a UPI / payment QR
+				code image and add the account details they should transfer to.
+			</div>
+			{#if data.manualPay.qrUrl}
+				<div class="qr-current">
+					<img class="qr-preview" src={data.manualPay.qrUrl} alt="Your payment QR code" />
+					<Switch label="Remove this QR code on save" bind:checked={removePayQr} />
+				</div>
+			{/if}
+			<label class="field">
+				<span class="field-label">
+					{data.manualPay.qrUrl ? 'Replace QR Code Image' : 'QR Code Image'}
+				</span>
+				<input class="field-input" type="file" name="payQrImage" accept="image/*" />
+			</label>
+			<Textarea
+				label="Bank / UPI Details"
+				name="payBankDetails"
+				rows={4}
+				placeholder={'Account name\nAccount number\nIFSC\nUPI id'}
+				bind:value={payBankDetails}
+			/>
 		</div>
 	</Card>
 
@@ -558,6 +615,22 @@
 		font-size: 13px;
 		color: var(--text-muted);
 		line-height: var(--lh-relaxed);
+	}
+
+	.qr-current {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: flex-start;
+	}
+
+	.qr-preview {
+		width: 160px;
+		height: 160px;
+		object-fit: contain;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		background: var(--surface-card);
 	}
 
 	.form-error {

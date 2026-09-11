@@ -5,7 +5,12 @@ import {
 	getNotificationSettings,
 	updateNotificationSettings
 } from '$lib/server/settings';
-import { getPaymentSettings, updatePaymentSettings } from '$lib/server/paymentSettings';
+import {
+	getPaymentSettings,
+	updatePaymentSettings,
+	getManualPayDetails,
+	updateManualPayDetails
+} from '$lib/server/paymentSettings';
 import { resetDb, mkTherapist } from './helpers';
 
 let therapistId: string;
@@ -82,5 +87,23 @@ describe('payment settings', () => {
 			freeChangeWindowHours: 48,
 			partialChangeWindowHours: 12
 		});
+	});
+});
+
+describe('manual pay details', () => {
+	it('starts empty, round-trips, and clears', async () => {
+		expect(await getManualPayDetails(therapistId)).toEqual({ qrKey: null, bankDetails: null });
+
+		await updateManualPayDetails(therapistId, {
+			qrKey: `upi/${therapistId}/abc`,
+			bankDetails: 'UPI: someone@upi'
+		});
+		expect(await getManualPayDetails(therapistId)).toEqual({
+			qrKey: `upi/${therapistId}/abc`,
+			bankDetails: 'UPI: someone@upi'
+		});
+
+		await updateManualPayDetails(therapistId, { qrKey: null, bankDetails: null });
+		expect(await getManualPayDetails(therapistId)).toEqual({ qrKey: null, bankDetails: null });
 	});
 });

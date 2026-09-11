@@ -86,7 +86,12 @@
 	<Input placeholder="Search by name or email" bind:value={query} />
 
 	{#if form?.inviteUrl}
-		<div class="banner">Invite link: <code>{form.inviteUrl}</code></div>
+		<div class="banner" class:form-error={Boolean(form.message)}>
+			{#if form.message}
+				<div>{form.message}</div>
+			{/if}
+			Invite link: <code>{form.inviteUrl}</code>
+		</div>
 	{:else if form?.message && !addOpen && !editClientId}
 		<div class="banner form-error">{form.message}</div>
 	{/if}

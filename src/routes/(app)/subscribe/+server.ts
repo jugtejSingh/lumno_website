@@ -13,6 +13,7 @@ import {
 	planIdFor,
 	razorpayKeyId
 } from '$lib/server/razorpay';
+import { logError } from '$lib/server/log';
 
 // A pending sub id is reused only while comfortably inside Razorpay's 30-minute
 // expire_by window (subscriptions.create) — otherwise it's treated as expired
@@ -58,8 +59,9 @@ async function createOrReusePendingSub(
 	if (pending && pending !== CREATING_SENTINEL) {
 		try {
 			await cancelSubscription(pending);
-		} catch {
+		} catch (err) {
 			// best effort — an already-cancelled/expired sub errors harmlessly
+			logError('subscribe.cancelStalePending', err, { therapistId, pending });
 		}
 	}
 
@@ -67,7 +69,7 @@ async function createOrReusePendingSub(
 	try {
 		newSub = await createSubscription(planNumber, { therapistId });
 	} catch (err) {
-		console.error('razorpay subscriptions.create failed', err);
+		logError('subscribe.createSubscription', err, { therapistId, planNumber });
 		// Release the slot so the therapist can retry immediately, not in 60s.
 		await clearPendingSlot(therapistId, CREATING_SENTINEL);
 		error(500, 'subscription_creation_failed');
@@ -96,8 +98,9 @@ async function changePlan(
 		if (pending && pending !== CREATING_SENTINEL) {
 			try {
 				await cancelSubscription(pending);
-			} catch {
+			} catch (err) {
 				// best effort
+				logError('subscribe.cancelSamePlanPending', err, { therapistId, pending });
 			}
 			await clearPendingSlot(therapistId, pending);
 		}
@@ -110,8 +113,13 @@ async function changePlan(
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const therapistId = locals.therapistId!;
-	const body = await request.json();
-	const planNumber = Number(body.plan);
+	let body: { plan?: unknown };
+	try {
+		body = await request.json();
+	} catch {
+		error(400, 'invalid_plan');
+	}
+	const planNumber = Number(body?.plan);
 	if (planNumber !== 1 && planNumber !== 2) {
 		error(422, 'invalid_plan');
 	}
@@ -134,8 +142,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (subscription.status === 'past_due' && subscription.razorpaySubscriptionId) {
 		try {
 			await cancelSubscription(subscription.razorpaySubscriptionId);
-		} catch {
+		} catch (err) {
 			// best effort
+			logError('subscribe.cancelHaltedSub', err, {
+				therapistId,
+				subId: subscription.razorpaySubscriptionId
+			});
 		}
 	}
 

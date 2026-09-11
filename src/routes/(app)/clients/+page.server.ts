@@ -72,11 +72,19 @@ export const actions: Actions = {
 			event.url.origin
 		);
 
-		if ('error' in result) {
+		if ('error' in result && result.error !== undefined) {
 			if (result.error === 'duplicate' || result.error === 'self') {
 				return fail(400, { fieldErrors: { email: addErrorMessages[result.error] } });
 			}
 			return fail(400, { message: addErrorMessages[result.error] });
+		}
+		if (!result.emailSent) {
+			// The client is saved; only the email bounced. Hand back the link so the
+			// therapist can share it by hand, and say what happened.
+			return {
+				inviteUrl: result.inviteUrl,
+				message: `${name} was added, but the invite email could not be sent. Share this link with them directly or use Resend invite later.`
+			};
 		}
 	},
 
@@ -116,7 +124,7 @@ export const actions: Actions = {
 			tags,
 			status: status as ClientStatus
 		});
-		if (result && 'error' in result) {
+		if (result && 'error' in result && result.error !== undefined) {
 			return fail(400, { message: updateErrorMessages[result.error] });
 		}
 	},
@@ -128,8 +136,14 @@ export const actions: Actions = {
 
 		const result = await resendInvite(therapistId, clientId, event.url.origin);
 
-		if ('error' in result) {
+		if ('error' in result && result.error !== undefined) {
 			return fail(400, { message: resendErrorMessages[result.error] });
+		}
+		if (!result.emailSent) {
+			return {
+				inviteUrl: result.inviteUrl,
+				message: 'The invite email could not be sent. Share this link with the client directly.'
+			};
 		}
 
 		return { inviteUrl: result.inviteUrl };

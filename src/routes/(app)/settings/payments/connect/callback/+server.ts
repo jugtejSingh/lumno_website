@@ -10,6 +10,7 @@ import {
 } from '$lib/server/razorpay';
 import { storeConnection } from '$lib/server/razorpayConnection';
 import { _OAUTH_STATE_COOKIE } from '../+server';
+import { logError } from '$lib/server/log';
 
 // Therapist auth is enforced in hooks.server.ts for the whole (app) group.
 export const GET: RequestHandler = async ({ locals, url, cookies }) => {
@@ -38,7 +39,7 @@ export const GET: RequestHandler = async ({ locals, url, cookies }) => {
 		tokens = await exchangeOAuthCode(code);
 	} catch (err) {
 		// RazorpayOAuthError carries only the status — never the code or secret.
-		console.error(`razorpay oauth: code exchange failed for therapist ${therapistId}:`, err);
+		logError('razorpay.oauth.exchange', err, { therapistId });
 		redirect(302, '/settings?payments=state_error');
 	}
 

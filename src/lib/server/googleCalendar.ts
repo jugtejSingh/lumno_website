@@ -4,6 +4,7 @@ import { google } from 'googleapis';
 import { db } from '$lib/server/db';
 import { account } from '$lib/server/db/schema';
 import { auth } from '$lib/server/auth';
+import { logError } from '$lib/server/log';
 
 // Best-effort Google Meet creation for online appointments. Every function here
 // returns null/no-ops instead of throwing when the therapist hasn't connected Google
@@ -35,7 +36,9 @@ async function getCalendarClient(therapistUserId: string) {
 		const oauth2Client = new google.auth.OAuth2();
 		oauth2Client.setCredentials({ access_token: accessToken });
 		return google.calendar({ version: 'v3', auth: oauth2Client });
-	} catch {
+	} catch (err) {
+		// Usually a revoked/expired Google grant — the therapist has to reconnect.
+		logError('googleCalendar.accessToken', err, { therapistUserId });
 		return null;
 	}
 }
@@ -63,7 +66,8 @@ export async function createMeetEvent(
 		});
 		if (!data.id) return null;
 		return { eventId: data.id, meetLink: data.hangoutLink ?? null };
-	} catch {
+	} catch (err) {
+		logError('googleCalendar.createEvent', err, { therapistUserId });
 		return null;
 	}
 }
@@ -87,8 +91,9 @@ export async function patchMeetEventTime(
 				end: { dateTime: input.endAt.toISOString() }
 			}
 		});
-	} catch {
-		// best-effort
+	} catch (err) {
+		// best-effort — the appointment moved regardless
+		logError('googleCalendar.patchEvent', err, { therapistUserId, eventId });
 	}
 }
 
@@ -98,7 +103,8 @@ export async function deleteMeetEvent(therapistUserId: string, eventId: string):
 
 	try {
 		await calendar.events.delete({ calendarId: 'primary', eventId });
-	} catch {
-		// best-effort
+	} catch (err) {
+		// best-effort — the appointment is cancelled regardless
+		logError('googleCalendar.deleteEvent', err, { therapistUserId, eventId });
 	}
 }

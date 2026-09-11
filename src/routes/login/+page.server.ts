@@ -4,22 +4,33 @@ import { auth } from '$lib/server/auth';
 import { destinationFor, destinationForRole } from '$lib/server/destination';
 import { requestTherapistUpgrade } from '$lib/server/therapistUpgrade';
 import { createTherapistProfile } from '$lib/server/therapistProfile';
-import { APIError } from 'better-auth/api';
+import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
+import { logError } from '$lib/server/log';
 
 export const load: PageServerLoad = async (event) => {
 	if (event.locals.user) {
 		const destination = await destinationFor(event.locals.user.id);
 		if (destination) return redirect(302, destination);
 	}
-	return {};
+
+	const oauthError = describeOAuthError(
+		'login.oauth',
+		event.url,
+		'Google sign-in failed. Please try again.'
+	);
+	return { oauthError };
 };
 
 export const actions: Actions = {
 	signInEmail: async (event) => {
 		const formData = await event.request.formData();
-		const email = formData.get('email')?.toString() ?? '';
+		const email = formData.get('email')?.toString().trim() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 		const role = formData.get('role')?.toString() === 'Client' ? 'Client' : 'Therapist';
+
+		if (!email || !password) {
+			return fail(400, { message: 'Enter your email and password.' });
+		}
 
 		let userId: string;
 		try {
@@ -30,27 +41,25 @@ export const actions: Actions = {
 			});
 			userId = result.user.id;
 		} catch (error) {
-			if (error instanceof APIError) {
-				return fail(400, { message: error.message || 'Login failed' });
-			}
-			return fail(500, { message: 'Unexpected error' });
+			const failure = describeAuthError('login.signIn', error, 'Login failed. Please try again.');
+			return fail(failure.status, { message: failure.message });
 		}
 
 		const destination = await destinationForRole(userId, role);
 		if (!destination) {
-			return fail(
-				403,
-				role === 'Therapist'
-					? { message: 'This account has no practice set up.' }
-					: { message: 'This account has no client profile. Ask your therapist for an invite.' }
-			);
+			if (role === 'Therapist') {
+				return fail(403, { message: 'This account has no practice set up.' });
+			}
+			return fail(403, {
+				message: 'This account has no client profile. Ask your therapist for an invite.'
+			});
 		}
 		return redirect(302, destination);
 	},
 
 	signUpEmail: async (event) => {
 		const formData = await event.request.formData();
-		const email = formData.get('email')?.toString() ?? '';
+		const email = formData.get('email')?.toString().trim() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 		const name = formData.get('name')?.toString().trim() ?? '';
 		const photoUrl = formData.get('photoUrl')?.toString().trim() || null;
@@ -61,6 +70,9 @@ export const actions: Actions = {
 			.map((t) => t.trim())
 			.filter(Boolean);
 
+		if (!email || !password) {
+			return fail(400, { message: 'Enter an email and password.' });
+		}
 		if (!name.includes(' ')) {
 			return fail(400, { message: 'Please enter your first and last name.' });
 		}
@@ -76,10 +88,12 @@ export const actions: Actions = {
 			userId = result.user.id;
 			emailVerified = result.user.emailVerified;
 		} catch (error) {
-			if (error instanceof APIError) {
-				return fail(400, { message: error.message || 'Registration failed' });
-			}
-			return fail(500, { message: 'Unexpected error' });
+			const failure = describeAuthError(
+				'login.signUp',
+				error,
+				'Registration failed. Please try again.'
+			);
+			return fail(failure.status, { message: failure.message });
 		}
 
 		try {
@@ -87,43 +101,69 @@ export const actions: Actions = {
 		} catch (error) {
 			const cause = error instanceof Error ? error.cause : undefined;
 			if (!(cause instanceof Error) || !('code' in cause) || cause.code !== '23503') {
-				throw error;
+				logError('login.signUp.profile', error, { userId });
+				return fail(500, {
+					message: 'Your account was created but the practice profile failed. Please log in and try again.'
+				});
 			}
 			// signUpEmail returned a synthetic, unpersisted user (see
 			// $lib/server/therapistUpgrade.ts) — offer to attach a therapist
 			// profile to the real existing account instead, without leaking
 			// whether the email was actually taken.
-			await requestTherapistUpgrade(email, name, event.url.origin);
+			try {
+				await requestTherapistUpgrade(email, name, event.url.origin);
+			} catch (upgradeError) {
+				// Same redirect either way: revealing that the email failed would
+				// reveal that the account exists.
+				logError('login.signUp.upgradeEmail', upgradeError);
+			}
 			return redirect(302, '/login?checkEmail=1');
 		}
 
 		if (!emailVerified) {
-			await auth.api.sendVerificationEmail({
-				body: { email, callbackURL: '/dashboard' },
-				headers: event.request.headers
-			});
+			try {
+				await auth.api.sendVerificationEmail({
+					body: { email, callbackURL: '/dashboard' },
+					headers: event.request.headers
+				});
+			} catch (error) {
+				logError('login.signUp.verificationEmail', error, { userId });
+				return redirect(302, '/login?checkEmail=1&emailFailed=1');
+			}
 			return redirect(302, '/login?checkEmail=1');
 		}
 		return redirect(302, '/dashboard');
 	},
 
 	signInGoogle: async (event) => {
+		const formData = await event.request.formData();
+		const role = formData.get('role')?.toString() === 'Client' ? 'Client' : 'Therapist';
+
 		let url: string;
 		try {
 			const result = await auth.api.signInSocial({
-				body: { provider: 'google', callbackURL: '/login/google/callback' },
+				body: {
+					provider: 'google',
+					// role survives the OAuth round-trip so the callback never provisions a
+					// therapist profile for someone who picked "Client"
+					callbackURL: `/login/google/callback?role=${role}`,
+					errorCallbackURL: '/login'
+				},
 				headers: event.request.headers,
 				asResponse: false
 			});
 			if (!result.url) {
-				return fail(500, { message: 'Could not start Google sign-in' });
+				logError('login.google', new Error('signInSocial returned no url'));
+				return fail(500, { message: 'Could not start Google sign-in. Please try again.' });
 			}
 			url = result.url;
 		} catch (error) {
-			if (error instanceof APIError) {
-				return fail(400, { message: error.message || 'Google sign-in failed' });
-			}
-			return fail(500, { message: 'Unexpected error' });
+			const failure = describeAuthError(
+				'login.google',
+				error,
+				'Could not start Google sign-in. Please try again.'
+			);
+			return fail(failure.status, { message: failure.message });
 		}
 
 		return redirect(302, url);

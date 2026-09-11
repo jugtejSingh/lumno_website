@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 // Calendar, and the booking-email composer. The DB behaviour around them is
 // what's under test, not the network calls.
 vi.mock('$lib/server/email', () => ({
-	sendEmail: vi.fn(async () => {})
+	sendEmail: vi.fn(async () => {}),
+	wrapEmail: vi.fn(() => '<html></html>')
 }));
 vi.mock('$lib/server/googleCalendar', () => ({
 	createMeetEvent: vi.fn(async () => null),

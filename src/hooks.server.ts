@@ -1,4 +1,6 @@
-import { redirect, type Handle } from '@sveltejs/kit';
+import { redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
+import { randomUUID } from 'node:crypto';
+import { logError } from '$lib/server/log';
 import { eq } from 'drizzle-orm';
 import { building } from '$app/environment';
 import { auth } from '$lib/server/auth';
@@ -59,3 +61,22 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = handleBetterAuth;
+
+// Every uncaught throw in a load/action/endpoint lands here. The full error goes
+// to the server log with a short id; the user only ever sees the id and a generic
+// line — never the message, which could leak SQL, env names or internal ids.
+export const handleError: HandleServerError = ({ error, event, status, message }) => {
+	const errorId = randomUUID().slice(0, 8);
+	logError('unhandled', error, {
+		errorId,
+		status,
+		route: event.route.id,
+		method: event.request.method,
+		url: event.url.pathname,
+		userId: event.locals.user?.id
+	});
+	if (status === 404) {
+		return { message: 'Page not found' };
+	}
+	return { message: `${message || 'Something went wrong'} (ref ${errorId})` };
+};

@@ -11,13 +11,23 @@ import {
 	updateNotificationSettings,
 	type ScheduleKind
 } from '$lib/server/settings';
-import { getPaymentSettings, updatePaymentSettings } from '$lib/server/paymentSettings';
+import {
+	getPaymentSettings,
+	updatePaymentSettings,
+	getManualPayDetails,
+	updateManualPayDetails
+} from '$lib/server/paymentSettings';
+import { putObject, deleteObject, signedUrl } from '$lib/server/storage';
+import { randomUUID } from 'node:crypto';
 import { connectionHealth } from '$lib/server/razorpayConnection';
 import { isGoogleCalendarConnected } from '$lib/server/googleCalendar';
 import { CHANGE_WINDOW_HOURS_OPTIONS, formatHours } from '$lib/server/paymentPolicy';
+import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
+import { logError } from '$lib/server/log';
 
 const FORMATS = ['remote', 'in_person', 'hybrid'] as const;
 const SCHEDULE_KINDS: ScheduleKind[] = ['online', 'in_person', 'off'];
+const MAX_QR_BYTES = 5 * 1024 * 1024;
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { therapist } = await parent();
@@ -30,7 +40,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		payments,
 		subscription,
 		googleConnected,
-		razorpayHealth
+		razorpayHealth,
+		manualPayRow
 	] = await Promise.all([
 		getReferralProfile(therapistId),
 		getTherapistScheduleSettings(therapistId),
@@ -41,8 +52,18 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		// silently reading as Free. See the webhook handler's plan-retention comment.
 		getOrCreateSubscription(therapistId),
 		isGoogleCalendarConnected(therapist.userId),
-		connectionHealth(therapistId)
+		connectionHealth(therapistId),
+		getManualPayDetails(therapistId)
 	]);
+
+	let qrUrl: string | null = null;
+	if (manualPayRow.qrKey) {
+		qrUrl = await signedUrl(manualPayRow.qrKey);
+	}
+	const manualPay = {
+		qrUrl,
+		bankDetails: manualPayRow.bankDetails ?? ''
+	};
 
 	const billing = {
 		plan: subscription.plan,
@@ -61,15 +82,24 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		notice: url.searchParams.get('payments')
 	};
 
+	const calendarError = describeOAuthError(
+		'settings.googleCalendar.callback',
+		url,
+		'Google Calendar could not be connected. Please try again.',
+		{ therapistId }
+	);
+
 	return {
 		profile,
 		schedule,
 		notifications,
 		payments,
+		manualPay,
 		billing,
 		googleConnected,
 		hourOptions,
-		razorpay
+		razorpay,
+		calendarError
 	};
 };
 
@@ -180,12 +210,48 @@ export const actions: Actions = {
 			partialChangeWindowHours
 		};
 
+		// ---- manual payment details (QR image + bank text) ----
+		const bankDetails = form.get('payBankDetails')?.toString().trim() || null;
+		const removeQr = form.get('removePayQr') === 'on';
+		const qrFile = form.get('payQrImage');
+		let newQrFile: File | null = null;
+		if (qrFile instanceof File && qrFile.size > 0) {
+			if (!qrFile.type.startsWith('image/')) {
+				return fail(400, { message: 'The QR code must be an image file' });
+			}
+			if (qrFile.size > MAX_QR_BYTES) {
+				return fail(400, { message: 'The QR code image must be under 5 MB' });
+			}
+			newQrFile = qrFile;
+		}
+
+		// Upload before the transaction so a failed upload leaves the DB untouched;
+		// the old object is removed only after the new key is committed.
+		const current = await getManualPayDetails(therapistId);
+		let qrKey = current.qrKey;
+		if (newQrFile) {
+			qrKey = `upi/${therapistId}/${randomUUID()}`;
+			await putObject(qrKey, new Uint8Array(await newQrFile.arrayBuffer()), newQrFile.type);
+		} else if (removeQr) {
+			qrKey = null;
+		}
+
 		await db.transaction(async (tx) => {
 			await updateReferralProfile(therapistId, referral, tx);
 			await updateTherapistScheduleSettings(therapistId, schedule, tx);
 			await updateNotificationSettings(therapistId, notifications, tx);
 			await updatePaymentSettings(therapistId, payments, tx);
+			await updateManualPayDetails(therapistId, { qrKey, bankDetails }, tx);
 		});
+
+		if (current.qrKey && current.qrKey !== qrKey) {
+			try {
+				await deleteObject(current.qrKey);
+			} catch (err) {
+				// ponytail: an orphaned object is harmless, just log it
+				logError('settings.payQr.delete', err, { therapistId, key: current.qrKey });
+			}
+		}
 
 		return { saved: true };
 	},
@@ -197,16 +263,25 @@ export const actions: Actions = {
 				body: {
 					provider: 'google',
 					callbackURL: '/settings',
+					errorCallbackURL: '/settings',
 					scopes: ['https://www.googleapis.com/auth/calendar.events']
 				},
 				headers: event.request.headers
 			});
 			url = result.url;
-		} catch {
-			return fail(500, { message: 'Could not start Google Calendar connection' });
+		} catch (err) {
+			const failure = describeAuthError(
+				'settings.googleCalendar.link',
+				err,
+				'Could not start the Google Calendar connection. Please try again.'
+			);
+			return fail(failure.status, { message: failure.message });
 		}
 		if (!url) {
-			return fail(500, { message: 'Could not start Google Calendar connection' });
+			logError('settings.googleCalendar.link', new Error('linkSocialAccount returned no url'), {
+				therapistId: event.locals.therapistId
+			});
+			return fail(500, { message: 'Could not start the Google Calendar connection. Please try again.' });
 		}
 		return redirect(302, url);
 	}

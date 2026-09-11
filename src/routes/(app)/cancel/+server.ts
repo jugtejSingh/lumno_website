@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOrCreateSubscription, setCancelScheduled } from '$lib/server/billing';
 import { cancelSubscription } from '$lib/server/razorpay';
+import { logError } from '$lib/server/log';
 
 // Always cancel-at-cycle-end — access continues through the paid period,
 // status stays 'active' until the period-end webhook flips it. Matches
@@ -24,7 +25,11 @@ export const POST: RequestHandler = async ({ locals }) => {
 
 	try {
 		await cancelSubscription(subscription.razorpaySubscriptionId);
-	} catch {
+	} catch (err) {
+		logError('cancel.cancelSubscription', err, {
+			therapistId,
+			subId: subscription.razorpaySubscriptionId
+		});
 		error(500, 'cancellation_failed');
 	}
 

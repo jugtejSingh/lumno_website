@@ -6,9 +6,9 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import { page } from '$app/state';
 	import { enhance } from '$lib/enhance';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	type Role = 'Therapist' | 'Client';
 
@@ -38,6 +38,7 @@
 
 	const checkEmail = $derived(page.url.searchParams.get('checkEmail') === '1');
 	const therapistReady = $derived(page.url.searchParams.get('therapistReady') === '1');
+	const emailFailed = $derived(page.url.searchParams.get('emailFailed') === '1');
 </script>
 
 <svelte:head>
@@ -51,8 +52,16 @@
 
 	<div class="center">
 		<div class="auth-card" class:wide={mode === 'register'} class:short={!isTherapist}>
-			{#if checkEmail}
+			{#if checkEmail && emailFailed}
+				<div class="banner banner-bad">
+					Your account was created, but we couldn't send the verification email. Log in below to
+					request a new one.
+				</div>
+			{:else if checkEmail}
 				<div class="banner">Check your email to verify your account before logging in.</div>
+			{/if}
+			{#if data.oauthError}
+				<div class="banner banner-bad">{data.oauthError}</div>
 			{/if}
 			{#if therapistReady}
 				<div class="banner">Your therapist profile is ready. Log in to get started.</div>
@@ -87,6 +96,7 @@
 			{/if}
 
 			<form class="google-form" method="POST" action="?/signInGoogle" use:enhance>
+				<input type="hidden" name="role" value={role} />
 				<Button type="submit" variant="secondary">Continue with Google</Button>
 			</form>
 
@@ -224,6 +234,11 @@
 		font-weight: 600;
 		background: var(--beige-200);
 		color: var(--text-secondary);
+	}
+
+	.banner-bad {
+		background: var(--coral-100, #fbe9e7);
+		color: var(--accent-danger, #c0392b);
 	}
 
 	.role-pill {

@@ -8,6 +8,7 @@ import {
 import { cancelSubscription, planNumberFor, verifyWebhookSignature } from '$lib/server/razorpay';
 import { revokeConnectionByAccountId } from '$lib/server/razorpayConnection';
 import { handleSessionInvoicePaid } from '$lib/server/sessionPayments';
+import { logError, logInfo } from '$lib/server/log';
 
 // Just the fields we read out of a Razorpay subscription webhook payload.
 // https://razorpay.com/docs/webhooks/payloads/subscriptions/
@@ -54,7 +55,20 @@ export const POST: RequestHandler = async ({ request }) => {
 		error(400, 'invalid_signature');
 	}
 
-	const payload: RazorpayWebhookPayload = JSON.parse(rawBody);
+	let payload: RazorpayWebhookPayload;
+	try {
+		payload = JSON.parse(rawBody);
+	} catch (err) {
+		// Signature matched, so this came from Razorpay — but a body we can't parse
+		// is not something a retry will fix. 400 stops the retries.
+		logError('webhook.razorpay.parse', err, { bodyLength: rawBody.length });
+		error(400, 'invalid_payload');
+	}
+	if (!payload || typeof payload !== 'object' || typeof payload.event !== 'string' || !payload.payload) {
+		logError('webhook.razorpay.parse', new Error('payload missing event or payload fields'));
+		error(400, 'invalid_payload');
+	}
+	logInfo('webhook.razorpay', `received ${payload.event}`);
 
 	// ── Partner-OAuth events — branch before the subscription check ──────────
 	// (design doc §12.10). Both dedupe on the razorpay_event unique signature.
@@ -126,8 +140,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (processed && oldSubId) {
 			try {
 				await cancelSubscription(oldSubId);
-			} catch {
-				// best effort — DB is already updated regardless
+			} catch (err) {
+				// best effort — DB is already updated regardless, but a sub left live on
+				// Razorpay would keep charging, so this has to be visible in the logs.
+				logError('webhook.razorpay.cancelOldSub', err, { therapistId, oldSubId });
 			}
 		}
 	} else if (PAST_DUE_EVENTS.includes(payload.event)) {
@@ -145,6 +161,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// A plan change just landed — reconcile which clients are bookable against
 	// the new cap immediately (upgrade unlocks, downgrade/cancellation locks).
 	if (processed) {
+		logInfo('webhook.razorpay', `applied ${payload.event}`, { therapistId, plan, subId: subEntity.id });
 		await syncClientActivationForCap(therapistId);
 	}
 

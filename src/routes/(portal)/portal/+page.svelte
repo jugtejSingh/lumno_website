@@ -183,6 +183,25 @@
 			<StatCard label="Balance due" value={data.balanceDue} accent="citrus" />
 			<StatCard label="Paid total" value={data.paidTotal} accent="sage" />
 		</div>
+		{#if data.manualPay && data.hasBalanceDue}
+			<Card>
+				<div class="pay-how">
+					<div class="row-title">How to pay {data.therapistName.split(' ')[0]}</div>
+					<div class="row-sub">
+						Pay your balance directly using the details below, then let your therapist know so
+						they can mark the invoice as paid.
+					</div>
+					<div class="pay-how-body">
+						{#if data.manualPay.qrUrl}
+							<img class="pay-qr" src={data.manualPay.qrUrl} alt="Payment QR code" />
+						{/if}
+						{#if data.manualPay.bankDetails}
+							<pre class="pay-bank">{data.manualPay.bankDetails}</pre>
+						{/if}
+					</div>
+				</div>
+			</Card>
+		{/if}
 		<div class="invoice-list">
 			{#each data.invoices as inv (inv.id)}
 				<Card>
@@ -382,6 +401,38 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+	}
+
+	.pay-how {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.pay-how-body {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		align-items: flex-start;
+		margin-top: 6px;
+	}
+
+	.pay-qr {
+		width: 180px;
+		height: 180px;
+		object-fit: contain;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		background: var(--surface-card);
+	}
+
+	.pay-bank {
+		font-family: var(--font-body);
+		font-size: 14px;
+		color: var(--text-primary);
+		white-space: pre-wrap;
+		margin: 0;
+		user-select: all;
 	}
 
 	.shared-head {

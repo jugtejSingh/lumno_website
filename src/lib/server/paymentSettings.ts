@@ -38,3 +38,29 @@ export async function updatePaymentSettings(
 	}
 	await executor.update(paymentSettings).set(input).where(eq(paymentSettings.therapistId, therapistId));
 }
+
+// Off-platform payment details for manual mode. qrKey is an S3 object key
+// (storage.ts), never a URL — callers sign it when they need to show it.
+export type ManualPayDetails = {
+	qrKey: string | null;
+	bankDetails: string | null;
+};
+
+export async function getManualPayDetails(therapistId: string): Promise<ManualPayDetails> {
+	const [row] = await db
+		.select({ qrKey: paymentSettings.payQrKey, bankDetails: paymentSettings.payBankDetails })
+		.from(paymentSettings)
+		.where(eq(paymentSettings.therapistId, therapistId));
+	return row!;
+}
+
+export async function updateManualPayDetails(
+	therapistId: string,
+	input: ManualPayDetails,
+	executor: DbOrTx = db
+) {
+	await executor
+		.update(paymentSettings)
+		.set({ payQrKey: input.qrKey, payBankDetails: input.bankDetails })
+		.where(eq(paymentSettings.therapistId, therapistId));
+}

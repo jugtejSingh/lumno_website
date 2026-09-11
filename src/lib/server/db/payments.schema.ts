@@ -46,7 +46,12 @@ export const paymentSettings = pgTable('payment_settings', {
 	// hours of notice before a session's start_at required to cancel/reschedule for free
 	freeChangeWindowHours: integer('free_change_window_hours').notNull().default(24),
 	// hours of notice for the 50% tier; null = no partial tier, straight from free to 100%
-	partialChangeWindowHours: integer('partial_change_window_hours').default(8)
+	partialChangeWindowHours: integer('partial_change_window_hours').default(8),
+	// manual-mode payment details shown to clients in the portal when they can't
+	// pay through Razorpay: S3 object key of an uploaded QR image, and free-text
+	// bank/UPI details. Both null until the therapist sets them.
+	payQrKey: text('pay_qr_key'),
+	payBankDetails: text('pay_bank_details')
 });
 
 export const paymentPack = pgTable(

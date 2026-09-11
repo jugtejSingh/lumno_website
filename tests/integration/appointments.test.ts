@@ -243,7 +243,7 @@ describe('rescheduleAppointmentForTherapist', () => {
 		await appt(blockerStart); // confirmed blocker
 
 		const res = await rescheduleAppointmentForTherapist(therapistId, old.id, inputAt(blockerStart));
-		expect(res).toEqual({ error: 'overlap' });
+		expect(res).toMatchObject({ error: 'overlap' });
 
 		const [oldRow] = await db.select().from(appointment).where(eq(appointment.id, old.id));
 		expect(oldRow.status).toBe('confirmed');

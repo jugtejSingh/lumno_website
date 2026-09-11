@@ -9,6 +9,39 @@ import { createMeetEvent, patchMeetEventTime, deleteMeetEvent } from '$lib/serve
 import { getNotificationSettings, getTherapistScheduleSettings } from '$lib/server/settings';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
 
+// The hidden year/month/day fields on the booking forms come from the browser; a
+// tampered or stale value would otherwise turn into NaN and reach the timezone
+// math as garbage. Shared by the therapist calendar and the client portal actions.
+export function parseDateParts(formData: FormData): { year: number; month: number; day: number } | null {
+	const year = Number(formData.get('year'));
+	const month = Number(formData.get('month'));
+	const day = Number(formData.get('day'));
+	if (!Number.isInteger(year) || year < 1970 || year > 2100) {
+		return null;
+	}
+	if (!Number.isInteger(month) || month < 0 || month > 11) {
+		return null;
+	}
+	if (!Number.isInteger(day) || day < 1 || day > 31) {
+		return null;
+	}
+	return { year, month, day };
+}
+
+// "HH:MM" → parts, or null when it isn't a real clock time.
+export function parseTimeParts(value: string): { hour: number; minute: number } | null {
+	const [hourRaw, minuteRaw] = value.split(':');
+	const hour = Number(hourRaw);
+	const minute = Number(minuteRaw);
+	if (!hourRaw || !minuteRaw || !Number.isInteger(hour) || !Number.isInteger(minute)) {
+		return null;
+	}
+	if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+		return null;
+	}
+	return { hour, minute };
+}
+
 // Best-effort: creates a Google Meet event for an online appointment that doesn't have one
 // yet, and patches the row with the link/event id. No-op (returns the row unchanged) for
 // in-person appointments, an appointment that already has a link, or when the therapist
@@ -102,7 +135,7 @@ export async function syncMeetEventOnReschedule(newAppt: typeof appointment.$inf
 
 // Lazily flips past confirmed appointments to 'completed'. Called from the calendar reads
 // (therapist calendar + client portal) — those are the only pages that surface old rows, so
-// no cron is needed. Keeps hasBufferOverlap and the appointment_no_overlap trigger's scan
+// no cron is needed. Keeps findBufferOverlap and the appointment_no_overlap trigger's scan
 // bounded to live bookings instead of the therapist's whole history.
 // This UPDATE does NOT fire appointment_no_overlap: that trigger only runs
 // WHEN (NEW.status = 'confirmed'), and this sets status away from 'confirmed'.
@@ -234,9 +267,14 @@ export type AppointmentSlotInput = {
 export type NewAppointmentInput = AppointmentSlotInput &
 	({ clientId: string; customName?: never } | { clientId?: never; customName: string });
 
+// The confirmed appointment a new booking collided with — only ever shown to the
+// therapist (their own calendar); the client portal keeps overlaps vague.
+export type OverlapConflict = { startAt: Date; endAt: Date };
+
 export type CreateAppointmentResult = {
 	appointment?: typeof appointment.$inferSelect;
 	error?: 'invalid_range' | 'overlap' | 'invalid_client';
+	conflict?: OverlapConflict;
 };
 
 // Mirrors the appointment_no_overlap trigger's buffer-padded interval test, in JS, so a
@@ -244,12 +282,12 @@ export type CreateAppointmentResult = {
 // unrecoverable once inside a transaction — see createAppointmentForTherapist). Matches the
 // trigger exactly, including that a reschedule still collides with its own original slot
 // (the old row is 'confirmed' until finishReschedule flips it, after this insert).
-async function hasBufferOverlap(
+async function findBufferOverlap(
 	therapistId: string,
 	startAt: Date,
 	endAt: Date,
 	executor: DbOrTx = db
-): Promise<boolean> {
+): Promise<OverlapConflict | null> {
 	const { bufferMinutes } = await getTherapistScheduleSettings(therapistId);
 	const bufferMs = bufferMinutes * 60_000;
 	const confirmed = await executor
@@ -261,10 +299,10 @@ async function hasBufferOverlap(
 			existing.startAt.getTime() < endAt.getTime() + bufferMs &&
 			startAt.getTime() < existing.endAt.getTime() + bufferMs
 		) {
-			return true;
+			return { startAt: existing.startAt, endAt: existing.endAt };
 		}
 	}
-	return false;
+	return null;
 }
 
 // The therapist booking their own calendar overrides working hours, holidays, and
@@ -306,8 +344,9 @@ export async function createAppointmentForTherapist(
 	// catch below), but inside finishReschedule's transaction postgres-js surfaces a trigger
 	// error as an aborted-transaction throw the catch can't convert — so the clean
 	// { error: 'overlap' } has to come from a pre-check here.
-	if (await hasBufferOverlap(therapistId, startAt, endAt, executor)) {
-		return { error: 'overlap' as const };
+	const conflict = await findBufferOverlap(therapistId, startAt, endAt, executor);
+	if (conflict) {
+		return { error: 'overlap' as const, conflict };
 	}
 
 	try {
@@ -427,11 +466,14 @@ export async function cancelAppointment(
 
 export type RescheduleAppointmentResult =
 	| { appointment: typeof appointment.$inferSelect; outcome: PolicyOutcome }
-	| { error: 'not_found' | 'invalid_range' | 'overlap' | 'unavailable' | 'invalid_client' };
+	| {
+			error: 'not_found' | 'invalid_range' | 'overlap' | 'unavailable' | 'invalid_client';
+			conflict?: OverlapConflict;
+	  };
 
 export type RescheduleInsertResult =
 	| { appointment: typeof appointment.$inferSelect }
-	| { error: 'invalid_range' | 'overlap' | 'unavailable' | 'invalid_client' };
+	| { error: 'invalid_range' | 'overlap' | 'unavailable' | 'invalid_client'; conflict?: OverlapConflict };
 
 // Shared tail for BOTH reschedule flows (therapist-driven here, client self-service in
 // availability.ts) — this was previously duplicated near line-for-line in each. Only the new
@@ -520,7 +562,7 @@ export async function rescheduleAppointmentForTherapist(
 			tx
 		);
 		if (created.error || !created.appointment) {
-			return { error: created.error ?? ('invalid_range' as const) };
+			return { error: created.error ?? ('invalid_range' as const), conflict: created.conflict };
 		}
 		return { appointment: created.appointment };
 	});

@@ -21,16 +21,19 @@
 	<div class="center">
 		<div class="auth-card">
 			{#if !data.invite}
-				<div class="form-title">Invite not found</div>
-				<div class="form-subtitle">
-					This invite link is invalid, expired, or has already been used. Ask your therapist to
-					send a new one.
-				</div>
+				<div class="form-title">{data.invalid?.title ?? 'Invite not found'}</div>
+				<div class="form-subtitle">{data.invalid?.body ?? ''}</div>
+				{#if data.invalid?.title === 'Invite already used'}
+					<Button href="/login" variant="primary">Log in</Button>
+				{/if}
 			{:else if data.loggedInAsOther}
 				<div class="form-title">Wrong account</div>
 				<div class="form-subtitle">
 					You're logged in with a different email than this invite ({data.invite.email}).
 				</div>
+				{#if data.oauthError}
+					<div class="form-error">{data.oauthError}</div>
+				{/if}
 				<form method="POST" action="/logout">
 					<Button type="submit" variant="secondary">Log out</Button>
 				</form>
@@ -50,6 +53,9 @@
 						? `Log in as ${data.invite.email} to accept.`
 						: `Set a password for ${data.invite.email} to get started.`}
 				</div>
+				{#if data.oauthError}
+					<div class="form-error">{data.oauthError}</div>
+				{/if}
 
 				<form method="POST" action="?/google" use:enhance>
 					<Button type="submit" variant="secondary">Continue with Google</Button>
