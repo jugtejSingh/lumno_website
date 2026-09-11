@@ -98,12 +98,14 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 4px 12px;
 	}
 
 	.today {
 		font-family: var(--font-display);
 		font-style: italic;
-		font-size: 24px;
+		font-size: clamp(20px, 5vw, 24px);
 		color: var(--text-primary);
 	}
 
@@ -136,6 +138,7 @@
 
 	.toolbar {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 4px;
 		padding-bottom: 10px;
 		border-bottom: 1px solid var(--border-subtle);

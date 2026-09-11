@@ -29,8 +29,8 @@
 	.hero {
 		display: flex;
 		align-items: center;
-		gap: 56px;
-		padding: 96px 48px;
+		gap: clamp(32px, 5vw, 56px);
+		padding: clamp(48px, 9vw, 96px) clamp(16px, 5vw, 48px);
 		max-width: 1280px;
 		margin: 0 auto;
 	}
@@ -53,7 +53,7 @@
 		font-family: var(--font-display);
 		color: var(--text-primary);
 		margin: 0;
-		font-size: 60px;
+		font-size: clamp(36px, 7vw, 60px);
 		line-height: var(--lh-tight);
 	}
 
@@ -72,6 +72,7 @@
 
 	.hero-actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 12px;
 		margin-top: 32px;
 	}

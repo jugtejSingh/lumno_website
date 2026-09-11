@@ -55,7 +55,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 20px 48px;
+		padding: 20px clamp(20px, 5vw, 48px);
 		border-bottom: 1px solid var(--border-subtle);
 	}
 
@@ -64,21 +64,21 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 40px;
+		padding: clamp(20px, 6vw, 40px);
 	}
 
 	.auth-card {
-		width: 380px;
+		width: min(380px, 100%);
 		background: var(--surface-card);
 		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-md);
-		padding: 36px;
+		padding: clamp(24px, 5vw, 36px);
 	}
 
 	.form-title {
 		font-family: var(--font-display);
-		font-size: 30px;
+		font-size: clamp(24px, 5vw, 30px);
 		color: var(--text-primary);
 	}
 

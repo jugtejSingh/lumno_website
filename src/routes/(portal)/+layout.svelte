@@ -2,6 +2,7 @@
 	import Logo from '$lib/components/utils/Logo.svelte';
 	import SidebarNavItem from '$lib/components/utils/SidebarNavItem.svelte';
 	import Avatar from '$lib/components/utils/Avatar.svelte';
+	import MobileNav from '$lib/components/utils/MobileNav.svelte';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 	import { enhance } from '$lib/enhance';
@@ -46,6 +47,14 @@
 					</form>
 				{/if}
 				<Avatar name="Maria Chen" size={30} />
+				<MobileNav>
+					{#each links as link (link.href)}
+						<a href={link.href}>{link.label}</a>
+					{/each}
+					<form method="POST" action="/logout" use:enhance>
+						<button type="submit">Log out</button>
+					</form>
+				</MobileNav>
 			</div>
 		</header>
 		<div class="app-content">
@@ -74,6 +83,23 @@
 	.sidebar-logo {
 		margin-bottom: 18px;
 		padding-left: 4px;
+	}
+
+	/* below 820px the sidebar is hidden and the burger menu (in the header) takes over */
+	@media (max-width: 820px) {
+		.app-shell {
+			flex-direction: column;
+			height: auto;
+			min-height: 100vh;
+		}
+
+		.sidebar {
+			display: none;
+		}
+
+		.app-content {
+			overflow-y: visible;
+		}
 	}
 
 	.sidebar-link {
@@ -106,7 +132,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 16px 24px;
+		gap: 12px;
+		flex-wrap: wrap;
+		padding: 16px clamp(16px, 4vw, 24px);
 		border-bottom: 1px solid var(--border-subtle);
 	}
 
@@ -136,7 +164,7 @@
 
 	.app-content {
 		flex: 1;
-		padding: 24px;
+		padding: clamp(16px, 4vw, 24px);
 		overflow-y: auto;
 	}
 </style>

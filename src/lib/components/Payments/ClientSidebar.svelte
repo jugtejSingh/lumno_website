@@ -42,6 +42,29 @@
 		gap: 10px;
 	}
 
+	/* ponytail: stacked layout below 640px — rail becomes a horizontal strip */
+	@media (max-width: 640px) {
+		.client-sidebar {
+			width: auto;
+			border-right: none;
+			border-bottom: 1px solid var(--border-subtle);
+			padding-right: 0;
+			padding-bottom: 10px;
+		}
+
+		.client-list {
+			flex-direction: row;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			gap: 6px;
+		}
+
+		.client-item {
+			flex-shrink: 0;
+			white-space: nowrap;
+		}
+	}
+
 	.client-sidebar-title {
 		font-size: 13px;
 		font-weight: 700;

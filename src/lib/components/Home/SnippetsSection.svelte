@@ -108,12 +108,12 @@
 
 <style>
 	.snippets {
-		padding: 0 48px 110px;
+		padding: 0 clamp(16px, 5vw, 48px) clamp(64px, 10vw, 110px);
 		max-width: 1080px;
 		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
-		gap: 96px;
+		gap: clamp(56px, 9vw, 96px);
 	}
 
 	.mockup {

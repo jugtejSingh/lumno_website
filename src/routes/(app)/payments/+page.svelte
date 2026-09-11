@@ -69,6 +69,14 @@
 		gap: 24px;
 	}
 
+	/* ponytail: below 640px the client rail stacks above the content */
+	@media (max-width: 640px) {
+		.payments-page {
+			flex-direction: column;
+			gap: 16px;
+		}
+	}
+
 	.payments {
 		display: flex;
 		flex-direction: column;
@@ -82,16 +90,19 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-end;
+		flex-wrap: wrap;
+		gap: 10px;
 	}
 
 	.title {
 		font-family: var(--font-display);
-		font-size: 32px;
+		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
 
 	.stat-row {
-		display: flex;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
 		gap: 14px;
 	}
 

@@ -264,20 +264,20 @@
 	.portal {
 		display: flex;
 		flex-direction: column;
-		gap: 48px;
+		gap: clamp(32px, 6vw, 48px);
 		max-width: 760px;
 	}
 
 	.title {
 		font-family: var(--font-display);
-		font-size: 36px;
+		font-size: clamp(26px, 6vw, 36px);
 		color: var(--text-primary);
 	}
 
 	.subtitle {
 		font-family: var(--font-display);
 		font-style: italic;
-		font-size: 18px;
+		font-size: clamp(16px, 4vw, 18px);
 		color: var(--accent-primary);
 		margin-top: 2px;
 	}
@@ -301,11 +301,13 @@
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 14px;
+		flex-wrap: wrap;
+		gap: 10px 14px;
 	}
 
 	.row-info {
 		flex: 1;
+		min-width: 140px;
 	}
 
 	.row-title {
@@ -344,7 +346,7 @@
 
 	.month-label {
 		font-family: var(--font-display);
-		font-size: 20px;
+		font-size: clamp(18px, 4vw, 20px);
 		color: var(--text-primary);
 	}
 
@@ -365,7 +367,8 @@
 	}
 
 	.stat-row {
-		display: flex;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
 		gap: 14px;
 	}
 
@@ -379,6 +382,8 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
+		flex-wrap: wrap;
+		gap: 6px;
 		margin-bottom: 6px;
 	}
 

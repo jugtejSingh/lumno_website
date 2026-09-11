@@ -167,7 +167,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 20px 48px;
+		padding: 20px clamp(20px, 5vw, 48px);
 		border-bottom: 1px solid var(--border-subtle);
 	}
 
@@ -291,7 +291,7 @@
 
 	.form-title {
 		font-family: var(--font-display);
-		font-size: 30px;
+		font-size: clamp(24px, 5vw, 30px);
 		color: var(--text-primary);
 	}
 

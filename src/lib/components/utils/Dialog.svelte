@@ -51,6 +51,7 @@
 		box-shadow: var(--shadow-lg);
 		padding: 24px;
 		max-height: 90vh;
+		max-width: calc(100vw - 32px);
 		overflow-y: auto;
 	}
 

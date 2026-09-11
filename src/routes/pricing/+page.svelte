@@ -224,7 +224,7 @@
 	.pricing {
 		max-width: 1180px;
 		margin: 0 auto;
-		padding: 80px 24px;
+		padding: clamp(48px, 10vw, 80px) clamp(16px, 4vw, 24px);
 		display: flex;
 		flex-direction: column;
 		gap: 44px;
@@ -239,17 +239,17 @@
 
 	.title {
 		font-family: var(--font-display);
-		font-size: 52px;
+		font-size: clamp(32px, 8vw, 52px);
 	}
 
 	.subtitle {
-		font-size: 18px;
+		font-size: clamp(15px, 4vw, 18px);
 		color: var(--text-secondary);
 	}
 
 	.plans {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 		gap: 28px;
 		align-items: start;
 	}
@@ -259,7 +259,7 @@
 	}
 
 	.plan-card :global(.card) {
-		padding: 40px 36px;
+		padding: clamp(24px, 5vw, 40px) clamp(20px, 4vw, 36px);
 		height: 100%;
 	}
 
@@ -298,7 +298,7 @@
 
 	.plan-price {
 		font-family: var(--font-display);
-		font-size: 48px;
+		font-size: clamp(36px, 8vw, 48px);
 	}
 
 	.plan-period {

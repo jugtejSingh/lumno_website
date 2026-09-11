@@ -157,7 +157,7 @@
 
 	.title {
 		font-family: var(--font-display);
-		font-size: 32px;
+		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
 
@@ -171,7 +171,7 @@
 
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
 		gap: 16px;
 	}
 
@@ -255,7 +255,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		width: 360px;
+		width: min(360px, 100%);
 	}
 
 	.detail-head {

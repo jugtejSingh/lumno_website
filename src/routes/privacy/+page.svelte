@@ -58,24 +58,6 @@
 			collect no data beyond what is needed to provide the service.
 		</p>
 
-		<h2>AI features</h2>
-		<p>
-			Note cleanup and formatting is performed by the DeepSeek V4 Flash 0731 model, accessed via
-			API and served by the third-party inference providers Wafer, Makora, and Reka AI. Only the
-			note text the therapist explicitly asks to clean up is sent. Each of these providers
-			operates under terms that prohibit storing our inputs or outputs and prohibit using them to
-			train models, so the text is processed to return a result and then discarded.
-		</p>
-		<p>
-			This is the only thing we use AI for: cleaning up session notes a therapist has written
-			about their own client. AI is not used for any other feature. In particular, no Google
-			user data is ever sent to any AI provider. We do not use Google Workspace, Photos, or any
-			other Google API data with AI in any way. Calendar events, Meet links, and OAuth tokens are
-			used only to manage appointments, and no AI feature reads or receives them. The output of
-			AI features is stored the same way as any other note, visible only to the therapist who
-			owns it.
-		</p>
-
 		<h2>Who we share data with</h2>
 		<p>
 			We do not sell, rent, or trade any data. We share, transfer, or disclose data only with the
@@ -103,11 +85,6 @@
 			<li>
 				<strong>Resend</strong> — sends transactional email such as booking confirmations and
 				reminders. They receive recipient email addresses and the message content.
-			</li>
-			<li>
-				<strong>Wafer, Makora, and Reka AI</strong> — inference providers for the AI note
-				cleanup feature. They receive only the note text a therapist explicitly asks to clean
-				up, do not store it, and never receive Google user data.
 			</li>
 		</ul>
 		<p>
@@ -149,12 +126,12 @@
 	.legal {
 		max-width: 720px;
 		margin: 0 auto;
-		padding: 64px 48px 96px;
+		padding: clamp(40px, 8vw, 64px) clamp(16px, 5vw, 48px) 96px;
 	}
 
 	.display {
 		font-family: var(--font-display);
-		font-size: 40px;
+		font-size: clamp(28px, 7vw, 40px);
 		margin: 0;
 	}
 

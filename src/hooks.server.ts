@@ -19,11 +19,12 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		// must be set here rather than in (app)/+layout.server.ts
 		if (event.route.id?.startsWith('/(app)')) {
 			const [therapistRow] = await db
-				.select({ id: therapist.id })
+				.select()
 				.from(therapist)
 				.where(eq(therapist.userId, session.user.id));
 			if (therapistRow) {
 				event.locals.therapistId = therapistRow.id;
+				event.locals.therapist = therapistRow;
 			}
 		}
 

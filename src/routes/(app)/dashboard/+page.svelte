@@ -51,20 +51,21 @@
 
 	.greeting-title {
 		font-family: var(--font-display);
-		font-size: 40px;
+		font-size: clamp(28px, 6vw, 40px);
 		color: var(--text-primary);
 	}
 
 	.greeting-sub {
 		font-family: var(--font-display);
 		font-style: italic;
-		font-size: 22px;
+		font-size: clamp(18px, 4vw, 22px);
 		color: var(--accent-primary);
 		margin-top: 2px;
 	}
 
 	.stat-row {
-		display: flex;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
 		gap: 14px;
 	}
 
@@ -84,12 +85,13 @@
 	.session-row {
 		display: flex;
 		align-items: center;
-		gap: 12px;
+		flex-wrap: wrap;
+		gap: 10px 12px;
 	}
 
 	.session-info {
 		flex: 1;
-		min-width: 0;
+		min-width: 120px;
 	}
 
 	.session-name {

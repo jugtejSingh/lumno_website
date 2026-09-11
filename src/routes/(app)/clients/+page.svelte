@@ -232,11 +232,13 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-end;
+		flex-wrap: wrap;
+		gap: 10px;
 	}
 
 	.title {
 		font-family: var(--font-display);
-		font-size: 32px;
+		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
 
@@ -263,13 +265,14 @@
 
 	.card-row {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: 14px;
+		flex-wrap: wrap;
 	}
 
 	.info {
 		flex: 1;
-		min-width: 0;
+		min-width: 150px;
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
@@ -279,6 +282,7 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
+		flex-wrap: wrap;
 	}
 
 	.name {
@@ -318,7 +322,24 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		flex-shrink: 0;
+		flex-wrap: wrap;
+	}
+
+	/* On phones the button cluster gets its own full-width row, laid out as an even grid */
+	@media (max-width: 640px) {
+		.actions {
+			width: 100%;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.actions form {
+			display: contents;
+		}
+
+		.actions :global(.btn) {
+			width: 100%;
+		}
 	}
 
 	.empty {
@@ -330,11 +351,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
-		width: 340px;
+		width: min(340px, 100%);
 	}
 
 	.history-dialog {
-		width: 420px;
+		width: min(420px, 100%);
 	}
 
 	.form-error {

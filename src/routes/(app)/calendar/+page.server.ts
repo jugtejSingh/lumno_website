@@ -62,7 +62,7 @@ export const load: PageServerLoad = async (event) => {
 	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
 
 	const [appointments, clients, dayKinds] = await Promise.all([
-		listAppointmentsForMonth(therapist.id, year, month),
+		listAppointmentsForMonth(therapist.id, therapist.timezone, year, month),
 		listClients(therapist.id),
 		listDayKindsForMonth(therapist.id, year, month)
 	]);

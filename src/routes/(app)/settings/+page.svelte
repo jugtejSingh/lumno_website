@@ -15,6 +15,30 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const TIER_NAMES: Record<number, string> = { 0: 'Free', 1: 'Basic', 2: 'Pro' };
+	const PLAN_SUMMARY: Record<number, { caseload: string; perks: string[] }> = {
+		0: {
+			caseload: 'Up To 5 Clients · 40 Appointments / Month',
+			perks: [
+				'Calendar With Google Meet Links',
+				'Automated Session & Payment Emails',
+				'Notes Sent To Clients Automatically',
+				'Payment Collection & Invoicing'
+			]
+		},
+		1: {
+			caseload: 'Up To 30 Clients · Unlimited Appointments',
+			perks: ['Everything In Free', 'AI Note Clean-Up', 'Referral Program — Invite Other Therapists']
+		},
+		2: {
+			caseload: 'Unlimited Clients · Unlimited Appointments',
+			perks: [
+				'Everything In Basic',
+				'AI Note Clean-Up',
+				'Referral Program — Invite Other Therapists',
+				'No Caseload Ceiling'
+			]
+		}
+	};
 	let cancelling = $state(false);
 
 	async function cancelPlan() {
@@ -30,10 +54,10 @@
 	const colors = ['plum', 'coral', 'sage', 'citrus'] as const;
 
 	const FORMAT_OPTIONS = [
-		{ value: '', label: 'Not set' },
+		{ value: '', label: 'Not Set' },
 		{ value: 'remote', label: 'Remote' },
-		{ value: 'in_person', label: 'In-person' },
-		{ value: 'hybrid', label: 'Remote & in-person' }
+		{ value: 'in_person', label: 'In-Person' },
+		{ value: 'hybrid', label: 'Remote & In-Person' }
 	];
 	const formatLabels = FORMAT_OPTIONS.map((o) => o.label);
 
@@ -59,7 +83,7 @@
 	let years = $state(data.profile.yearsExperience?.toString() ?? '');
 	let rate = $state(data.profile.sessionRate?.toString() ?? '');
 	let formatLabel = $state(
-		FORMAT_OPTIONS.find((o) => o.value === (data.profile.sessionFormat ?? ''))?.label ?? 'Not set'
+		FORMAT_OPTIONS.find((o) => o.value === (data.profile.sessionFormat ?? ''))?.label ?? 'Not Set'
 	);
 	let visible = $state(data.profile.referralVisible);
 	let showYears = $state(data.profile.referralShowYears);
@@ -99,10 +123,10 @@
 	};
 	const rzpNotice = $derived(rzp.notice ? RZP_NOTICES[rzp.notice] : undefined);
 
-	let saveLabel = $state('Save changes');
+	let saveLabel = $state('Save Changes');
 
-	// account section stays non-functional (out of scope)
-	let email = $state('');
+	// account section stays non-functional (out of scope). Email is display-only —
+	// changing it isn't supported here.
 	let password = $state('');
 
 	const specialtyTags = $derived(
@@ -136,7 +160,7 @@
 		return async ({ update }) => {
 			await update({ reset: false });
 			saveLabel = 'Saved';
-			setTimeout(() => (saveLabel = 'Save changes'), 1400);
+			setTimeout(() => (saveLabel = 'Save Changes'), 1400);
 		};
 	}}
 >
@@ -169,7 +193,7 @@
 
 	<Card>
 		<div class="section">
-			<div class="section-title">Referral profile</div>
+			<div class="section-title">Referral Profile</div>
 			<div class="name-row">
 				<Avatar {name} size={44} />
 				<div class="name-field"><Input label="Name" name="name" bind:value={name} /></div>
@@ -195,20 +219,20 @@
 				rows={3}
 			/>
 			<div class="grid-2">
-				<Select label="Session format" options={formatLabels} bind:value={formatLabel} />
+				<Select label="Session Format" options={formatLabels} bind:value={formatLabel} />
 				<Input label="Location" name="location" bind:value={location} />
 			</div>
 			<div class="grid-2">
-				<Input label="Years of experience" name="yearsExperience" bind:value={years} />
-				<Input label="Session rate" name="sessionRate" bind:value={rate} />
+				<Input label="Years of Experience" name="yearsExperience" bind:value={years} />
+				<Input label="Session Rate" name="sessionRate" bind:value={rate} />
 			</div>
 		</div>
 	</Card>
 
 	<Card>
 		<div class="section">
-			<div class="section-title">Referral visibility</div>
-			<Switch label="List me in Referrals" bind:checked={visible} />
+			<div class="section-title">Referral Visibility</div>
+			<Switch label="List Me in Referrals" bind:checked={visible} />
 			<div class="helper">
 				{#if visible}
 					You're visible to other therapists on the Referrals page. Turn this off any time to
@@ -217,8 +241,8 @@
 					You're hidden from the Referrals page. Turn this on when you're open to taking referrals.
 				{/if}
 			</div>
-			<Switch label="Show my years of experience" bind:checked={showYears} />
-			<Switch label="Show my session rate" bind:checked={showRate} />
+			<Switch label="Show My Years of Experience" bind:checked={showYears} />
+			<Switch label="Show My Session Rate" bind:checked={showRate} />
 		</div>
 	</Card>
 
@@ -226,7 +250,7 @@
 		<div class="section">
 			<div class="section-title">Schedule</div>
 			<label class="field">
-				<span class="field-label">Buffer between sessions (minutes)</span>
+				<span class="field-label">Buffer Between Sessions (Minutes)</span>
 				<input
 					class="field-input"
 					type="number"
@@ -237,11 +261,11 @@
 				/>
 			</label>
 			<div class="grid-2">
-				<TimeInput label="Working hours from" name="earliestBookingTime" bind:value={workStart} />
-				<TimeInput label="Working hours to" name="latestBookingTime" bind:value={workEnd} />
+				<TimeInput label="Working Hours From" name="earliestBookingTime" bind:value={workStart} />
+				<TimeInput label="Working Hours To" name="latestBookingTime" bind:value={workEnd} />
 			</div>
 			<div class="field">
-				<span class="field-label">Weekly pattern</span>
+				<span class="field-label">Weekly Pattern</span>
 				<div class="week-list">
 					{#each weekdayLabels as label, i (label)}
 						<label class="week-row">
@@ -287,6 +311,20 @@
 		<div class="section">
 			<div class="section-title">Payments</div>
 
+			<div class="helper">
+				Each logged session becomes an invoice for the client. Once Razorpay is connected, clients
+				pay their invoices in the portal by card or UPI and the money lands in your Razorpay
+				account. You can also mark any invoice paid by hand from the Payments page — do that for
+				cash, bank transfers, or anything settled outside the portal. There is no separate
+				manual/automatic switch: portal payment turns on when Razorpay is connected, and marking by
+				hand is always available.
+			</div>
+			<div class="helper">
+				The two windows below set your late-change policy: a client who cancels or reschedules with
+				more notice than the free window owes nothing; inside the 50% window they owe half the
+				session rate; with less notice than that they owe the full rate.
+			</div>
+
 			{#if rzpNotice}
 				<div class="rzp-notice" class:rzp-notice-bad={rzp.notice === 'state_error'}>
 					{rzpNotice}
@@ -316,7 +354,7 @@
 			</div>
 
 			<label class="field">
-				<span class="field-label">Free cancellation / reschedule window</span>
+				<span class="field-label">Free Cancellation / Reschedule Window</span>
 				<select class="field-input" name="freeChangeWindowHours" bind:value={freeChangeWindowHours}>
 					{#each data.hourOptions as o (o.hours)}
 						<option value={o.hours}>{o.label}</option>
@@ -324,7 +362,7 @@
 				</select>
 			</label>
 			<label class="field">
-				<span class="field-label">50% fee window</span>
+				<span class="field-label">50% Fee Window</span>
 				<select
 					class="field-input"
 					name="partialChangeWindowHours"
@@ -342,8 +380,17 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">Plan</div>
-			<div class="plan-row">
-				<div class="plan-label">
+			<div class="plan-block">
+				<div class="plan-summary">
+					<div class="plan-caseload">{PLAN_SUMMARY[data.billing.plan].caseload}</div>
+					<ul class="plan-perks">
+						{#each PLAN_SUMMARY[data.billing.plan].perks as perk (perk)}
+							<li>{perk}</li>
+						{/each}
+					</ul>
+				</div>
+				<div class="plan-row">
+					<div class="plan-label">
 					{TIER_NAMES[data.billing.plan]}
 					{#if data.billing.status === 'past_due'}
 						<span class="plan-warning">— payment failed</span>
@@ -355,13 +402,14 @@
 					{#if data.billing.plan === 0}
 						<Button href="/pricing" variant="primary" size="sm">Upgrade</Button>
 					{:else}
-						<Button href="/pricing" variant="secondary" size="sm">Change plan</Button>
+						<Button href="/pricing" variant="secondary" size="sm">Change Plan</Button>
 						{#if data.billing.status === 'active' && !data.billing.cancelScheduled}
 							<Button variant="secondary" size="sm" onclick={cancelPlan}>
-								{cancelling ? 'Cancelling…' : 'Cancel plan'}
+								{cancelling ? 'Cancelling…' : 'Cancel Plan'}
 							</Button>
 						{/if}
 					{/if}
+				</div>
 				</div>
 			</div>
 		</div>
@@ -370,9 +418,12 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">Account</div>
-			<Input label="Email" type="email" bind:value={email} />
-			<Input label="New password" type="password" placeholder="••••••••" bind:value={password} />
-			<div><Button variant="secondary" onclick={updatePassword}>Update password</Button></div>
+			<div class="field">
+				<span class="field-label">Email</span>
+				<div class="field-static">{data.user.email}</div>
+			</div>
+			<Input label="New Password" type="password" placeholder="••••••••" bind:value={password} />
+			<div><Button variant="secondary" onclick={updatePassword}>Update Password</Button></div>
 		</div>
 	</Card>
 </form>
@@ -389,22 +440,25 @@
 		flex-direction: column;
 		gap: 24px;
 		max-width: 640px;
+		margin-inline: auto;
 	}
 
 	.connect-form {
 		max-width: 640px;
-		margin-top: 16px;
+		margin: 16px auto 0;
 	}
 
 	.header {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-end;
+		flex-wrap: wrap;
+		gap: 10px;
 	}
 
 	.title {
 		font-family: var(--font-display);
-		font-size: 32px;
+		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
 
@@ -453,6 +507,15 @@
 		padding: 10px 12px;
 	}
 
+	.field-static {
+		font-size: 14px;
+		color: var(--text-secondary);
+		padding: 10px 12px;
+		background: var(--surface-canvas);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+	}
+
 	.week-list {
 		display: flex;
 		flex-direction: column;
@@ -484,7 +547,7 @@
 
 	.grid-2 {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 		gap: 12px;
 	}
 
@@ -544,10 +607,40 @@
 		white-space: nowrap;
 	}
 
+	.plan-block {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.plan-summary {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.plan-caseload {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-secondary);
+	}
+
+	.plan-perks {
+		margin: 0;
+		padding-left: 18px;
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		font-size: 13px;
+		color: var(--text-muted);
+		line-height: var(--lh-relaxed);
+	}
+
 	.plan-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		flex-wrap: wrap;
 		gap: 12px;
 	}
 

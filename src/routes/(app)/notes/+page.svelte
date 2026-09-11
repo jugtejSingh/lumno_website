@@ -166,12 +166,12 @@
 		display: flex;
 		height: 100%;
 		min-height: 0;
-		margin: -24px;
+		margin: calc(-1 * clamp(16px, 4vw, 24px));
 	}
 
 	.detail {
 		flex: 1;
-		padding: 24px;
+		padding: clamp(16px, 4vw, 24px);
 		overflow-y: auto;
 	}
 
@@ -180,6 +180,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: 20px;
+	}
+
+	/* ponytail: below 720px the client rail stacks above the note detail */
+	@media (max-width: 720px) {
+		.notes-shell {
+			flex-direction: column;
+			height: auto;
+		}
 	}
 
 	.detail-inner.writing {
@@ -201,7 +209,7 @@
 
 	.client-name {
 		font-family: var(--font-display);
-		font-size: 26px;
+		font-size: clamp(22px, 5vw, 26px);
 		color: var(--text-primary);
 	}
 
@@ -253,6 +261,8 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
+		flex-wrap: wrap;
+		gap: 6px;
 		margin-bottom: 6px;
 	}
 

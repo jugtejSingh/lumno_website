@@ -16,10 +16,12 @@
 <style>
 	.footer {
 		border-top: 1px solid var(--border-subtle);
-		padding: 28px 48px;
+		padding: 28px clamp(16px, 5vw, 48px);
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 14px;
 	}
 
 	.copyright {

@@ -59,8 +59,39 @@
 <style>
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(7, 1fr);
+		grid-template-columns: repeat(7, minmax(0, 1fr));
 		gap: 8px;
+	}
+
+	/* ponytail: 7 columns can't get narrower, so on small screens tighten the
+	   cells instead — smaller gap/padding/min-height keeps the month on screen */
+	@media (max-width: 640px) {
+		.grid {
+			gap: 3px;
+		}
+
+		.cell {
+			min-height: 58px;
+			padding: 4px;
+			gap: 3px;
+		}
+
+		.weekday {
+			font-size: 10px;
+		}
+
+		.session-chip {
+			font-size: 9px;
+			padding: 2px 3px;
+		}
+
+		.cell-num {
+			font-size: 11px;
+		}
+
+		.extra {
+			font-size: 9px;
+		}
 	}
 
 	.weekday {

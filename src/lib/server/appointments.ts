@@ -180,13 +180,12 @@ export async function listPastAppointmentsForClient(therapistId: string, clientI
 	}));
 }
 
-export async function listAppointmentsForMonth(therapistId: string, year: number, month: number) {
-	const [therapistRow] = await db
-		.select({ timezone: therapist.timezone })
-		.from(therapist)
-		.where(eq(therapist.id, therapistId));
-	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
-
+export async function listAppointmentsForMonth(
+	therapistId: string,
+	timezone: string,
+	year: number,
+	month: number
+) {
 	const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 	const { start } = zonedDayBounds(year, month, 1, timezone);
 	const { end } = zonedDayBounds(year, month, daysInMonth, timezone);

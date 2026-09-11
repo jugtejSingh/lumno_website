@@ -58,8 +58,32 @@
 <style>
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(7, 1fr);
+		grid-template-columns: repeat(7, minmax(0, 1fr));
 		gap: 8px;
+	}
+
+	/* ponytail: 7 columns can't get narrower, so tighten cells on small screens */
+	@media (max-width: 640px) {
+		.grid {
+			gap: 3px;
+		}
+
+		.cell {
+			min-height: 48px;
+			padding: 4px;
+		}
+
+		.weekday {
+			font-size: 10px;
+		}
+
+		.cell-num {
+			font-size: 11px;
+		}
+
+		.cell-hint {
+			font-size: 9px;
+		}
 	}
 
 	.weekday {

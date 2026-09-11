@@ -31,6 +31,39 @@
 	let dayDialogDay = $state<number | null>(null);
 	let todayDialogOpen = $state(false);
 
+	// single-day view for phones (see .day-view in styles). Starts on today's
+	// date-of-month; the calendar loads the current month by default.
+	// ponytail: deep-linking ?month= to another month lands on the same day number,
+	// clamped — fine, the arrows move from there
+	let selectedDay = $state(today.getDate());
+	const daysInMonth = $derived(new Date(year, month + 1, 0).getDate());
+	// ponytail: clamp instead of syncing selectedDay to month changes — only matters
+	// if a desktop user month-navigates then shrinks to phone width
+	const safeSelectedDay = $derived(Math.min(selectedDay, daysInMonth));
+	const dayViewLabel = $derived(
+		new Date(year, month, safeSelectedDay).toLocaleDateString('en-US', {
+			weekday: 'long',
+			month: 'short',
+			day: 'numeric'
+		})
+	);
+	const dayViewSessions = $derived(data.sessionsByDay[safeSelectedDay] ?? []);
+
+	function stepDay(delta: number) {
+		const next = safeSelectedDay + delta;
+		if (next < 1) {
+			const pm = month === 0 ? 11 : month - 1;
+			const py = month === 0 ? year - 1 : year;
+			selectedDay = new Date(py, pm + 1, 0).getDate();
+			gotoMonth(py, pm);
+		} else if (next > daysInMonth) {
+			selectedDay = 1;
+			gotoMonth(month === 11 ? year + 1 : year, month === 11 ? 0 : month + 1);
+		} else {
+			selectedDay = next;
+		}
+	}
+
 	const monthLabel = $derived(
 		new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 	);
@@ -69,6 +102,7 @@
 	}
 
 	function goToday() {
+		selectedDay = today.getDate();
 		gotoMonth(today.getFullYear(), today.getMonth());
 		todayDialogOpen = true;
 	}
@@ -83,12 +117,43 @@
 				<button class="arrow-btn" onclick={nextMonth} aria-label="Next month">&#8250;</button>
 			</div>
 		</div>
+		<div class="day-nav">
+			<button class="arrow-btn" onclick={() => stepDay(-1)} aria-label="Previous day">&#8249;</button>
+			<div class="month-label">{dayViewLabel}</div>
+			<button class="arrow-btn" onclick={() => stepDay(1)} aria-label="Next day">&#8250;</button>
+		</div>
 		<div class="toolbar-actions">
 			<Button variant="secondary" onclick={goToday}>Today</Button>
 		</div>
 	</div>
 
-	<MonthGrid {weeks} onDayClick={(day) => (dayDialogDay = day)} />
+	<div class="month-view">
+		<MonthGrid {weeks} onDayClick={(day) => (dayDialogDay = day)} />
+	</div>
+
+	<div class="day-view">
+		{#if dayViewSessions.length === 0}
+			<button class="day-empty" onclick={() => (dayDialogDay = safeSelectedDay)}>
+				No sessions this day. Tap to add one.
+			</button>
+		{:else}
+			<ul class="day-list">
+				{#each dayViewSessions as session (session.id)}
+					<li>
+						<button
+							class="day-row"
+							class:dim={session.status === 'cancelled' || session.status === 'rescheduled'}
+							onclick={() => (dayDialogDay = safeSelectedDay)}
+						>
+							<span class="day-row-time">{session.time}</span>
+							<span class="day-row-name">{session.name}</span>
+							<span class="day-row-modality">{session.modalityLabel}</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
 </div>
 
 <DayDialog
@@ -114,6 +179,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 10px;
 	}
 
 	.month-nav {
@@ -124,7 +191,7 @@
 
 	.month-label {
 		font-family: var(--font-display);
-		font-size: 30px;
+		font-size: clamp(22px, 5vw, 30px);
 		color: var(--text-primary);
 	}
 
@@ -147,5 +214,105 @@
 	.toolbar-actions {
 		display: flex;
 		gap: 10px;
+	}
+
+	/* desktop: month grid only; the single-day view is phone-only */
+	.day-nav,
+	.day-view {
+		display: none;
+	}
+
+	.day-view {
+		flex-direction: column;
+		gap: 12px;
+		align-items: center;
+		text-align: center;
+	}
+
+	.day-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.day-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: center;
+		gap: 10px;
+		width: 100%;
+		padding: 12px;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		font-family: var(--font-body);
+		cursor: pointer;
+	}
+
+	.day-row.dim {
+		opacity: 0.55;
+	}
+
+	.day-row-time {
+		font-weight: 700;
+		color: var(--text-primary);
+	}
+
+	.day-row-name {
+		color: var(--text-primary);
+	}
+
+	.day-row-modality {
+		font-size: 12px;
+		color: var(--text-muted);
+	}
+
+	.day-empty {
+		width: 100%;
+		padding: 24px 12px;
+		border: 1px dashed var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: transparent;
+		font-family: var(--font-body);
+		font-size: 14px;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+
+	@media (max-width: 640px) {
+		.month-nav,
+		.month-view {
+			display: none;
+		}
+
+		.toolbar {
+			justify-content: center;
+		}
+
+		.day-nav {
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			flex: 1 1 100%;
+			justify-content: space-between;
+		}
+
+		.day-nav .month-label {
+			flex: 1;
+			text-align: center;
+		}
+
+		.toolbar-actions {
+			flex: 1 1 100%;
+			justify-content: center;
+		}
+
+		.day-view {
+			display: flex;
+		}
 	}
 </style>

@@ -74,7 +74,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		width: 460px;
+		width: min(460px, 100%);
+	}
+
+	@media (max-width: 520px) {
+		.stat-row {
+			flex-wrap: wrap;
+		}
 	}
 
 	.stat-row {

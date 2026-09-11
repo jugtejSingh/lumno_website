@@ -14,6 +14,14 @@ export const auth = betterAuth({
 	baseURL: env.ORIGIN,
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'pg' }),
+	session: {
+		// ponytail: signed cookie copy of the session so getSession skips the DB for 5 min.
+		// A revoked session stays valid client-side for up to maxAge; shorten if that matters.
+		cookieCache: {
+			enabled: true,
+			maxAge: 5 * 60
+		}
+	},
 	user: {
 		additionalFields: {
 			verificationEmailSentAt: { type: 'date', required: false, input: false }

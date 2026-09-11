@@ -13,14 +13,14 @@
 	.cta-band {
 		background: var(--beige-900);
 		color: var(--text-inverse);
-		padding: 64px 48px;
+		padding: clamp(44px, 8vw, 64px) clamp(16px, 5vw, 48px);
 		text-align: center;
 	}
 
 	.cta-text {
 		font-family: var(--font-display);
 		font-style: italic;
-		font-size: 32px;
+		font-size: clamp(24px, 5vw, 32px);
 	}
 
 	.cta-button {

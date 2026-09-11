@@ -37,7 +37,7 @@
 	.snippet-row {
 		display: flex;
 		align-items: center;
-		gap: 56px;
+		gap: clamp(28px, 5vw, 56px);
 	}
 
 	.snippet-row.reverse {
@@ -70,7 +70,7 @@
 		font-family: var(--font-display);
 		color: var(--text-primary);
 		margin: 0 0 14px;
-		font-size: 32px;
+		font-size: clamp(24px, 5vw, 32px);
 	}
 
 	.lede {

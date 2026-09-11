@@ -92,10 +92,11 @@
 	.row {
 		display: flex;
 		gap: 10px;
+		flex-wrap: wrap;
 	}
 
 	.row > :global(*) {
-		flex: 1;
+		flex: 1 1 140px;
 	}
 
 	.field-label {

@@ -1,4 +1,5 @@
 import type { User, Session } from 'better-auth';
+import type { therapist } from '$lib/server/db/schema';
 
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
@@ -9,6 +10,8 @@ declare global {
 			session?: Session;
 			// set in hooks.server.ts — only present when the logged-in user is also a therapist
 			therapistId?: string;
+			// full row, loaded once in hooks so (app) layout doesn't re-query it
+			therapist?: typeof therapist.$inferSelect;
 			// set in hooks.server.ts — only present when the logged-in user is also a client.
 			// a user can be a client of multiple therapists; this is whichever one is currently
 			// active (activeClientId cookie, defaults to the newest), swappable from the portal

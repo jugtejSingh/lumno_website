@@ -19,7 +19,7 @@
 
 <style>
 	.features {
-		padding: 20px 64px 100px;
+		padding: 20px clamp(16px, 5vw, 64px) clamp(56px, 9vw, 100px);
 		max-width: 1200px;
 		margin: 0 auto;
 	}
@@ -33,7 +33,7 @@
 		font-family: var(--font-display);
 		color: var(--text-primary);
 		margin: 0;
-		font-size: 36px;
+		font-size: clamp(26px, 5vw, 36px);
 	}
 
 	.lede {
@@ -45,7 +45,7 @@
 
 	.features-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
 		gap: 20px;
 	}
 </style>

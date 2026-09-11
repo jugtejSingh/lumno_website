@@ -2,4 +2,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://lumno.in/sitemap.xml
+Sitemap: https://www.lumno.in/sitemap.xml

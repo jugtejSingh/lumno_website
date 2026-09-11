@@ -156,7 +156,7 @@
 		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
-		padding: 28px;
+		padding: clamp(16px, 4vw, 28px);
 	}
 
 	.tabs {
@@ -186,6 +186,17 @@
 	.panel-block {
 		height: 380px;
 		overflow: hidden;
+	}
+
+	/* ponytail: fixed height clips the taller panels once columns get narrow — let it grow */
+	@media (max-width: 520px) {
+		.panel-block {
+			height: auto;
+		}
+
+		.tabs {
+			flex-wrap: wrap;
+		}
 	}
 
 	/* Booking */
@@ -316,6 +327,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 10px;
+		flex-wrap: wrap;
 		margin-bottom: 14px;
 	}
 
@@ -391,6 +404,7 @@
 
 	.notes-actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 10px;
 		margin-bottom: 4px;
 	}

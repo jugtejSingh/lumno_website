@@ -72,12 +72,12 @@
 	.legal {
 		max-width: 720px;
 		margin: 0 auto;
-		padding: 64px 48px 96px;
+		padding: clamp(40px, 8vw, 64px) clamp(16px, 5vw, 48px) 96px;
 	}
 
 	.display {
 		font-family: var(--font-display);
-		font-size: 40px;
+		font-size: clamp(28px, 7vw, 40px);
 		margin: 0;
 	}
 
