@@ -100,7 +100,7 @@
 				</div>
 
 				<div class="pay-info">
-					<div class="pay-info-row"><span class="info-dot"></span>Payments are collected automatically after each session</div>
+					<div class="pay-info-row"><span class="info-dot"></span>Every session becomes an invoice you can track</div>
 					<div class="pay-info-row"><span class="info-dot"></span>Reminders go out automatically for anything unpaid</div>
 				</div>
 

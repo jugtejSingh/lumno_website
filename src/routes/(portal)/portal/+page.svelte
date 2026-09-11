@@ -17,6 +17,9 @@
 
 	let bookDay = $state<number | null>(null);
 	let rescheduleId = $state<string | null>(null);
+	// Automated Razorpay payments are disabled for now — re-enable by uncommenting
+	// this block and the "Pay now" form below.
+	/*
 	let payingId = $state<string | null>(null);
 
 	function loadCheckoutScript(): Promise<void> {
@@ -74,6 +77,7 @@
 			payingId = null;
 		}
 	}
+	*/
 
 	const bookSlots = $derived(bookDay !== null ? (data.slotsByDay[bookDay] ?? []) : []);
 
@@ -189,6 +193,7 @@
 						</div>
 						<div class="amount">{inv.amount}</div>
 						<Badge tone={inv.tone}>{inv.status}</Badge>
+						<!-- Automated payments disabled for now — see the commented block in <script>.
 						{#if inv.payable}
 							<form
 								method="POST"
@@ -223,6 +228,7 @@
 								</Button>
 							</form>
 						{/if}
+						-->
 					</div>
 				</Card>
 			{/each}

@@ -112,6 +112,9 @@
 	);
 
 	// ---- Razorpay connection ----
+	// Automated payments disabled for now — uncomment this block and the banner in
+	// the Payments card to re-enable.
+	/*
 	const rzp = $derived(data.razorpay);
 	const RZP_NOTICES: Record<string, string> = {
 		connected: 'Razorpay connected — clients can now pay their invoices in the portal.',
@@ -122,6 +125,7 @@
 		not_inr: 'Portal payments are INR-only. Set your currency to INR before connecting Razorpay.'
 	};
 	const rzpNotice = $derived(rzp.notice ? RZP_NOTICES[rzp.notice] : undefined);
+	*/
 
 	let saveLabel = $state('Save Changes');
 
@@ -312,12 +316,9 @@
 			<div class="section-title">Payments</div>
 
 			<div class="helper">
-				Each logged session becomes an invoice for the client. Once Razorpay is connected, clients
-				pay their invoices in the portal by card or UPI and the money lands in your Razorpay
-				account. You can also mark any invoice paid by hand from the Payments page — do that for
-				cash, bank transfers, or anything settled outside the portal. There is no separate
-				manual/automatic switch: portal payment turns on when Razorpay is connected, and marking by
-				hand is always available.
+				Each logged session becomes an invoice for the client. Mark invoices paid by hand from the
+				Payments page for cash, bank transfers, or anything settled outside the portal. Automated
+				card and UPI payments are coming soon.
 			</div>
 			<div class="helper">
 				The two windows below set your late-change policy: a client who cancels or reschedules with
@@ -325,6 +326,7 @@
 				session rate; with less notice than that they owe the full rate.
 			</div>
 
+			<!-- Automated payments disabled for now — see the commented block in <script>.
 			{#if rzpNotice}
 				<div class="rzp-notice" class:rzp-notice-bad={rzp.notice === 'state_error'}>
 					{rzpNotice}
@@ -352,6 +354,7 @@
 					<span>Portal payments are available for INR practices only.</span>
 				{/if}
 			</div>
+			-->
 
 			<label class="field">
 				<span class="field-label">Free Cancellation / Reschedule Window</span>
