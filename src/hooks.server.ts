@@ -1,4 +1,5 @@
-import { redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
+import { error, redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
 import { randomUUID } from 'node:crypto';
 import { logError } from '$lib/server/log';
 import { eq } from 'drizzle-orm';
@@ -8,7 +9,25 @@ import { db } from '$lib/server/db';
 import { therapist } from '$lib/server/db/schema';
 import { listClientsForUser } from '$lib/server/clients';
 import { ACTIVE_CLIENT_COOKIE, setActiveClientCookie } from '$lib/server/activeClient';
+import { ratelimit } from '$lib/server/rateLimit';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
+
+// Server-to-server callbacks that verify their own signature/secret and can
+// legitimately retry fast — IP throttling them only risks dropping a retry.
+const RATE_LIMIT_EXEMPT_PREFIXES = ['/webhooks/', '/api/cron/'];
+
+const handleRateLimit: Handle = async ({ event, resolve }) => {
+	const isExempt = RATE_LIMIT_EXEMPT_PREFIXES.some((prefix) =>
+		event.url.pathname.startsWith(prefix)
+	);
+	if (!isExempt) {
+		const { success } = await ratelimit.limit(event.getClientAddress());
+		if (!success) {
+			error(429, 'Too many requests. Please try again shortly.');
+		}
+	}
+	return resolve(event);
+};
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
@@ -60,7 +79,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
-export const handle: Handle = handleBetterAuth;
+export const handle: Handle = sequence(handleRateLimit, handleBetterAuth);
 
 // Every uncaught throw in a load/action/endpoint lands here. The full error goes
 // to the server log with a short id; the user only ever sees the id and a generic
