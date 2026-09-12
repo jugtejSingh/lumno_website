@@ -43,7 +43,7 @@
 	>
 		<div class="mockup">
 			<div class="cal-grid">
-				{#each Array(28) as _, i (i)}
+				{#each Array(28), i (i)}
 					<div class="cal-cell" class:busy={[3, 9, 14, 20].includes(i)} class:pending={i === 9}>
 						{i + 1}
 					</div>

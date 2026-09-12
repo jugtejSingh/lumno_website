@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import Select from '$lib/components/utils/Select.svelte';
@@ -20,7 +21,8 @@
 
 	let useCustomName = $state(false);
 	let customName = $state('');
-	let clientName = $state(clients[0]?.name ?? '');
+	// form draft: deliberately seeded from the initial prop value only
+	let clientName = $state(untrack(() => clients[0]?.name ?? ''));
 	const clientId = $derived(clients.find((c) => c.name === clientName)?.id ?? '');
 
 	// same reset the old page-level openAddCharge() did, now keyed off the dialog opening

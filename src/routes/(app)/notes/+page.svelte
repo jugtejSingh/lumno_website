@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { marked } from 'marked';
+	import { renderMarkdown } from '$lib/markdown';
 	import { enhance } from '$lib/enhance';
 	import Card from '$lib/components/utils/Card.svelte';
 	import Avatar from '$lib/components/utils/Avatar.svelte';
@@ -25,7 +25,11 @@
 	const sessions = $derived(data.sessionsByClient[selectedId] ?? []);
 	const writing = $derived(writingType !== null);
 	const isSharedWriting = $derived(writingType === 'shared');
-	const todayLabel = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+	const todayLabel = new Date().toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric'
+	});
 
 	function select(id: string) {
 		selectedId = id;
@@ -57,106 +61,120 @@
 				<div class="empty">No clients yet.</div>
 			</div>
 		{:else}
-		<div class="detail-inner" class:writing>
-			<div class="client-head">
-				<Avatar name={selected.name} size={40} />
-				<div>
-					<div class="client-name">{selected.name}</div>
-					<div class="client-meta">
-						{selected.notes.length} private · {selected.sharedNotes.length} shared with client
+			<div class="detail-inner" class:writing>
+				<div class="client-head">
+					<Avatar name={selected.name} size={40} />
+					<div>
+						<div class="client-name">{selected.name}</div>
+						<div class="client-meta">
+							{selected.notes.length} private · {selected.sharedNotes.length} shared with client
+						</div>
 					</div>
 				</div>
-			</div>
 
-			{#if writing}
-				<form
-					method="POST"
-					action="?/addNote"
-					use:enhance={() => {
-						return async ({ result, update }) => {
-							if (result.type === 'success') writingType = null;
-							await update();
-						};
-					}}
-				>
-					<input type="hidden" name="clientId" value={selected.id} />
-					<input type="hidden" name="visibility" value={writingType} />
-					<input type="hidden" name="body" value={draftBody} />
-					<input type="hidden" name="appointmentId" value={draftAppointmentId} />
-					<NoteEditor
-						{todayLabel}
-						subtitle={isSharedWriting
-							? `Visible to ${selected.name} in their portal`
-							: 'Private — only you see this'}
-						placeholder={isSharedWriting
-							? 'Write the note or homework for your client…'
-							: "Write today's private note here…"}
-						shared={isSharedWriting}
-						saveLabel={isSharedWriting ? 'Send to client' : 'Save note'}
-						{sessions}
-						bind:body={draftBody}
-						bind:appointmentId={draftAppointmentId}
-						oncancel={cancelWriting}
-					/>
-					{#if form?.message}
-						<div class="form-error">{form.message}</div>
-					{/if}
-				</form>
-			{:else}
-				<div class="sections">
-					<div class="section">
-						<div class="section-head">
-							<div class="section-title">Private notes</div>
-							<Button size="sm" variant="secondary" onclick={startPrivate}>New note</Button>
-						</div>
-						<div class="section-hint">Only you can see these.</div>
-						<div class="notes-list">
-							{#each selected.notes as n (n.id)}
-								<Card>
-									<div class="shared-head">
-										<div class="note-date">{n.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-										{#if n.sessionLabel}
-											<Tag color="plum">Session: {n.sessionLabel}</Tag>
-										{/if}
-									</div>
-									<div class="note-body">{@html marked.parse(n.body)}</div>
-								</Card>
-							{/each}
-							{#if selected.notes.length === 0}
-								<div class="empty">No private notes yet for {selected.name}.</div>
-							{/if}
-						</div>
-					</div>
-
-					<div class="section">
-						<div class="section-head">
-							<div class="section-title">Sent to client</div>
-							<Button size="sm" variant="pop" onclick={startShared}>New for client</Button>
-						</div>
-						<div class="section-hint">{selected.name} sees these in their portal.</div>
-						<div class="notes-list">
-							{#each selected.sharedNotes as n (n.id)}
-								<Card>
-									<div class="shared-head">
-										<div class="note-date">{n.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-										<div class="shared-tags">
+				{#if writing}
+					<form
+						method="POST"
+						action="?/addNote"
+						use:enhance={() => {
+							return async ({ result, update }) => {
+								if (result.type === 'success') writingType = null;
+								await update();
+							};
+						}}
+					>
+						<input type="hidden" name="clientId" value={selected.id} />
+						<input type="hidden" name="visibility" value={writingType} />
+						<input type="hidden" name="body" value={draftBody} />
+						<input type="hidden" name="appointmentId" value={draftAppointmentId} />
+						<NoteEditor
+							{todayLabel}
+							subtitle={isSharedWriting
+								? `Visible to ${selected.name} in their portal`
+								: 'Private — only you see this'}
+							placeholder={isSharedWriting
+								? 'Write the note or homework for your client…'
+								: "Write today's private note here…"}
+							shared={isSharedWriting}
+							saveLabel={isSharedWriting ? 'Send to client' : 'Save note'}
+							{sessions}
+							bind:body={draftBody}
+							bind:appointmentId={draftAppointmentId}
+							oncancel={cancelWriting}
+						/>
+						{#if form?.message}
+							<div class="form-error">{form.message}</div>
+						{/if}
+					</form>
+				{:else}
+					<div class="sections">
+						<div class="section">
+							<div class="section-head">
+								<div class="section-title">Private notes</div>
+								<Button size="sm" variant="secondary" onclick={startPrivate}>New note</Button>
+							</div>
+							<div class="section-hint">Only you can see these.</div>
+							<div class="notes-list">
+								{#each selected.notes as n (n.id)}
+									<Card>
+										<div class="shared-head">
+											<div class="note-date">
+												{n.createdAt.toLocaleDateString('en-US', {
+													month: 'short',
+													day: 'numeric',
+													year: 'numeric'
+												})}
+											</div>
 											{#if n.sessionLabel}
 												<Tag color="plum">Session: {n.sessionLabel}</Tag>
 											{/if}
-											<Tag color="sage">Visible to client</Tag>
 										</div>
-									</div>
-									<div class="note-body">{@html marked.parse(n.body)}</div>
-								</Card>
-							{/each}
-							{#if selected.sharedNotes.length === 0}
-								<div class="empty">Nothing shared with {selected.name} yet.</div>
-							{/if}
+										<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in renderMarkdown -->
+										<div class="note-body">{@html renderMarkdown(n.body)}</div>
+									</Card>
+								{/each}
+								{#if selected.notes.length === 0}
+									<div class="empty">No private notes yet for {selected.name}.</div>
+								{/if}
+							</div>
+						</div>
+
+						<div class="section">
+							<div class="section-head">
+								<div class="section-title">Sent to client</div>
+								<Button size="sm" variant="pop" onclick={startShared}>New for client</Button>
+							</div>
+							<div class="section-hint">{selected.name} sees these in their portal.</div>
+							<div class="notes-list">
+								{#each selected.sharedNotes as n (n.id)}
+									<Card>
+										<div class="shared-head">
+											<div class="note-date">
+												{n.createdAt.toLocaleDateString('en-US', {
+													month: 'short',
+													day: 'numeric',
+													year: 'numeric'
+												})}
+											</div>
+											<div class="shared-tags">
+												{#if n.sessionLabel}
+													<Tag color="plum">Session: {n.sessionLabel}</Tag>
+												{/if}
+												<Tag color="sage">Visible to client</Tag>
+											</div>
+										</div>
+										<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in renderMarkdown -->
+										<div class="note-body">{@html renderMarkdown(n.body)}</div>
+									</Card>
+								{/each}
+								{#if selected.sharedNotes.length === 0}
+									<div class="empty">Nothing shared with {selected.name} yet.</div>
+								{/if}
+							</div>
 						</div>
 					</div>
-				</div>
-			{/if}
-		</div>
+				{/if}
+			</div>
 		{/if}
 	</div>
 </div>

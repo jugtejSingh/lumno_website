@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import Button from '$lib/components/utils/Button.svelte';
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
@@ -26,10 +27,11 @@
 		return String(n).padStart(2, '0');
 	}
 
-	let dateValue = $state(`${year}-${pad(month + 1)}-${pad(day)}`);
-	let startTime = $state(session.startTime);
-	let endTime = $state(session.endTime);
-	let modality = $state(session.modality);
+	// form draft: deliberately seeded from the initial prop values only
+	let dateValue = $state(untrack(() => `${year}-${pad(month + 1)}-${pad(day)}`));
+	let startTime = $state(untrack(() => session.startTime));
+	let endTime = $state(untrack(() => session.endTime));
+	let modality = $state(untrack(() => session.modality));
 
 	const modalityOptions = [
 		{ value: 'online', label: 'Online' },

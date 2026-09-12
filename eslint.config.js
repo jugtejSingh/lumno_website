@@ -36,6 +36,9 @@ export default defineConfig(
 	{
 		// Override or add rule settings here, such as:
 		// 'svelte/button-has-type': 'error'
-		rules: {}
+		rules: {
+			// No base path is configured, so resolve() adds nothing today. Re-enable if one is added.
+			'svelte/no-navigation-without-resolve': 'off'
+		}
 	}
 );

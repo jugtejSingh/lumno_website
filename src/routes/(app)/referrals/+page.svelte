@@ -6,12 +6,14 @@
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	let query = $state(data.q);
+	// search box draft: seeded from the initial URL query only; the effect below owns updates
+	let query = $state(untrack(() => data.q));
 	let selectedId = $state<string | null>(null);
 
 	// debounced server-side search — resets to page 1 on every change
@@ -23,11 +25,11 @@
 			return;
 		}
 		const timer = setTimeout(() => {
-			const params = new URLSearchParams();
+			let href = '?';
 			if (q.trim()) {
-				params.set('q', q.trim());
+				href = `?q=${encodeURIComponent(q.trim())}`;
 			}
-			goto(`?${params.toString()}`, { keepFocus: true, noScroll: true });
+			goto(href, { keepFocus: true, noScroll: true });
 		}, 250);
 		return () => clearTimeout(timer);
 	});
@@ -47,12 +49,11 @@
 	}
 
 	function pageHref(p: number): string {
-		const params = new URLSearchParams();
+		let href = `?page=${p}`;
 		if (data.q.trim()) {
-			params.set('q', data.q.trim());
+			href = `?q=${encodeURIComponent(data.q.trim())}&page=${p}`;
 		}
-		params.set('page', String(p));
-		return `?${params.toString()}`;
+		return href;
 	}
 </script>
 

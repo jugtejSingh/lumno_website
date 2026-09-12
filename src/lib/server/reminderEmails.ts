@@ -14,7 +14,6 @@ import { sendEmail, wrapEmail } from '$lib/server/email';
 import { formatCurrency } from '$lib/format';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
 function formatWhen(at: Date, timezone: string): string {
@@ -38,7 +37,7 @@ export async function sendSessionReminders(): Promise<void> {
 	await sendSessionReminderBatch('reminder24hSentAt', new Date(now.getTime() + DAY_MS), now);
 	// 1h-before reminder needs a cron finer than once/day (Hobby plan limit) to be timely.
 	// Re-enable once on a plan that allows a */15 * * * * schedule.
-	// await sendSessionReminderBatch('reminder1hSentAt', new Date(now.getTime() + HOUR_MS), now);
+	// await sendSessionReminderBatch('reminder1hSentAt', new Date(now.getTime() + 60 * 60 * 1000), now);
 }
 
 async function sendSessionReminderBatch(

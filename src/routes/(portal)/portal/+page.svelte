@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { marked } from 'marked';
+	import { renderMarkdown } from '$lib/markdown';
 	import Card from '$lib/components/utils/Card.svelte';
 	import Avatar from '$lib/components/utils/Avatar.svelte';
 	import Badge from '$lib/components/utils/Badge.svelte';
@@ -8,9 +8,8 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import PortalMonthGrid from '$lib/components/Calendar/PortalMonthGrid.svelte';
 	import BookSlotDialog from '$lib/components/Calendar/BookSlotDialog.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { enhance } from '$lib/enhance';
-	import { toast } from 'svelte-sonner';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -18,7 +17,8 @@
 	let bookDay = $state<number | null>(null);
 	let rescheduleId = $state<string | null>(null);
 	// Automated Razorpay payments are disabled for now — re-enable by uncommenting
-	// this block and the "Pay now" form below.
+	// this block and the "Pay now" form below, and re-import `invalidateAll` from
+	// '$app/navigation' and `toast` from 'svelte-sonner'.
 	/*
 	let payingId = $state<string | null>(null);
 
@@ -188,8 +188,8 @@
 				<div class="pay-how">
 					<div class="row-title">How to pay {data.therapistName.split(' ')[0]}</div>
 					<div class="row-sub">
-						Pay your balance directly using the details below, then let your therapist know so
-						they can mark the invoice as paid.
+						Pay your balance directly using the details below, then let your therapist know so they
+						can mark the invoice as paid.
 					</div>
 					<div class="pay-how-body">
 						{#if data.manualPay.qrUrl}
@@ -265,7 +265,8 @@
 					<div class="mono-date">{n.date}</div>
 					<Tag color="sage">From {data.therapistName.split(' ')[0]}</Tag>
 				</div>
-				<div class="note-text">{@html marked.parse(n.text)}</div>
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in renderMarkdown -->
+				<div class="note-text">{@html renderMarkdown(n.text)}</div>
 			</Card>
 		{/each}
 		{#if data.sharedNotes.length === 0}

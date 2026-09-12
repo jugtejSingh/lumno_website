@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import Button from '$lib/components/utils/Button.svelte';
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
@@ -22,7 +23,8 @@
 	} = $props();
 
 	let useCustomName = $state(false);
-	let clientId = $state(clients[0]?.id ?? '');
+	// form draft: deliberately seeded from the initial prop value only
+	let clientId = $state(untrack(() => clients[0]?.id ?? ''));
 	let customName = $state('');
 	let rate = $state('');
 	let startTime = $state('09:00');
@@ -59,7 +61,12 @@
 		>
 			Existing client
 		</button>
-		<button type="button" class="toggle-btn" class:active={useCustomName} onclick={() => (useCustomName = true)}>
+		<button
+			type="button"
+			class="toggle-btn"
+			class:active={useCustomName}
+			onclick={() => (useCustomName = true)}
+		>
 			Custom name
 		</button>
 	</div>

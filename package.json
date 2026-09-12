@@ -51,6 +51,7 @@
 		"@aws-sdk/client-s3": "^3.1130.0",
 		"@aws-sdk/s3-request-presigner": "^3.1130.0",
 		"googleapis": "^176.0.0",
+		"isomorphic-dompurify": "^3.19.0",
 		"marked": "^18.0.11",
 		"razorpay": "^2.9.8",
 		"resend": "^6.24.0",

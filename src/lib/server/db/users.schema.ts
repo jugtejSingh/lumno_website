@@ -7,7 +7,6 @@ import {
 	timestamp,
 	index,
 	pgEnum,
-	boolean,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';

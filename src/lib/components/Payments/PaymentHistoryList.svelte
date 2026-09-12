@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
@@ -56,7 +57,7 @@
 	}
 
 	// re-fetch whenever the target client or page changes; jump back to page 1 on a client switch
-	let lastClientId = clientId;
+	let lastClientId = untrack(() => clientId);
 	$effect(() => {
 		if (clientId !== lastClientId) {
 			lastClientId = clientId;
@@ -66,7 +67,11 @@
 	});
 
 	function formatDate(value: string) {
-		return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+		return new Date(value).toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		});
 	}
 
 	// lets a parent-owned mutation (e.g. the "+ Add charge" form in ClientPaymentsDialog,
@@ -154,9 +159,21 @@
 
 	{#if totalPages > 1}
 		<div class="pager">
-			<Button variant="secondary" size="sm" onclick={() => { if (page > 1) page -= 1; }}>Prev</Button>
+			<Button
+				variant="secondary"
+				size="sm"
+				onclick={() => {
+					if (page > 1) page -= 1;
+				}}>Prev</Button
+			>
 			<span class="pager-label">Page {page} of {totalPages}</span>
-			<Button variant="secondary" size="sm" onclick={() => { if (page < totalPages) page += 1; }}>Next</Button>
+			<Button
+				variant="secondary"
+				size="sm"
+				onclick={() => {
+					if (page < totalPages) page += 1;
+				}}>Next</Button
+			>
 		</div>
 	{/if}
 </div>

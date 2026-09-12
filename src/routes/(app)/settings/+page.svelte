@@ -8,6 +8,7 @@
 	import Switch from '$lib/components/utils/Switch.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
+	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -28,7 +29,11 @@
 		},
 		1: {
 			caseload: 'Up To 30 Clients · Unlimited Appointments',
-			perks: ['Everything In Free', 'AI Note Clean-Up', 'Referral Program — Invite Other Therapists']
+			perks: [
+				'Everything In Free',
+				'AI Note Clean-Up',
+				'Referral Program — Invite Other Therapists'
+			]
 		},
 		2: {
 			caseload: 'Unlimited Clients · Unlimited Appointments',
@@ -101,41 +106,45 @@
 		{ value: 'off', label: 'Holiday' }
 	];
 
+	// form drafts below are deliberately seeded from the initial load data only
+	const initial = untrack(() => data);
+
 	// ---- referral profile ----
-	let name = $state(data.profile.name);
-	let bio = $state(data.profile.bio);
-	let location = $state(data.profile.location ?? '');
-	let years = $state(data.profile.yearsExperience?.toString() ?? '');
-	let rate = $state(data.profile.sessionRate?.toString() ?? '');
+	let name = $state(initial.profile.name);
+	let bio = $state(initial.profile.bio);
+	let location = $state(initial.profile.location ?? '');
+	let years = $state(initial.profile.yearsExperience?.toString() ?? '');
+	let rate = $state(initial.profile.sessionRate?.toString() ?? '');
 	let formatLabel = $state(
-		FORMAT_OPTIONS.find((o) => o.value === (data.profile.sessionFormat ?? ''))?.label ?? 'Not Set'
+		FORMAT_OPTIONS.find((o) => o.value === (initial.profile.sessionFormat ?? ''))?.label ??
+			'Not Set'
 	);
-	let visible = $state(data.profile.referralVisible);
-	let showYears = $state(data.profile.referralShowYears);
-	let showRate = $state(data.profile.referralShowRate);
-	let specialties = $state(data.profile.tags);
+	let visible = $state(initial.profile.referralVisible);
+	let showYears = $state(initial.profile.referralShowYears);
+	let showRate = $state(initial.profile.referralShowRate);
+	let specialties = $state(initial.profile.tags);
 	let newTag = $state('');
 
 	// ---- schedule ----
-	let bufferMinutes = $state(data.schedule.bufferMinutes);
-	let workStart = $state(data.schedule.earliestBookingTime.slice(0, 5));
-	let workEnd = $state(data.schedule.latestBookingTime.slice(0, 5));
-	let weeklySchedule = $state([...data.schedule.weeklySchedule]);
+	let bufferMinutes = $state(initial.schedule.bufferMinutes);
+	let workStart = $state(initial.schedule.earliestBookingTime.slice(0, 5));
+	let workEnd = $state(initial.schedule.latestBookingTime.slice(0, 5));
+	let weeklySchedule = $state([...initial.schedule.weeklySchedule]);
 
 	// ---- notifications ----
-	let sendMeetLinks = $state(data.notifications.sendMeetLinks);
-	let sendBookingEmails = $state(data.notifications.sendBookingEmails);
-	let sendSessionReminderEmails = $state(data.notifications.sendSessionReminderEmails);
-	let sendPaymentReminderEmails = $state(data.notifications.sendPaymentReminderEmails);
+	let sendMeetLinks = $state(initial.notifications.sendMeetLinks);
+	let sendBookingEmails = $state(initial.notifications.sendBookingEmails);
+	let sendSessionReminderEmails = $state(initial.notifications.sendSessionReminderEmails);
+	let sendPaymentReminderEmails = $state(initial.notifications.sendPaymentReminderEmails);
 
 	// ---- payments ----
-	let freeChangeWindowHours = $state(data.payments.freeChangeWindowHours);
+	let freeChangeWindowHours = $state(initial.payments.freeChangeWindowHours);
 	let partialChangeWindowHours = $state(
-		data.payments.partialChangeWindowHours === null
+		initial.payments.partialChangeWindowHours === null
 			? ''
-			: String(data.payments.partialChangeWindowHours)
+			: String(initial.payments.partialChangeWindowHours)
 	);
-	let payBankDetails = $state(data.manualPay.bankDetails);
+	let payBankDetails = $state(initial.manualPay.bankDetails);
 	let removePayQr = $state(false);
 
 	// ---- Razorpay connection ----
@@ -412,8 +421,8 @@
 
 			<div class="section-title">How Clients Pay You</div>
 			<div class="helper">
-				Shown to clients in their portal next to any unpaid invoice. Upload a UPI / payment QR
-				code image and add the account details they should transfer to.
+				Shown to clients in their portal next to any unpaid invoice. Upload a UPI / payment QR code
+				image and add the account details they should transfer to.
 			</div>
 			{#if data.manualPay.qrUrl}
 				<div class="qr-current">
@@ -431,7 +440,7 @@
 				label="Bank / UPI Details"
 				name="payBankDetails"
 				rows={4}
-				placeholder={'Account name\nAccount number\nIFSC\nUPI id'}
+				placeholder="Account name&#10;Account number&#10;IFSC&#10;UPI id"
 				bind:value={payBankDetails}
 			/>
 		</div>
@@ -451,25 +460,25 @@
 				</div>
 				<div class="plan-row">
 					<div class="plan-label">
-					{TIER_NAMES[data.billing.plan]}
-					{#if data.billing.status === 'past_due'}
-						<span class="plan-warning">— payment failed</span>
-					{:else if data.billing.cancelScheduled}
-						<span class="plan-warning">— cancels at period end</span>
-					{/if}
-				</div>
-				<div class="plan-actions">
-					{#if data.billing.plan === 0}
-						<Button href="/pricing" variant="primary" size="sm">Upgrade</Button>
-					{:else}
-						<Button href="/pricing" variant="secondary" size="sm">Change Plan</Button>
-						{#if data.billing.status === 'active' && !data.billing.cancelScheduled}
-							<Button variant="secondary" size="sm" onclick={cancelPlan}>
-								{cancelling ? 'Cancelling…' : 'Cancel Plan'}
-							</Button>
+						{TIER_NAMES[data.billing.plan]}
+						{#if data.billing.status === 'past_due'}
+							<span class="plan-warning">— payment failed</span>
+						{:else if data.billing.cancelScheduled}
+							<span class="plan-warning">— cancels at period end</span>
 						{/if}
-					{/if}
-				</div>
+					</div>
+					<div class="plan-actions">
+						{#if data.billing.plan === 0}
+							<Button href="/pricing" variant="primary" size="sm">Upgrade</Button>
+						{:else}
+							<Button href="/pricing" variant="secondary" size="sm">Change Plan</Button>
+							{#if data.billing.status === 'active' && !data.billing.cancelScheduled}
+								<Button variant="secondary" size="sm" onclick={cancelPlan}>
+									{cancelling ? 'Cancelling…' : 'Cancel Plan'}
+								</Button>
+							{/if}
+						{/if}
+					</div>
 				</div>
 			</div>
 		</div>
@@ -638,6 +647,8 @@
 		font-size: 13px;
 	}
 
+	/* Razorpay styles — dormant while automated payments are disabled (see script). */
+	/*
 	.rzp-notice {
 		font-size: 13px;
 		color: var(--text-secondary);
@@ -682,6 +693,7 @@
 		color: inherit;
 		white-space: nowrap;
 	}
+	*/
 
 	.plan-block {
 		display: flex;

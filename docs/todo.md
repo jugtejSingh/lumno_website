@@ -8,8 +8,4 @@ Referrals per person for a month off
 
 Payment to send email ads to people to book that havent in over a month
 
-Continue with google for clients(Test)
-
-upi id or bank information on the client page, if the person added it
-
 rate limiting
