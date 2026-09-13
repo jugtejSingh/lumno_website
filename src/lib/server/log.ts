@@ -4,7 +4,8 @@
 export function logError(scope: string, err: unknown, context: Record<string, unknown> = {}) {
 	const message = err instanceof Error ? err.message : String(err);
 	const stack = err instanceof Error ? err.stack : undefined;
-	console.error(`[${scope}] ${message}`, { ...context, stack });
+	const cause = err instanceof Error ? err.cause : undefined;
+	console.error(`[${scope}] ${message}`, { ...context, stack, cause });
 }
 
 export function logInfo(scope: string, message: string, context: Record<string, unknown> = {}) {
