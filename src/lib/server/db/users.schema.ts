@@ -83,6 +83,11 @@ export const client = pgTable(
 		// last time a payment-due nag went out to this client; null means never sent.
 		// throttles the weekly reminder cron to at most one send per 7 days per client
 		lastPaymentReminderAt: timestamp('last_payment_reminder_at', { withTimezone: true }),
+	// ladder position for the "come back and rebook" nag: 0 none, 1 sent the 4-day nudge,
+	// 2 sent the 2-week nudge, 3 sent the 1-month nudge (and every 30d after).
+	// See docs/rebook-reminders-plan.md for how this will be used.
+	rebookReminderStage: integer('rebook_reminder_stage').notNull().default(0),
+	lastRebookReminderAt: timestamp('last_rebook_reminder_at', { withTimezone: true }),
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')
 			.defaultNow()

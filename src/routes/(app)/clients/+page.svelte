@@ -22,6 +22,9 @@
 	let historyClientId = $state<string | null>(null);
 	const historyClientName = $derived(data.clients.find((c) => c.id === historyClientId)?.name ?? '');
 
+	const CLIENTS_PER_PAGE = 15;
+	let page = $state(1);
+
 	const filtered = $derived(
 		data.clients.filter(
 			(c) =>
@@ -29,6 +32,14 @@
 				(c.email ?? '').toLowerCase().includes(query.toLowerCase())
 		)
 	);
+	const totalPages = $derived(Math.max(1, Math.ceil(filtered.length / CLIENTS_PER_PAGE)));
+	const paged = $derived(filtered.slice((page - 1) * CLIENTS_PER_PAGE, page * CLIENTS_PER_PAGE));
+
+	// jump back to page 1 whenever the search narrows/widens the result set
+	$effect(() => {
+		filtered;
+		page = 1;
+	});
 
 	function toneFor(status: string): 'success' | 'warning' | 'danger' {
 		if (status === 'active') return 'success';
@@ -97,7 +108,7 @@
 	{/if}
 
 	<div class="list">
-		{#each filtered as c (c.id)}
+		{#each paged as c (c.id)}
 			<Card>
 				<div class="card-row">
 					<Avatar name={c.name} size={38} />
@@ -152,6 +163,25 @@
 			<div class="empty">No clients match that search.</div>
 		{/if}
 	</div>
+	{#if totalPages > 1}
+		<div class="pager">
+			<Button
+				variant="secondary"
+				size="sm"
+				onclick={() => {
+					if (page > 1) page -= 1;
+				}}>Prev</Button
+			>
+			<span class="pager-label">Page {page} of {totalPages}</span>
+			<Button
+				variant="secondary"
+				size="sm"
+				onclick={() => {
+					if (page < totalPages) page += 1;
+				}}>Next</Button
+			>
+		</div>
+	{/if}
 </div>
 
 <Dialog open={addOpen} title="Add a client" onclose={() => (addOpen = false)}>
@@ -350,6 +380,18 @@
 	.empty {
 		color: var(--text-muted);
 		font-size: 14px;
+	}
+
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+	}
+
+	.pager-label {
+		font-size: 13px;
+		color: var(--text-muted);
 	}
 
 	.dialog-form {

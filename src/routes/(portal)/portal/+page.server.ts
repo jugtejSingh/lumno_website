@@ -18,7 +18,7 @@ import {
 	rescheduleAppointmentForClient
 } from '$lib/server/availability';
 import { listSharedNotesForClient } from '$lib/server/notes';
-import { listVisiblePaymentsForClient } from '$lib/server/payments';
+import { getBalanceDueForClient, listVisiblePaymentsForClient } from '$lib/server/payments';
 import { getPaymentSettings, getManualPayDetails } from '$lib/server/paymentSettings';
 import { signedUrl } from '$lib/server/storage';
 import { connectionHealth } from '$lib/server/razorpayConnection';
@@ -49,13 +49,17 @@ export const load: PageServerLoad = async (event) => {
 	const now = new Date();
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
 	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
+	const PAGE_SIZE = 5;
+	const paymentsPage = Math.max(1, Number(event.url.searchParams.get('paymentsPage')) || 1);
+	const notesPage = Math.max(1, Number(event.url.searchParams.get('notesPage')) || 1);
 
-	const [upcoming, slotsByDay, sharedNoteRows, payments, paymentSettings, rzpHealth, manualPayRow] =
+	const [upcoming, slotsByDay, sharedNotes, payments, balanceDue, paymentSettings, rzpHealth, manualPayRow] =
 		await Promise.all([
 			listUpcomingAppointmentsForClient(client.id, timezone),
 			listAvailabilityForMonth(client.therapistId, year, month),
-			listSharedNotesForClient(client.id),
-			listVisiblePaymentsForClient(client.id),
+			listSharedNotesForClient(client.id, notesPage, PAGE_SIZE),
+			listVisiblePaymentsForClient(client.id, paymentsPage, PAGE_SIZE),
+			getBalanceDueForClient(client.id),
 			getPaymentSettings(client.therapistId),
 			connectionHealth(client.therapistId),
 			getManualPayDetails(client.therapistId)
@@ -86,25 +90,16 @@ export const load: PageServerLoad = async (event) => {
 		meetLink: appt.meetLink
 	}));
 
-	const balanceDue = payments
-		.filter((p) => p.status === 'unpaid')
-		.reduce((sum, p) => sum + p.amount, 0);
-	const paidTotal = payments
-		.filter((p) => p.status === 'paid')
-		.reduce((sum, p) => sum + p.amount, 0);
-
-	const invoices = payments.map((p) => ({
+	const invoices = payments.rows.map((p) => ({
 		id: p.id,
-		date: (p.paidAt ?? p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+		date: p.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
 		amount: formatCurrency(p.amount, currency),
 		note: p.note,
-		status: p.status,
-		tone: p.status === 'paid' ? ('success' as const) : ('citrus' as const),
-		due: p.status === 'unpaid',
-		payable: p.status === 'unpaid' && portalPayEnabled
+		payable: portalPayEnabled
 	}));
+	const paymentsTotal = payments.total;
 
-	const sharedNotes = sharedNoteRows.map((n) => ({
+	const notes = sharedNotes.rows.map((n) => ({
 		date: n.createdAt.toLocaleDateString('en-US', {
 			month: 'short',
 			day: 'numeric',
@@ -112,6 +107,7 @@ export const load: PageServerLoad = async (event) => {
 		}),
 		text: n.body // markdown source, rendered client-side
 	}));
+	const notesTotal = sharedNotes.total;
 
 	return {
 		clientName,
@@ -121,11 +117,15 @@ export const load: PageServerLoad = async (event) => {
 		slotsByDay,
 		sessions,
 		invoices,
-		sharedNotes,
+		paymentsPage,
+		paymentsTotal,
+		sharedNotes: notes,
+		notesPage,
+		notesTotal,
+		pageSize: PAGE_SIZE,
 		balanceDue: formatCurrency(balanceDue, currency),
 		hasBalanceDue: balanceDue > 0,
 		manualPay,
-		paidTotal: formatCurrency(paidTotal, currency),
 		cancellationPolicy: formatCancellationPolicy(paymentSettings)
 	};
 };

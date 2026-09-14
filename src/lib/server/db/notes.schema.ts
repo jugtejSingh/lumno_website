@@ -23,6 +23,7 @@ export const clientNote = pgTable(
 		// private: therapist-only. shared: visible read-only to the client in their portal.
 		visibility: clientNoteVisibilityEnum('visibility').notNull().default('private'),
 		body: text('body').notNull(), // markdown source
+		description: text('description'), // short AI-generated summary shown on the collapsed card
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(table) => [index('clientNote_clientId_createdAt_idx').on(table.clientId, table.createdAt)]

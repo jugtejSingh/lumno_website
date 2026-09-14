@@ -5,7 +5,8 @@ import { appointment, payment } from '$lib/server/db/schema';
 import {
 	cancelAppointment,
 	rescheduleAppointmentForTherapist,
-	markPastAppointmentsCompleted
+	markPastAppointmentsCompleted,
+	listUpcomingAppointmentsForClient
 } from '$lib/server/appointments';
 import { addCharge } from '$lib/server/payments';
 import { resetDb, mkTherapist, mkClient, mkPack, mkAppointment } from './helpers';
@@ -35,6 +36,16 @@ beforeEach(async () => {
 	const t = await mkTherapist({ timezone: 'UTC' });
 	therapistId = t.id;
 	clientId = (await mkClient(therapistId, { rate: 1000 })).id;
+});
+
+describe('listUpcomingAppointmentsForClient', () => {
+	it('caps at the 5 soonest sessions', async () => {
+		for (let i = 1; i <= 7; i++) {
+			await appt(hoursFromNow(i * 24), { status: 'confirmed' });
+		}
+		const rows = await listUpcomingAppointmentsForClient(clientId, 'UTC');
+		expect(rows).toHaveLength(5);
+	});
 });
 
 describe('cancelAppointment', () => {

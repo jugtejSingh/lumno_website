@@ -11,7 +11,8 @@ import {
 	listOutstandingBalancesByClient,
 	getClientPaymentTotals,
 	getMonthlyPaymentSummary,
-	listVisiblePaymentsForClient
+	listVisiblePaymentsForClient,
+	getBalanceDueForClient
 } from '$lib/server/payments';
 import { resetDb, mkTherapist, mkClient, mkAppointment, mkPack } from './helpers';
 
@@ -68,7 +69,7 @@ describe('client-visible payments', () => {
 			endAt: new Date(Date.now() + 86_400_000 + 3_600_000)
 		});
 		await addCharge(therapistId, { clientId, appointmentId: future.id, amount: 1000 });
-		expect(await listVisiblePaymentsForClient(clientId)).toHaveLength(0);
+		expect((await listVisiblePaymentsForClient(clientId, 1, 5)).rows).toHaveLength(0);
 	});
 
 	it('shows an unpaid charge once the session is over', async () => {
@@ -77,7 +78,27 @@ describe('client-visible payments', () => {
 			endAt: new Date(Date.now() - 3_600_000)
 		});
 		await addCharge(therapistId, { clientId, appointmentId: past.id, amount: 1000 });
-		expect(await listVisiblePaymentsForClient(clientId)).toHaveLength(1);
+		expect((await listVisiblePaymentsForClient(clientId, 1, 5)).rows).toHaveLength(1);
+	});
+
+	it('never shows a paid charge to the client', async () => {
+		const p = await addCharge(therapistId, { clientId, amount: 1000 });
+		await setPaymentStatus(therapistId, p.id, 'paid');
+		expect((await listVisiblePaymentsForClient(clientId, 1, 5)).rows).toHaveLength(0);
+	});
+
+	it('paginates visible payments and reports the true total', async () => {
+		for (let i = 0; i < 7; i++) {
+			await addCharge(therapistId, { clientId, amount: 100 });
+		}
+		const page1 = await listVisiblePaymentsForClient(clientId, 1, 5);
+		expect(page1.rows).toHaveLength(5);
+		expect(page1.total).toBe(7);
+
+		const page2 = await listVisiblePaymentsForClient(clientId, 2, 5);
+		expect(page2.rows).toHaveLength(2);
+
+		expect(await getBalanceDueForClient(clientId)).toBe(700);
 	});
 });
 

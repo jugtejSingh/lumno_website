@@ -6,6 +6,7 @@
 	import ClientPaymentsDialog from '$lib/components/Payments/ClientPaymentsDialog.svelte';
 	import ClientSidebar from '$lib/components/Payments/ClientSidebar.svelte';
 	import { formatCurrency } from '$lib/format';
+	import { goto } from '$app/navigation';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -14,6 +15,13 @@
 	let addChargeOpen = $state(false);
 
 	const openClientName = $derived(data.clients.find((c) => c.id === openClientId)?.name ?? '');
+	const balancesTotalPages = $derived(Math.max(1, Math.ceil(data.balancesTotal / data.balancesPerPage)));
+
+	function gotoBalancesPage(target: number) {
+		const url = new URL(window.location.href);
+		url.searchParams.set('balancesPage', String(target));
+		goto(`${url.pathname}${url.search}`, { keepFocus: true });
+	}
 </script>
 
 <div class="payments-page">
@@ -51,6 +59,25 @@
 				<div class="empty">No outstanding balances.</div>
 			{/if}
 		</div>
+		{#if balancesTotalPages > 1}
+			<div class="pager">
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => {
+						if (data.balancesPage > 1) gotoBalancesPage(data.balancesPage - 1);
+					}}>Prev</Button
+				>
+				<span class="pager-label">Page {data.balancesPage} of {balancesTotalPages}</span>
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => {
+						if (data.balancesPage < balancesTotalPages) gotoBalancesPage(data.balancesPage + 1);
+					}}>Next</Button
+				>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -145,5 +172,17 @@
 	.empty {
 		color: var(--text-muted);
 		font-size: 14px;
+	}
+
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+	}
+
+	.pager-label {
+		font-size: 13px;
+		color: var(--text-muted);
 	}
 </style>

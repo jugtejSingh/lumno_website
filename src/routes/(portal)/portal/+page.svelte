@@ -107,6 +107,15 @@
 			data.month === 11 ? 0 : data.month + 1
 		);
 	}
+
+	function gotoPage(param: string, page: number) {
+		const url = new URL(window.location.href);
+		url.searchParams.set(param, String(page));
+		goto(`${url.pathname}${url.search}`, { keepFocus: true });
+	}
+
+	const paymentsTotalPages = $derived(Math.max(1, Math.ceil(data.paymentsTotal / data.pageSize)));
+	const notesTotalPages = $derived(Math.max(1, Math.ceil(data.notesTotal / data.pageSize)));
 </script>
 
 <div class="portal">
@@ -181,7 +190,6 @@
 		<div class="section-title">Payments</div>
 		<div class="stat-row">
 			<StatCard label="Balance due" value={data.balanceDue} accent="citrus" />
-			<StatCard label="Paid total" value={data.paidTotal} accent="sage" />
 		</div>
 		{#if data.manualPay && data.hasBalanceDue}
 			<Card>
@@ -211,7 +219,7 @@
 							<div class="row-sub">{inv.note ?? `Session with ${data.therapistName}`}</div>
 						</div>
 						<div class="amount">{inv.amount}</div>
-						<Badge tone={inv.tone}>{inv.status}</Badge>
+						<Badge tone="citrus">unpaid</Badge>
 						<!-- Automated payments disabled for now — see the commented block in <script>.
 						{#if inv.payable}
 							<form
@@ -255,6 +263,25 @@
 				<div class="hint">Nothing to show yet.</div>
 			{/if}
 		</div>
+		{#if paymentsTotalPages > 1}
+			<div class="pager">
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => {
+						if (data.paymentsPage > 1) gotoPage('paymentsPage', data.paymentsPage - 1);
+					}}>Prev</Button
+				>
+				<span class="pager-label">Page {data.paymentsPage} of {paymentsTotalPages}</span>
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => {
+						if (data.paymentsPage < paymentsTotalPages) gotoPage('paymentsPage', data.paymentsPage + 1);
+					}}>Next</Button
+				>
+			</div>
+		{/if}
 	</div>
 
 	<div id="notes" class="section notes-section">
@@ -271,6 +298,25 @@
 		{/each}
 		{#if data.sharedNotes.length === 0}
 			<div class="hint">Nothing shared yet.</div>
+		{/if}
+		{#if notesTotalPages > 1}
+			<div class="pager">
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => {
+						if (data.notesPage > 1) gotoPage('notesPage', data.notesPage - 1);
+					}}>Prev</Button
+				>
+				<span class="pager-label">Page {data.notesPage} of {notesTotalPages}</span>
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => {
+						if (data.notesPage < notesTotalPages) gotoPage('notesPage', data.notesPage + 1);
+					}}>Next</Button
+				>
+			</div>
 		{/if}
 	</div>
 </div>
@@ -312,6 +358,18 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+	}
+
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+	}
+
+	.pager-label {
+		font-size: 13px;
+		color: var(--text-muted);
 	}
 
 	.notes-section {

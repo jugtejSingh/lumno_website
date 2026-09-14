@@ -13,29 +13,42 @@ beforeEach(async () => {
 });
 
 it('creates a note for the therapist own client', async () => {
-	const res = await createNote(therapistId, clientId, 'private', '# heading', null);
+	const res = await createNote(therapistId, clientId, 'private', '# heading', null, null);
 	expect(res).toMatchObject({ note: { body: '# heading', visibility: 'private' } });
 });
 
 it('rejects a note for a client of another therapist', async () => {
 	const other = await mkTherapist();
-	expect(await createNote(other.id, clientId, 'private', 'x', null)).toEqual({ error: 'not_found' });
+	expect(await createNote(other.id, clientId, 'private', 'x', null, null)).toEqual({ error: 'not_found' });
 });
 
 it('rejects an appointmentId that is not this client’s', async () => {
 	const otherClient = await mkClient(therapistId);
 	const appt = await mkAppointment(therapistId, otherClient.id);
-	expect(await createNote(therapistId, clientId, 'private', 'x', appt.id)).toEqual({
+	expect(await createNote(therapistId, clientId, 'private', 'x', appt.id, null)).toEqual({
 		error: 'not_found'
 	});
 });
 
 describe('portal visibility', () => {
 	it('only shared notes reach the client portal', async () => {
-		await createNote(therapistId, clientId, 'private', 'therapist eyes only', null);
-		await createNote(therapistId, clientId, 'shared', 'see you next week', null);
+		await createNote(therapistId, clientId, 'private', 'therapist eyes only', null, null);
+		await createNote(therapistId, clientId, 'shared', 'see you next week', null, null);
 
-		const shared = await listSharedNotesForClient(clientId);
-		expect(shared.map((n) => n.body)).toEqual(['see you next week']);
+		const shared = await listSharedNotesForClient(clientId, 1, 5);
+		expect(shared.rows.map((n) => n.body)).toEqual(['see you next week']);
+	});
+
+	it('paginates shared notes newest first', async () => {
+		for (let i = 0; i < 7; i++) {
+			await createNote(therapistId, clientId, 'shared', `note ${i}`, null, null);
+		}
+		const page1 = await listSharedNotesForClient(clientId, 1, 5);
+		expect(page1.rows).toHaveLength(5);
+		expect(page1.total).toBe(7);
+		expect(page1.rows[0].body).toBe('note 6');
+
+		const page2 = await listSharedNotesForClient(clientId, 2, 5);
+		expect(page2.rows).toHaveLength(2);
 	});
 });

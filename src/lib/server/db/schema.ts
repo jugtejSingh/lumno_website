@@ -13,3 +13,4 @@ export * from './notes.schema';
 export * from './payments.schema';
 export * from './organizations.schema';
 export * from './billing.schema';
+export * from './ai.schema';

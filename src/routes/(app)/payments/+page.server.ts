@@ -10,9 +10,7 @@ import {
 } from '$lib/server/payments';
 import { listClients } from '$lib/server/clients';
 
-// "Who owes what" is a quick glance list, not the full roster — the client sidebar covers
-// everyone, this only needs to surface the handful that actually need the therapist's attention.
-const TOP_BALANCES_SHOWN = 5;
+const BALANCES_PER_PAGE = 15;
 
 const PAYMENT_NOT_FOUND = 'That payment could not be found — it may have been deleted. Refresh and try again.';
 
@@ -27,6 +25,7 @@ function parseAmount(raw: FormDataEntryValue | null): number | null {
 export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
 	const now = new Date();
+	const balancesPage = Math.max(1, Number(event.url.searchParams.get('balancesPage')) || 1);
 
 	const [summary, balances, clients] = await Promise.all([
 		getMonthlyPaymentSummary(therapist.id, now.getFullYear(), now.getMonth()),
@@ -36,7 +35,10 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		summary,
-		balances: balances.slice(0, TOP_BALANCES_SHOWN),
+		balances: balances.slice((balancesPage - 1) * BALANCES_PER_PAGE, balancesPage * BALANCES_PER_PAGE),
+		balancesPage,
+		balancesTotal: balances.length,
+		balancesPerPage: BALANCES_PER_PAGE,
 		currency: therapist.currency,
 		clients: clients.map((c) => ({ id: c.id, name: c.name }))
 	};

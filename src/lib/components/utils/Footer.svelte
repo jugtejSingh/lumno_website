@@ -1,5 +1,8 @@
 <script lang="ts">
 	import Logo from './Logo.svelte';
+	import FeedbackDialog from './FeedbackDialog.svelte';
+
+	let feedbackOpen = $state(false);
 </script>
 
 <footer class="footer">
@@ -10,8 +13,13 @@
 		<a href="/login">Log in</a>
 		<a href="/privacy">Privacy</a>
 		<a href="/terms">Terms</a>
+		<button type="button" class="footer-link-btn" onclick={() => (feedbackOpen = true)}>
+			Feedback
+		</button>
 	</div>
 </footer>
+
+<FeedbackDialog open={feedbackOpen} onclose={() => (feedbackOpen = false)} />
 
 <style>
 	.footer {
@@ -34,9 +42,18 @@
 		gap: 18px;
 	}
 
-	.footer-links a {
+	.footer-links a,
+	.footer-link-btn {
 		font-size: 13px;
 		color: var(--text-muted);
 		text-decoration: none;
+	}
+
+	.footer-link-btn {
+		border: none;
+		background: transparent;
+		padding: 0;
+		font-family: var(--font-body);
+		cursor: pointer;
 	}
 </style>

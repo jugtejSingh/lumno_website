@@ -4,7 +4,7 @@ import { therapist, therapistSettings, user } from '$lib/server/db/schema';
 import { formatCurrency } from '$lib/format';
 import type { ReferralListPage, ReferralTherapist, SpecialtyTag } from '$lib/types/referrals';
 
-export const REFERRALS_PER_PAGE = 9;
+export const REFERRALS_PER_PAGE = 20;
 
 const TAG_COLORS: SpecialtyTag['color'][] = ['plum', 'coral', 'sage', 'citrus'];
 

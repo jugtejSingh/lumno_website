@@ -173,7 +173,8 @@ export async function listUpcomingAppointmentsForClient(clientId: string, therap
 				ne(appointment.status, 'rescheduled')
 			)
 		)
-		.orderBy(asc(appointment.startAt));
+		.orderBy(asc(appointment.startAt))
+		.limit(5);
 
 	return rows.map((row) => ({
 		...row,

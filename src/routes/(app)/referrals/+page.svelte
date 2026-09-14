@@ -63,6 +63,11 @@
 		<div class="subtitle">Find a colleague for a client who needs a different fit</div>
 	</div>
 
+	<div class="beta-notice">
+		<Badge tone="warning">Beta</Badge>
+		<span>This feature is in beta — enhancements are coming soon.</span>
+	</div>
+
 	<Input placeholder="Search by name or specialty" bind:value={query} />
 
 	<div class="grid">
@@ -168,6 +173,14 @@
 		font-size: 16px;
 		color: var(--text-muted);
 		margin-top: 2px;
+	}
+
+	.beta-notice {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 13px;
+		color: var(--text-muted);
 	}
 
 	.grid {

@@ -62,6 +62,9 @@ export const therapistSettings = pgTable('therapist_settings', {
 	// whether the weekly payment-due reminder emails go out. Independent of the session
 	// reminder toggle above — gates sendPaymentReminders() in reminderEmails.ts
 	sendPaymentReminderEmails: boolean('send_payment_reminder_emails').notNull().default(true),
+	// whether the rebook-nudge emails go out (4 days / 2 weeks / 1 month of no upcoming
+	// session). See docs/rebook-reminders-plan.md.
+	sendRebookReminderEmails: boolean('send_rebook_reminder_emails').notNull().default(true),
 	// opted in to being listed on other therapists' Referrals page at all
 	referralVisible: boolean('referral_visible').notNull().default(false),
 	// sub-toggles: only meaningful while referralVisible is true. Enforced server-side

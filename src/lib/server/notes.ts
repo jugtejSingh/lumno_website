@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { appointment, client, clientNote } from '$lib/server/db/schema';
 
@@ -24,6 +24,7 @@ export async function listClientsWithNotes(therapistId: string, therapistTimezon
 				clientId: clientNote.clientId,
 				visibility: clientNote.visibility,
 				body: clientNote.body,
+				description: clientNote.description,
 				createdAt: clientNote.createdAt,
 				sessionAt: appointment.startAt
 			})
@@ -51,7 +52,8 @@ export async function createNote(
 	clientId: string,
 	visibility: NoteVisibility,
 	body: string,
-	appointmentId: string | null
+	appointmentId: string | null,
+	description: string | null
 ) {
 	const [clientRow] = await db
 		.select({ id: client.id })
@@ -73,16 +75,29 @@ export async function createNote(
 
 	const [row] = await db
 		.insert(clientNote)
-		.values({ therapistId, clientId, visibility, body, appointmentId })
+		.values({ therapistId, clientId, visibility, body, appointmentId, description })
 		.returning();
 	return { note: row };
 }
 
 // Read-only for the portal: shared notes only, oldest last (matches the therapist-side ordering).
-export async function listSharedNotesForClient(clientId: string) {
-	return db
-		.select({ body: clientNote.body, createdAt: clientNote.createdAt })
-		.from(clientNote)
-		.where(and(eq(clientNote.clientId, clientId), eq(clientNote.visibility, 'shared')))
-		.orderBy(desc(clientNote.createdAt));
+export async function listSharedNotesForClient(
+	clientId: string,
+	page: number,
+	pageSize: number
+): Promise<{ rows: Array<{ body: string; createdAt: Date }>; total: number }> {
+	const where = and(eq(clientNote.clientId, clientId), eq(clientNote.visibility, 'shared'));
+
+	const [rows, [countRow]] = await Promise.all([
+		db
+			.select({ body: clientNote.body, createdAt: clientNote.createdAt })
+			.from(clientNote)
+			.where(where)
+			.orderBy(desc(clientNote.createdAt))
+			.limit(pageSize)
+			.offset((page - 1) * pageSize),
+		db.select({ count: sql<number>`count(*)::int` }).from(clientNote).where(where)
+	]);
+
+	return { rows, total: countRow?.count ?? 0 };
 }

@@ -150,34 +150,60 @@ export async function getClientPaymentTotals(therapistId: string, clientId: stri
 	};
 }
 
-// The client-facing version of the above: a paid charge is always visible (it's their
-// receipt), but an unpaid one only becomes visible once the session it's for has actually
-// happened — ad-hoc charges (no appointment) and cancelled sessions don't wait on anything.
-export async function listVisiblePaymentsForClient(clientId: string) {
-	return db
-		.select({
-			id: payment.id,
-			amount: payment.amount,
-			note: payment.note,
-			status: payment.status,
-			createdAt: payment.createdAt,
-			paidAt: payment.paidAt
-		})
+// Sum of every payment visible to the client via listVisiblePaymentsForClient below — kept
+// separate since that list is paginated and can't be summed page-by-page.
+export async function getBalanceDueForClient(clientId: string): Promise<number> {
+	const [row] = await db
+		.select({ owed: sql<number>`coalesce(sum(${payment.amount}), 0)::int` })
 		.from(payment)
 		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
 		.where(
 			and(
 				eq(payment.clientId, clientId),
-				or(
-					eq(payment.status, 'paid'),
-					and(
-						eq(payment.status, 'unpaid'),
-						or(isNull(payment.appointmentId), and(ne(appointment.status, 'cancelled'), lte(appointment.endAt, new Date())))
-					)
-				)
+				eq(payment.status, 'unpaid'),
+				or(isNull(payment.appointmentId), and(ne(appointment.status, 'cancelled'), lte(appointment.endAt, new Date())))
 			)
-		)
-		.orderBy(desc(payment.createdAt));
+		);
+	return row?.owed ?? 0;
+}
+
+// The client-facing version of the above: clients only ever see what they still owe — a
+// paid charge is never shown — and an unpaid one only becomes visible once the session
+// it's for has actually happened; ad-hoc charges (no appointment) and cancelled sessions
+// don't wait on anything.
+export async function listVisiblePaymentsForClient(
+	clientId: string,
+	page: number,
+	pageSize: number
+): Promise<{ rows: Array<{ id: string; amount: number; note: string | null; createdAt: Date }>; total: number }> {
+	const where = and(
+		eq(payment.clientId, clientId),
+		eq(payment.status, 'unpaid'),
+		or(isNull(payment.appointmentId), and(ne(appointment.status, 'cancelled'), lte(appointment.endAt, new Date())))
+	);
+
+	const [rows, [countRow]] = await Promise.all([
+		db
+			.select({
+				id: payment.id,
+				amount: payment.amount,
+				note: payment.note,
+				createdAt: payment.createdAt
+			})
+			.from(payment)
+			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+			.where(where)
+			.orderBy(desc(payment.createdAt))
+			.limit(pageSize)
+			.offset((page - 1) * pageSize),
+		db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(payment)
+			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+			.where(where)
+	]);
+
+	return { rows, total: countRow?.count ?? 0 };
 }
 
 // ---- packs --------------------------------------------------------------

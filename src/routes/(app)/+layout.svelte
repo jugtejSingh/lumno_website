@@ -5,9 +5,12 @@
 	import SidebarNavItem from '$lib/components/utils/SidebarNavItem.svelte';
 	import Avatar from '$lib/components/utils/Avatar.svelte';
 	import MobileNav from '$lib/components/utils/MobileNav.svelte';
+	import FeedbackDialog from '$lib/components/utils/FeedbackDialog.svelte';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();
+
+	let feedbackOpen = $state(false);
 
 	const links = [
 		{ href: '/dashboard', label: 'Dashboard' },
@@ -34,6 +37,9 @@
 			</a>
 		{/each}
 		<div class="sidebar-spacer"></div>
+		<button type="button" class="sidebar-link-btn" onclick={() => (feedbackOpen = true)}>
+			<SidebarNavItem label="Feedback" />
+		</button>
 		<form method="POST" action="/logout" class="sidebar-link" use:enhance>
 			<button type="submit" class="sidebar-link-btn"><SidebarNavItem label="Log out" /></button>
 		</form>
@@ -49,6 +55,7 @@
 					{#each links as link (link.href)}
 						<a href={link.href}>{link.label}</a>
 					{/each}
+					<button type="button" onclick={() => (feedbackOpen = true)}>Feedback</button>
 					<form method="POST" action="/logout" use:enhance>
 						<button type="submit">Log out</button>
 					</form>
@@ -60,6 +67,8 @@
 		</div>
 	</div>
 </div>
+
+<FeedbackDialog open={feedbackOpen} onclose={() => (feedbackOpen = false)} />
 
 <style>
 	.app-shell {

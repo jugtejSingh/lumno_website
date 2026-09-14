@@ -14,6 +14,7 @@
 		sessions,
 		body = $bindable(''),
 		appointmentId = $bindable(''),
+		description = $bindable(''),
 		oncancel
 	}: {
 		todayLabel: string;
@@ -24,11 +25,13 @@
 		sessions: { id: string; when: string }[];
 		body?: string;
 		appointmentId?: string;
+		description?: string;
 		oncancel: () => void;
 	} = $props();
 
 	let textarea: HTMLTextAreaElement;
 	let fixing = $state(false);
+	let describing = $state(false);
 
 	async function fixNote() {
 		if (!body.trim() || fixing) return;
@@ -50,6 +53,30 @@
 			toast.error('Could not fix the note right now.');
 		} finally {
 			fixing = false;
+		}
+	}
+
+	async function describeNote() {
+		if (!body.trim() || describing) return;
+		describing = true;
+		try {
+			const res = await fetch('?/describeNote', {
+				method: 'POST',
+				body: new URLSearchParams({ body })
+			});
+			const result = deserialize(await res.text());
+			if (result.type === 'success' && result.data?.description) {
+				description = result.data.description as string;
+				toast.success('Description ready — it\'ll show on the note card.');
+			} else if (result.type === 'failure') {
+				toast.error((result.data?.message as string) ?? 'Could not describe the note right now.');
+			} else {
+				toast.error('Could not describe the note right now.');
+			}
+		} catch {
+			toast.error('Could not describe the note right now.');
+		} finally {
+			describing = false;
 		}
 	}
 
@@ -97,10 +124,21 @@
 			<button type="button" onclick={() => wrap('_')}><em>I</em></button>
 			<button type="button" onclick={() => wrap('### ', '')}>H</button>
 			<button type="button" onclick={insertListItem}>&bull; List</button>
-			<button type="button" class="fix-btn" onclick={fixNote} disabled={fixing || !body.trim()}>
+			<button
+				type="button"
+				class="fix-btn"
+				onclick={describeNote}
+				disabled={describing || !body.trim()}
+			>
+				{describing ? 'Describing…' : '📝 Describe'}
+			</button>
+			<button type="button" onclick={fixNote} disabled={fixing || !body.trim()}>
 				{fixing ? 'Fixing…' : '✨ Fix'}
 			</button>
 		</div>
+		{#if description}
+			<div class="description-preview">Card description: “{description}”</div>
+		{/if}
 		<textarea
 			class="editor"
 			bind:this={textarea}
@@ -191,6 +229,12 @@
 
 	.fix-btn {
 		margin-left: auto;
+	}
+
+	.description-preview {
+		font-size: 12px;
+		color: var(--text-muted);
+		font-style: italic;
 	}
 
 	.toolbar button:disabled {
