@@ -152,6 +152,9 @@
 					</li>
 				{/each}
 			</ul>
+			<Button variant="secondary" onclick={() => (dayDialogDay = safeSelectedDay)}>
+				+ Add appointment
+			</Button>
 		{/if}
 	</div>
 </div>

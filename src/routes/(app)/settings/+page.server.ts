@@ -26,7 +26,7 @@ import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { logError } from '$lib/server/log';
 
 const FORMATS = ['remote', 'in_person', 'hybrid'] as const;
-const SCHEDULE_KINDS: ScheduleKind[] = ['online', 'in_person', 'off'];
+const SCHEDULE_KINDS: ScheduleKind[] = ['online', 'in_person', 'hybrid', 'off'];
 const MAX_QR_BYTES = 5 * 1024 * 1024;
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {

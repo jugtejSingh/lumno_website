@@ -39,6 +39,8 @@
 	}
 
 	.field-input {
+		width: 100%;
+		box-sizing: border-box;
 		font-family: var(--font-body);
 		font-size: 14px;
 		color: var(--text-primary);
@@ -46,6 +48,7 @@
 		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
+		text-transform: capitalize;
 	}
 
 	.field-input:focus {

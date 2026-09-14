@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
 import { therapistSettings } from '$lib/server/db/schema';
 
-export type ScheduleKind = 'online' | 'in_person' | 'off';
+export type ScheduleKind = 'online' | 'in_person' | 'hybrid' | 'off';
 
 // index 0 = Sunday ... index 6 = Saturday, matches therapistSettings.weeklySchedule
 export type WeeklySchedule = ScheduleKind[];

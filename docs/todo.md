@@ -8,6 +8,3 @@ Referrals per person for a month off
 
 Payment to send email ads to people to book that havent in over a month
 
-rate limiting
-
-Add in AI functionality 

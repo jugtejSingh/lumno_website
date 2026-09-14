@@ -133,6 +133,7 @@ export const load: PageServerLoad = async (event) => {
 const bookSessionErrorMessages = {
 	unavailable: 'That time is no longer available',
 	overlap: 'That time was just booked — pick another',
+	modality_required: 'Choose online or in-person for that day',
 	balance_due:
 		'You have an outstanding balance — please settle it with your therapist before booking',
 	pack_exhausted: 'Your session pack is used up — contact your therapist to book another session',
@@ -143,6 +144,7 @@ const rescheduleErrorMessages = {
 	not_found: 'That session could not be found',
 	unavailable: 'That time is no longer available',
 	overlap: 'That time was just booked — pick another',
+	modality_required: 'Choose online or in-person for that day',
 	// unreachable from this client self-service flow (only the therapist-driven reschedule
 	// path allows an invalid range or a cross-therapist client id), kept here so the shared
 	// RescheduleAppointmentResult error union stays exhaustive
@@ -188,12 +190,15 @@ export const actions: Actions = {
 		if (!date || !parseTimeParts(startTime)) {
 			return fail(400, { message: 'Pick a day and a time slot' });
 		}
+		const modalityRaw = formData.get('modality')?.toString();
+		const modality = modalityRaw === 'online' || modalityRaw === 'in_person' ? modalityRaw : undefined;
 
 		const result = await createAppointmentForClient(clientRow.therapistId, event.locals.clientId, {
 			year: date.year,
 			month: date.month,
 			day: date.day,
-			startTime
+			startTime,
+			modality
 		});
 
 		if (result.error) {
@@ -250,6 +255,8 @@ export const actions: Actions = {
 		if (!date || !parseTimeParts(startTime)) {
 			return fail(400, { message: 'Pick a day and a time slot' });
 		}
+		const modalityRaw = formData.get('modality')?.toString();
+		const modality = modalityRaw === 'online' || modalityRaw === 'in_person' ? modalityRaw : undefined;
 
 		const result = await rescheduleAppointmentForClient(
 			clientRow.therapistId,
@@ -259,7 +266,8 @@ export const actions: Actions = {
 				year: date.year,
 				month: date.month,
 				day: date.day,
-				startTime
+				startTime,
+				modality
 			}
 		);
 

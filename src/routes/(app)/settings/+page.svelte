@@ -103,6 +103,7 @@
 	const scheduleKindOptions = [
 		{ value: 'online', label: 'Online' },
 		{ value: 'in_person', label: 'In Person' },
+		{ value: 'hybrid', label: 'Hybrid (client chooses)' },
 		{ value: 'off', label: 'Holiday' }
 	];
 

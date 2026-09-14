@@ -52,6 +52,9 @@ export async function attachMeetingLinkIfOnline(
 	executor: DbOrTx = db
 ): Promise<typeof appointment.$inferSelect> {
 	if (appt.modality !== 'online' || appt.googleEventId) return appt;
+	// A Meet link for a session that's already over is useless to the client — most commonly
+	// hit when the therapist logs a past session manually from the calendar.
+	if (appt.endAt <= new Date()) return appt;
 
 	const notificationSettings = await getNotificationSettings(appt.therapistId);
 	if (!notificationSettings.sendMeetLinks) return appt;
@@ -467,13 +470,22 @@ export async function cancelAppointment(
 export type RescheduleAppointmentResult =
 	| { appointment: typeof appointment.$inferSelect; outcome: PolicyOutcome }
 	| {
-			error: 'not_found' | 'invalid_range' | 'overlap' | 'unavailable' | 'invalid_client';
+			error:
+				| 'not_found'
+				| 'invalid_range'
+				| 'overlap'
+				| 'unavailable'
+				| 'modality_required'
+				| 'invalid_client';
 			conflict?: OverlapConflict;
 	  };
 
 export type RescheduleInsertResult =
 	| { appointment: typeof appointment.$inferSelect }
-	| { error: 'invalid_range' | 'overlap' | 'unavailable' | 'invalid_client'; conflict?: OverlapConflict };
+	| {
+			error: 'invalid_range' | 'overlap' | 'unavailable' | 'modality_required' | 'invalid_client';
+			conflict?: OverlapConflict;
+	  };
 
 // Shared tail for BOTH reschedule flows (therapist-driven here, client self-service in
 // availability.ts) — this was previously duplicated near line-for-line in each. Only the new

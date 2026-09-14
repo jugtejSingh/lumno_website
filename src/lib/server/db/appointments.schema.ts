@@ -17,7 +17,8 @@ import { paymentPack } from './payments.schema';
 
 // used for both the recurring weekly pattern and one-off exceptions —
 // 'off' doubles as "holiday" when applied to a specific date via availabilityException
-export const scheduleKindEnum = pgEnum('schedule_kind', ['online', 'in_person', 'off']);
+// 'hybrid' means the client picks online/in_person at booking time (see appointmentModalityEnum)
+export const scheduleKindEnum = pgEnum('schedule_kind', ['online', 'in_person', 'hybrid', 'off']);
 export const appointmentModalityEnum = pgEnum('appointment_modality', ['online', 'in_person']);
 export const appointmentStatusEnum = pgEnum('appointment_status', [
 	'confirmed',

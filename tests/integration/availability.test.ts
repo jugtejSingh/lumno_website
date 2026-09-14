@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '$lib/server/db';
 import { availabilityException } from '$lib/server/db/schema';
-import { listAvailabilityForMonth } from '$lib/server/availability';
+import { listAvailabilityForMonth, createAppointmentForClient } from '$lib/server/availability';
 import { listDayKindsForMonth } from '$lib/server/schedule';
 import { resetDb, mkTherapist, mkClient, mkSettings, mkAppointment } from './helpers';
 
@@ -85,6 +85,49 @@ describe('listAvailabilityForMonth', () => {
 			far.getUTCMonth()
 		);
 		expect(byDay[far.getUTCDate()]).toBeUndefined();
+	});
+});
+
+describe('hybrid days', () => {
+	it('offers slots marked hybrid, not locked to a modality', async () => {
+		await mkSettings(therapistId, { weeklySchedule: Array(7).fill('hybrid') });
+		const byDay = await listAvailabilityForMonth(therapistId, y, m);
+		expect(byDay[d].every((s) => s.modality === 'hybrid')).toBe(true);
+	});
+
+	it('books with the client-chosen modality on a hybrid day', async () => {
+		await mkSettings(therapistId, { weeklySchedule: Array(7).fill('hybrid') });
+		const result = await createAppointmentForClient(therapistId, clientId, {
+			year: y,
+			month: m,
+			day: d,
+			startTime: '09:00',
+			modality: 'in_person'
+		});
+		expect(result.appointment?.modality).toBe('in_person');
+	});
+
+	it('rejects a hybrid-day booking with no modality chosen', async () => {
+		await mkSettings(therapistId, { weeklySchedule: Array(7).fill('hybrid') });
+		const result = await createAppointmentForClient(therapistId, clientId, {
+			year: y,
+			month: m,
+			day: d,
+			startTime: '09:00'
+		});
+		expect(result.error).toBe('modality_required');
+	});
+
+	it('ignores a client-supplied modality on a dedicated online day', async () => {
+		await mkSettings(therapistId, { weeklySchedule: Array(7).fill('online') });
+		const result = await createAppointmentForClient(therapistId, clientId, {
+			year: y,
+			month: m,
+			day: d,
+			startTime: '09:00',
+			modality: 'in_person'
+		});
+		expect(result.appointment?.modality).toBe('online');
 	});
 });
 

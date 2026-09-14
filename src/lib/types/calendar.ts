@@ -18,7 +18,7 @@ export type CalendarDay = {
 	isToday: boolean;
 	sessions: CalendarSession[];
 	extraCount: number;
-	kind: 'online' | 'in_person' | 'off' | null;
+	kind: 'online' | 'in_person' | 'hybrid' | 'off' | null;
 };
 
 export type CalendarWeek = {

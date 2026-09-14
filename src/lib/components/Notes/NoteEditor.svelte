@@ -2,6 +2,8 @@
 	import Card from '$lib/components/utils/Card.svelte';
 	import Tag from '$lib/components/utils/Tag.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
+	import { deserialize } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 
 	let {
 		todayLabel,
@@ -26,6 +28,30 @@
 	} = $props();
 
 	let textarea: HTMLTextAreaElement;
+	let fixing = $state(false);
+
+	async function fixNote() {
+		if (!body.trim() || fixing) return;
+		fixing = true;
+		try {
+			const res = await fetch('?/fixNote', {
+				method: 'POST',
+				body: new URLSearchParams({ body })
+			});
+			const result = deserialize(await res.text());
+			if (result.type === 'success' && result.data?.fixed) {
+				body = result.data.fixed as string;
+			} else if (result.type === 'failure') {
+				toast.error((result.data?.message as string) ?? 'Could not fix the note right now.');
+			} else {
+				toast.error('Could not fix the note right now.');
+			}
+		} catch {
+			toast.error('Could not fix the note right now.');
+		} finally {
+			fixing = false;
+		}
+	}
 
 	// wraps the current selection in markdown syntax, e.g. "text" -> "**text**"
 	function wrap(before: string, after: string = before) {
@@ -71,6 +97,9 @@
 			<button type="button" onclick={() => wrap('_')}><em>I</em></button>
 			<button type="button" onclick={() => wrap('### ', '')}>H</button>
 			<button type="button" onclick={insertListItem}>&bull; List</button>
+			<button type="button" class="fix-btn" onclick={fixNote} disabled={fixing || !body.trim()}>
+				{fixing ? 'Fixing…' : '✨ Fix'}
+			</button>
 		</div>
 		<textarea
 			class="editor"
@@ -158,6 +187,15 @@
 
 	.toolbar button:hover {
 		background: var(--surface-canvas);
+	}
+
+	.fix-btn {
+		margin-left: auto;
+	}
+
+	.toolbar button:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 
 	.editor {

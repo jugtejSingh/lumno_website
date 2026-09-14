@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import type { CalendarSession } from '$lib/types/calendar';
 import {
@@ -11,6 +12,8 @@ import {
 } from '$lib/server/appointments';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
 import { listClients } from '$lib/server/clients';
+import { db } from '$lib/server/db';
+import { client } from '$lib/server/db/schema';
 import { addCharge } from '$lib/server/payments';
 import { listDayKindsForMonth } from '$lib/server/schedule';
 import { logError } from '$lib/server/log';
@@ -54,9 +57,10 @@ const rescheduleErrorMessages = {
 	overlap: 'That overlaps another confirmed appointment',
 	invalid_client: 'That client could not be found',
 	// unreachable from this therapist-driven flow (only the client self-service reschedule
-	// path re-checks availability), kept here so the shared RescheduleAppointmentResult
+	// path re-checks availability/modality), kept here so the shared RescheduleAppointmentResult
 	// error union stays exhaustive
-	unavailable: 'That time is no longer available'
+	unavailable: 'That time is no longer available',
+	modality_required: 'Choose online or in-person for that day'
 } as const;
 
 const modalityColor: Record<string, string> = {
@@ -179,19 +183,24 @@ export const actions: Actions = {
 		const created = result.appointment!;
 
 		// walk-ins have no client row to carry a rate, so charge the session up front
-		// instead — the amount the therapist just typed, defaulting to 0 if left blank
-		if (customName) {
-			try {
+		// instead — the amount the therapist just typed, defaulting to 0 if left blank.
+		// An existing client's own session rate is on their client row (same rate the
+		// self-booking flow in availability.ts charges), so pull that instead.
+		try {
+			if (customName) {
 				await addCharge(therapistId, { customName, appointmentId: created.id, amount: rate });
-			} catch (err) {
-				// The appointment exists; only the charge row is missing. Say so instead
-				// of a 500 that makes it look like nothing was booked.
-				logError('calendar.addAppointment.charge', err, { therapistId, appointmentId: created.id });
-				return fail(500, {
-					message:
-						'The session was booked, but recording the charge failed — add it from the Payments page'
-				});
+			} else {
+				const [clientRow] = await db.select({ rate: client.rate }).from(client).where(eq(client.id, clientId));
+				await addCharge(therapistId, { clientId, appointmentId: created.id, amount: clientRow?.rate ?? 0 });
 			}
+		} catch (err) {
+			// The appointment exists; only the charge row is missing. Say so instead
+			// of a 500 that makes it look like nothing was booked.
+			logError('calendar.addAppointment.charge', err, { therapistId, appointmentId: created.id });
+			return fail(500, {
+				message:
+					'The session was booked, but recording the charge failed — add it from the Payments page'
+			});
 		}
 
 		// Both best-effort: Meet link creation logs and returns null on failure, and

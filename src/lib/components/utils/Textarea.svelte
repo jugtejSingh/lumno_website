@@ -35,6 +35,8 @@
 	}
 
 	.field-input {
+		width: 100%;
+		box-sizing: border-box;
 		font-family: var(--font-body);
 		font-size: 14px;
 		color: var(--text-primary);

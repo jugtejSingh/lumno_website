@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { listClientsWithNotes, createNote, type NoteVisibility } from '$lib/server/notes';
 import { listPastAppointmentsForClient } from '$lib/server/appointments';
 import { listClients } from '$lib/server/clients';
+import { fixNoteText } from '$lib/server/ai';
 
 export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
@@ -38,5 +39,19 @@ export const actions: Actions = {
 		if (result.error) {
 			return fail(400, { message: 'Could not save that note' });
 		}
+	},
+
+	fixNote: async (event) => {
+		const formData = await event.request.formData();
+		const body = formData.get('body')?.toString().trim() ?? '';
+		if (!body) {
+			return fail(400, { message: 'Write something before fixing it' });
+		}
+
+		const fixed = await fixNoteText(body);
+		if (!fixed) {
+			return fail(502, { message: 'Could not fix the note right now. Please try again.' });
+		}
+		return { fixed };
 	}
 };

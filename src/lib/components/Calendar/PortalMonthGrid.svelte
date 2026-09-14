@@ -17,7 +17,11 @@
 	const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 	const today = new Date();
 	const weeks = $derived(getMonthGridWeeks(year, month));
-	const modalityHint: Record<string, string> = { online: 'Online', in_person: 'In Person' };
+	const modalityHint: Record<string, string> = {
+		online: 'Online',
+		in_person: 'In Person',
+		hybrid: 'Choose'
+	};
 
 	function isToday(day: number | null) {
 		return day !== null && day === today.getDate() && month === today.getMonth() && year === today.getFullYear();

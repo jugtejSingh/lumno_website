@@ -36,12 +36,28 @@
 		online: 'This is an online day.',
 		in_person: 'This is an in-person day.'
 	};
+
+	const isHybrid = $derived(slots.length > 0 && slots[0].modality === 'hybrid');
+	let chosenModality = $state<'online' | 'in_person'>('online');
 </script>
 
 <Dialog open={day !== null} {title} {onclose}>
 	<div class="slot-list">
-		{#if slots.length > 0}
+		{#if slots.length > 0 && !isHybrid}
 			<div class="modality-note">{modalityNote[slots[0].modality]}</div>
+		{/if}
+		{#if isHybrid}
+			<div class="modality-picker">
+				<span class="field-label">Online or in-person?</span>
+				<label>
+					<input type="radio" name="modality-choice" value="online" bind:group={chosenModality} />
+					Online
+				</label>
+				<label>
+					<input type="radio" name="modality-choice" value="in_person" bind:group={chosenModality} />
+					In-Person
+				</label>
+			</div>
 		{/if}
 		{#if slots.length === 0}
 			<div class="empty">No open times left on this day.</div>
@@ -61,6 +77,9 @@
 				<input type="hidden" name="month" value={month} />
 				<input type="hidden" name="day" value={day} />
 				<input type="hidden" name="startTime" value={slot.startTime} />
+				{#if isHybrid}
+					<input type="hidden" name="modality" value={chosenModality} />
+				{/if}
 				{#if rescheduleAppointmentId}
 					<input type="hidden" name="appointmentId" value={rescheduleAppointmentId} />
 				{/if}
@@ -113,6 +132,26 @@
 		font-weight: 600;
 		color: var(--text-secondary);
 		margin-bottom: 4px;
+	}
+
+	.modality-picker {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		font-size: 13px;
+		color: var(--text-secondary);
+		margin-bottom: 4px;
+	}
+
+	.modality-picker .field-label {
+		font-weight: 600;
+	}
+
+	.modality-picker label {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		cursor: pointer;
 	}
 
 	.form-error {

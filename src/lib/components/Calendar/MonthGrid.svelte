@@ -24,6 +24,7 @@
 				class:empty={cell.day === null}
 				class:kind-online={cell.kind === 'online'}
 				class:kind-in_person={cell.kind === 'in_person'}
+				class:kind-hybrid={cell.kind === 'hybrid'}
 				class:kind-off={cell.kind === 'off'}
 				role="button"
 				tabindex={cell.day !== null ? 0 : -1}
@@ -132,6 +133,10 @@
 
 	.cell.kind-online {
 		background: var(--sage-300);
+	}
+
+	.cell.kind-hybrid {
+		background: linear-gradient(135deg, var(--sage-300) 50%, var(--beige-200) 50%);
 	}
 
 	.cell.kind-off {

@@ -14,7 +14,12 @@ const SESSION_MINUTES = 60;
 // clients can only book within the next 2 weeks
 const BOOKING_WINDOW_DAYS = 14;
 
-export type AvailableSlot = { startTime: string; label: string; modality: 'online' | 'in_person' };
+export type AvailableSlot = {
+	startTime: string;
+	label: string;
+	// 'hybrid' means the day itself is hybrid — the client must choose online/in_person at booking time
+	modality: 'online' | 'in_person' | 'hybrid';
+};
 
 /**
  * Open booking slots per day of the month, in the therapist's own timezone.
@@ -121,7 +126,13 @@ export async function listAvailabilityForMonth(therapistId: string, year: number
 
 export type BookSlotResult = {
 	appointment?: typeof appointment.$inferSelect;
-	error?: 'unavailable' | 'overlap' | 'balance_due' | 'pack_exhausted' | 'client_inactive';
+	error?:
+		| 'unavailable'
+		| 'overlap'
+		| 'modality_required'
+		| 'balance_due'
+		| 'pack_exhausted'
+		| 'client_inactive';
 };
 
 // Just the slot-check + insert, no payment/pack side effects — shared by a brand-new
@@ -130,14 +141,22 @@ export type BookSlotResult = {
 async function insertAppointmentForClient(
 	therapistId: string,
 	clientId: string,
-	input: { year: number; month: number; day: number; startTime: string },
+	input: { year: number; month: number; day: number; startTime: string; modality?: 'online' | 'in_person' },
 	extra: { packId?: string | null; rescheduledFromId?: string | null } = {},
 	executor: DbOrTx = db
-): Promise<{ appointment: typeof appointment.$inferSelect } | { error: 'unavailable' | 'overlap' }> {
+): Promise<
+	{ appointment: typeof appointment.$inferSelect } | { error: 'unavailable' | 'overlap' | 'modality_required' }
+> {
 	const slotsByDay = await listAvailabilityForMonth(therapistId, input.year, input.month);
 	const slot = slotsByDay[input.day]?.find((s) => s.startTime === input.startTime);
 	if (!slot) {
 		return { error: 'unavailable' as const };
+	}
+
+	// dedicated days ignore any client-supplied modality; only a hybrid day lets the client choose
+	const modality = slot.modality === 'hybrid' ? input.modality : slot.modality;
+	if (!modality) {
+		return { error: 'modality_required' as const };
 	}
 
 	const [therapistRow] = await executor
@@ -158,7 +177,7 @@ async function insertAppointmentForClient(
 				clientId,
 				startAt,
 				endAt,
-				modality: slot.modality,
+				modality,
 				notes: null,
 				packId: extra.packId ?? null,
 				rescheduledFromId: extra.rescheduledFromId ?? null
@@ -176,7 +195,7 @@ async function insertAppointmentForClient(
 export async function createAppointmentForClient(
 	therapistId: string,
 	clientId: string,
-	input: { year: number; month: number; day: number; startTime: string }
+	input: { year: number; month: number; day: number; startTime: string; modality?: 'online' | 'in_person' }
 ): Promise<BookSlotResult> {
 	const [clientRow] = await db
 		.select({ rate: client.rate, deactivatedAt: client.deactivatedAt })
@@ -240,7 +259,7 @@ export async function rescheduleAppointmentForClient(
 	therapistId: string,
 	clientId: string,
 	oldAppointmentId: string,
-	input: { year: number; month: number; day: number; startTime: string }
+	input: { year: number; month: number; day: number; startTime: string; modality?: 'online' | 'in_person' }
 ): Promise<RescheduleAppointmentResult> {
 	const [oldAppt] = await db
 		.select()

@@ -4,7 +4,7 @@ import { therapist, availabilityException } from '$lib/server/db/schema';
 import { zonedDayBounds, getZonedWeekday } from '$lib/server/timezone';
 import { getTherapistScheduleSettings } from '$lib/server/settings';
 
-/** Effective schedule kind ('online' | 'in_person' | 'off') for each day of the month. */
+/** Effective schedule kind ('online' | 'in_person' | 'hybrid' | 'off') for each day of the month. */
 export async function listDayKindsForMonth(therapistId: string, year: number, month: number) {
 	const [therapistRow] = await db
 		.select({ timezone: therapist.timezone })
@@ -33,7 +33,7 @@ export async function listDayKindsForMonth(therapistId: string, year: number, mo
 			)
 		);
 
-	const dayKinds: Record<number, 'online' | 'in_person' | 'off'> = {};
+	const dayKinds: Record<number, 'online' | 'in_person' | 'hybrid' | 'off'> = {};
 	for (let day = 1; day <= daysInMonth; day++) {
 		const { start: dayStart, end: dayEnd } = zonedDayBounds(year, month, day, timezone);
 		const exception = exceptions.find((ex) => ex.startAt < dayEnd && ex.endAt > dayStart);
