@@ -23,16 +23,24 @@ export async function fixNoteText(body: string): Promise<string | null> {
 			},
 			body: JSON.stringify({
 				model: env.OPENROUTER_MODEL || 'deepseek/deepseek-v4.1-flash',
-				// pinned by hand, not `sort: 'price'` — that ties Relace (same $0.15/$0.60 price,
-				// but 4.2s latency/22 tps) with DeepSeek's own endpoint (1.18s/120 tps) and can land
-				// on either. DeepSeek's endpoint is cheapest-or-tied AND fastest, so it goes first;
-				// Novita and Baseten are the next-best cost/speed combo if it's ever down.
-				provider: { order: ['DeepSeek', 'Novita', 'Baseten'], allow_fallbacks: true },
+				// Session notes are health data: zdr keeps routing to Zero Data Retention endpoints
+				// only, and data_collection 'deny' rules out any provider that trains on or stores
+				// prompts. DeepSeek's own endpoint isn't ZDR, so it's out; Novita and Baseten are
+				// (checked against openrouter.ai/api/v1/endpoints/zdr, 2026-09). If both are down
+				// the request fails rather than falling back to a non-ZDR provider.
+				provider: {
+					order: ['Novita', 'Baseten'],
+					allow_fallbacks: true,
+					zdr: true,
+					data_collection: 'deny'
+				},
 				messages: [
 					{ role: 'system', content: SYSTEM_PROMPT },
 					{ role: 'user', content: body }
 				]
-			})
+			}),
+			// don't hold the request open forever if the provider hangs
+			signal: AbortSignal.timeout(30_000)
 		});
 		if (!res.ok) {
 			logError('ai.fixNote', new Error(`OpenRouter responded ${res.status}`), { status: res.status });

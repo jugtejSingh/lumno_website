@@ -44,6 +44,7 @@ export const load: PageServerLoad = async (event) => {
 		logError('invite.load', new Error('invite row has no email'), { clientId: invite.id });
 		return { invite: null, invalid: INVALID_REASONS.not_found };
 	}
+	const therapistName = result.therapistName;
 
 	const [existingUser] = await db.select().from(user).where(eq(user.email, invite.email));
 
@@ -55,7 +56,7 @@ export const load: PageServerLoad = async (event) => {
 		{ clientId: invite.id }
 	);
 	return {
-		invite: { name: invite.name, email: invite.email },
+		invite: { name: invite.name, email: invite.email, therapistName },
 		invalid: null,
 		oauthError,
 		hasAccount: Boolean(existingUser),

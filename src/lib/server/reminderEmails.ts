@@ -10,7 +10,8 @@ import {
 	user
 } from '$lib/server/db/schema';
 import { payment, paymentPack } from '$lib/server/db/payments.schema';
-import { sendEmail, wrapEmail } from '$lib/server/email';
+import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
+import { logError } from '$lib/server/log';
 import { formatCurrency } from '$lib/format';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -86,7 +87,7 @@ async function sendSessionReminderBatch(
 					: undefined;
 			const html = wrapEmail({
 				heading: 'Upcoming session reminder',
-				bodyHtml: `<p>Reminder: your session with ${row.therapistName} is at ${when} (${modalityText}).</p>`,
+				bodyHtml: `<p>Reminder: your session with ${escapeHtml(row.therapistName)} is at ${when} (${modalityText}).</p>`,
 				cta,
 				footerNote: `Sent on behalf of ${row.therapistName}. Reply to this email to reach them directly.`
 			});
@@ -100,7 +101,7 @@ async function sendSessionReminderBatch(
 				.set({ [sentAtColumn]: new Date() })
 				.where(eq(appointment.id, row.appointmentId));
 		} catch (err) {
-			console.error(`failed to send session reminder for appointment ${row.appointmentId}:`, err);
+			logError('reminderEmails.session', err, { appointmentId: row.appointmentId });
 		}
 	}
 }
@@ -191,7 +192,7 @@ export async function sendPaymentReminders(): Promise<void> {
 			const amount = formatCurrency(row.owed, row.currency);
 			const html = wrapEmail({
 				heading: 'Payment reminder',
-				bodyHtml: `<p>You have an outstanding balance of ${amount} with ${row.therapistName}.</p>`,
+				bodyHtml: `<p>You have an outstanding balance of ${amount} with ${escapeHtml(row.therapistName)}.</p>`,
 				footerNote: `Sent on behalf of ${row.therapistName}. Reply to this email to reach them directly.`
 			});
 			await sendEmail(row.clientEmail, 'Payment reminder', html, {
@@ -203,7 +204,7 @@ export async function sendPaymentReminders(): Promise<void> {
 				.set({ lastPaymentReminderAt: new Date() })
 				.where(eq(client.id, row.clientId));
 		} catch (err) {
-			console.error(`failed to send payment reminder for client ${row.clientId}:`, err);
+			logError('reminderEmails.payment', err, { clientId: row.clientId });
 		}
 	}
 }

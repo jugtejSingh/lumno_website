@@ -13,6 +13,7 @@ import {
 	fetchSubMerchantOrderPayments
 } from '$lib/server/razorpay';
 import { getAccessToken } from '$lib/server/razorpayConnection';
+import { logError } from '$lib/server/log';
 
 // Portal invoice payment — a client pays an unpaid `payment` row via Razorpay
 // Checkout, running on the THERAPIST'S connected merchant account (partner OAuth).
@@ -91,7 +92,7 @@ export async function startInvoiceCheckout(
 		});
 		orderId = order.id;
 	} catch (err) {
-		console.error(`startInvoiceCheckout: order create failed for payment ${paymentId}:`, err);
+		logError('sessionPayments.startInvoiceCheckout', err, { paymentId });
 		return { ok: false, message: 'checkout_failed' };
 	}
 
@@ -232,7 +233,7 @@ export async function sweepStaleOrders(): Promise<void> {
 				);
 			}
 		} catch (err) {
-			console.error(`sweepStaleOrders: payment ${row.id} (${orderId}) failed:`, err);
+			logError('sessionPayments.sweepStaleOrders', err, { paymentId: row.id, orderId });
 		}
 	}
 }

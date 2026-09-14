@@ -435,7 +435,7 @@
 				<span class="field-label">
 					{data.manualPay.qrUrl ? 'Replace QR Code Image' : 'QR Code Image'}
 				</span>
-				<input class="field-input" type="file" name="payQrImage" accept="image/*" />
+				<input class="field-input" type="file" name="payQrImage" accept="image/png,image/jpeg,image/webp" />
 			</label>
 			<Textarea
 				label="Bank / UPI Details"

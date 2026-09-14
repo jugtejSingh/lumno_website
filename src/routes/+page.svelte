@@ -94,15 +94,15 @@
 	const features: Feature[] = [
 		{
 			title: 'Dashboard',
-			desc: "Your day in one place — today's sessions, notes due, and what needs attention.",
+			desc: "No more piecing your day together — today's sessions, notes due, and what needs attention, all in one place.",
 			cta: 'Open dashboard',
 			href: '/dashboard',
 			icon: 'dashboard',
 			accent: 'plum'
 		},
 		{
-			title: 'Calendar & reminders',
-			desc: "A large month view so you always know who's booked for what, plus reminder settings.",
+			title: 'Calendar & bookings',
+			desc: 'No back-and-forth to schedule. Bookings go straight into your calendar with a Google Meet link created for you.',
 			cta: 'Open calendar',
 			href: '/calendar',
 			icon: 'calendar',
@@ -110,7 +110,7 @@
 		},
 		{
 			title: 'Payments',
-			desc: "Configure how you get paid, and see exactly what's outstanding.",
+			desc: "No more confusion over who's paid and who owes you — see it update automatically as it happens.",
 			cta: 'Open payments',
 			href: '/payments',
 			icon: 'payments',
@@ -118,7 +118,7 @@
 		},
 		{
 			title: 'Reminders',
-			desc: 'Automated reminders for upcoming sessions and payments that are due — sent without you lifting a finger.',
+			desc: "No more manually texting clients — sessions and payments due get their own automatic nudge.",
 			cta: 'Open calendar',
 			href: '/calendar',
 			icon: 'reminders',
@@ -126,7 +126,7 @@
 		},
 		{
 			title: 'Client notes',
-			desc: 'A clean writing space with basic formatting, kept dated and organized per client.',
+			desc: 'No more Word docs and WhatsApp — write or dictate, AI cleans it up, and it gets sent and saved in minutes.',
 			cta: 'Open notes',
 			href: '/notes',
 			icon: 'notes',

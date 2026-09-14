@@ -28,6 +28,7 @@ import { logError } from '$lib/server/log';
 const FORMATS = ['remote', 'in_person', 'hybrid'] as const;
 const SCHEDULE_KINDS: ScheduleKind[] = ['online', 'in_person', 'hybrid', 'off'];
 const MAX_QR_BYTES = 5 * 1024 * 1024;
+const QR_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { therapist } = await parent();
@@ -216,8 +217,9 @@ export const actions: Actions = {
 		const qrFile = form.get('payQrImage');
 		let newQrFile: File | null = null;
 		if (qrFile instanceof File && qrFile.size > 0) {
-			if (!qrFile.type.startsWith('image/')) {
-				return fail(400, { message: 'The QR code must be an image file' });
+			// raster only — an SVG can carry script, and the stored content type is the browser's claim
+			if (!QR_TYPES.includes(qrFile.type)) {
+				return fail(400, { message: 'The QR code must be a PNG, JPEG, or WebP image' });
 			}
 			if (qrFile.size > MAX_QR_BYTES) {
 				return fail(400, { message: 'The QR code image must be under 5 MB' });

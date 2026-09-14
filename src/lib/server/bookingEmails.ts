@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { appointment, client, therapist, user } from '$lib/server/db/schema';
-import { sendEmail, wrapEmail } from '$lib/server/email';
+import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
+import { logError } from '$lib/server/log';
 import { getNotificationSettings } from '$lib/server/settings';
 import { formatCurrency } from '$lib/format';
 
@@ -79,24 +80,24 @@ export async function sendAppointmentEmail(
 		if (kind === 'confirmed') {
 			subject = 'Your session is booked';
 			heading = 'Session confirmed';
-			bodyHtml = `<p>Your session with ${row.therapistName} is confirmed for ${when} (${modalityText}).</p>`;
+			bodyHtml = `<p>Your session with ${escapeHtml(row.therapistName)} is confirmed for ${when} (${modalityText}).</p>`;
 			text = `Your session with ${row.therapistName} is confirmed for ${when} (${modalityText}).${row.meetLink ? ` Join here: ${row.meetLink}` : ''}`;
 		} else if (kind === 'cancelled') {
 			subject = 'Your session was cancelled';
 			heading = 'Session cancelled';
-			bodyHtml = `<p>Your session with ${row.therapistName} on ${when} has been cancelled.</p>${feeLine}`;
+			bodyHtml = `<p>Your session with ${escapeHtml(row.therapistName)} on ${when} has been cancelled.</p>${feeLine}`;
 			text = `Your session with ${row.therapistName} on ${when} has been cancelled.`;
 		} else {
 			const from = extra.previousStartAt ? formatWhen(extra.previousStartAt, row.timezone) : null;
 			subject = 'Your session was rescheduled';
 			heading = 'Session rescheduled';
-			bodyHtml = `<p>Your session with ${row.therapistName} has been moved${from ? ` from ${from}` : ''} to ${when} (${modalityText}).</p>${feeLine}`;
+			bodyHtml = `<p>Your session with ${escapeHtml(row.therapistName)} has been moved${from ? ` from ${from}` : ''} to ${when} (${modalityText}).</p>${feeLine}`;
 			text = `Your session with ${row.therapistName} has been moved${from ? ` from ${from}` : ''} to ${when} (${modalityText}).${row.meetLink ? ` Join here: ${row.meetLink}` : ''}`;
 		}
 
 		const html = wrapEmail({ heading, bodyHtml, cta, footerNote });
 		await sendEmail(row.clientEmail, subject, html, { text, replyTo: row.therapistEmail });
 	} catch (err) {
-		console.error(`failed to send ${kind} email for appointment ${appointmentId}:`, err);
+		logError('bookingEmails.send', err, { kind, appointmentId });
 	}
 }

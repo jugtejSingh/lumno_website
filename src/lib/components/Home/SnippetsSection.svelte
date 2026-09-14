@@ -10,8 +10,8 @@
 <section class="snippets">
 	<SnippetRow
 		eyebrow="Dashboard"
-		title="Your day, at a glance"
-		desc="Today's sessions, notes due, and what needs a look — the moment you log in."
+		title="Stop piecing your day together from three different places"
+		desc="Today's sessions, notes due, and what needs attention — one glance, one page, the moment you log in."
 		cta="Open dashboard"
 		href="/dashboard"
 	>
@@ -35,8 +35,8 @@
 
 	<SnippetRow
 		eyebrow="Calendar"
-		title="A full month, always in view"
-		desc="A large calendar keeps every booking visible, with reminders so you know who's in the chair and when."
+		title="Know your bookings, 24/7"
+		desc="No back-and-forth to schedule a session. Bookings land straight in your calendar with a Google Meet link created automatically, and clients get reminders on their own."
 		cta="Open calendar"
 		href="/calendar"
 		reverse
@@ -58,8 +58,8 @@
 
 	<SnippetRow
 		eyebrow="Payments"
-		title="Know what's left, at a glance"
-		desc="Configure rates and payout methods once, then see revenue and outstanding balances update on their own."
+		title="No more confusion over who owes you what"
+		desc="See who's paid, who owes you, and how much you've made — updated automatically the moment a payment comes in."
 		cta="Open payments"
 		href="/payments"
 	>
@@ -80,8 +80,8 @@
 
 	<SnippetRow
 		eyebrow="Client notes"
-		title="A real space to write"
-		desc="A diary-sized page for each session, dated and kept with the client's history — not a cramped text box."
+		title="No more Word docs and WhatsApp messages"
+		desc="Jot it down, AI cleans it into a proper note and sends it to your client in minutes — recorded and dated, so you never lose a thought or dig through old chats."
 		cta="Open notes"
 		href="/notes"
 		reverse

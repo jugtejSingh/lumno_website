@@ -38,7 +38,7 @@
 					<Button type="submit" variant="secondary">Log out</Button>
 				</form>
 			{:else if data.loggedInAsMatch}
-				<div class="form-title">Join {data.invite.name}'s care team</div>
+				<div class="form-title">Join {data.invite.therapistName}'s care team</div>
 				<div class="form-subtitle">Accept as {data.invite.email}?</div>
 				{#if form?.message}
 					<div class="form-error">{form.message}</div>

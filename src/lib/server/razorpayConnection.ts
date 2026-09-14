@@ -9,6 +9,7 @@ import {
 	type OAuthTokenResponse
 } from '$lib/server/razorpay';
 import { sendRazorpayReconnectEmail } from '$lib/server/reminderEmails';
+import { logError } from '$lib/server/log';
 
 // The credential vault. Application code calls getAccessToken(therapistId) and
 // gets a usable bearer token; it never reads the connection row directly.
@@ -215,7 +216,7 @@ export async function refreshExpiringConnections(): Promise<void> {
 		try {
 			await getAccessToken(row.therapistId);
 		} catch (err) {
-			console.error(`refreshExpiringConnections: ${row.therapistId} failed:`, err);
+			logError('razorpayConnection.refreshExpiring', err, { therapistId: row.therapistId });
 		}
 	}
 }

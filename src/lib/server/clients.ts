@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { client, therapist, user } from '$lib/server/db/schema';
-import { sendEmail, wrapEmail } from '$lib/server/email';
+import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
 import { usageLimit } from '$lib/server/billing';
 import { logError } from '$lib/server/log';
 
@@ -36,7 +36,7 @@ async function sendInvite(
 		await sendInviteEmail(email, url, therapistName, therapistEmail);
 		return true;
 	} catch (err) {
-		logError('clients.sendInvite', err, { email });
+		logError('clients.sendInvite', err);
 		return false;
 	}
 }
@@ -47,7 +47,7 @@ async function sendInviteEmail(email: string, url: string, therapistName: string
 		"You've been invited",
 		wrapEmail({
 			heading: "You're invited",
-			bodyHtml: `<p>${therapistName} has invited you to set up your client portal on Lumno.</p><p>Lumno is where you'll book and reschedule sessions, keep track of payments, and get notes and homework your therapist shares with you — all in one place.</p>`,
+			bodyHtml: `<p>${escapeHtml(therapistName)} has invited you to set up your client portal on Lumno.</p><p>Lumno is where you'll book and reschedule sessions, keep track of payments, and get notes and homework your therapist shares with you — all in one place.</p>`,
 			cta: { text: 'Set up your portal', url },
 			footerNote: `Sent on behalf of ${therapistName}. Reply to this email to reach them directly.`
 		}),
@@ -216,13 +216,18 @@ export async function updateClient(therapistId: string, clientId: string, input:
 }
 
 export async function getInviteByToken(token: string) {
-	const [clientRow] = await db.select().from(client).where(eq(client.inviteToken, token));
-	if (!clientRow) return { error: 'not_found' as const };
-	if (clientRow.userId) return { error: 'already_joined' as const };
-	if (!clientRow.inviteExpiresAt || clientRow.inviteExpiresAt < new Date()) {
+	const [row] = await db
+		.select({ client, therapistName: user.name })
+		.from(client)
+		.innerJoin(therapist, eq(client.therapistId, therapist.id))
+		.innerJoin(user, eq(therapist.userId, user.id))
+		.where(eq(client.inviteToken, token));
+	if (!row) return { error: 'not_found' as const };
+	if (row.client.userId) return { error: 'already_joined' as const };
+	if (!row.client.inviteExpiresAt || row.client.inviteExpiresAt < new Date()) {
 		return { error: 'expired' as const };
 	}
-	return { client: clientRow };
+	return { client: row.client, therapistName: row.therapistName };
 }
 
 export async function linkClientToUser(clientId: string, userId: string) {

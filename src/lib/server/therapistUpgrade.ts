@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { therapist, user, verification } from '$lib/server/db/schema';
 import { createTherapistProfile } from '$lib/server/therapistProfile';
+import { sendEmail, wrapEmail } from '$lib/server/email';
 
 const UPGRADE_TTL_MS = 24 * 60 * 60 * 1000;
 const IDENTIFIER_PREFIX = 'become-therapist:';
@@ -16,10 +17,18 @@ function buildUpgradeUrl(origin: string, token: string) {
 	return `${origin}/login/become-therapist/${token}`;
 }
 
-function logUpgradeEmail(email: string, url: string) {
-	// ponytail: no email provider wired up yet — link just goes to the server log,
-	// same as the auth verification and client invite emails.
-	console.log(`[become-therapist] verification for ${email}: ${url}`);
+async function sendUpgradeEmail(email: string, url: string) {
+	await sendEmail(
+		email,
+		'Set up your therapist practice',
+		wrapEmail({
+			heading: 'Set up your therapist practice',
+			bodyHtml: `<p>Someone asked to add a therapist practice to your Lumno account. If this was you, click the button below to finish setting it up.</p>`,
+			cta: { text: 'Set up practice', url },
+			footerNote: "If this wasn't you, ignore this email — nothing will change."
+		}),
+		{ text: `Set up your therapist practice on Lumno:\n${url}` }
+	);
 }
 
 // Called when signUpEmail's anti-enumeration path fires: the email already has
@@ -48,7 +57,7 @@ export async function requestTherapistUpgrade(email: string, name: string, origi
 		expiresAt: new Date(Date.now() + UPGRADE_TTL_MS)
 	});
 
-	logUpgradeEmail(email, buildUpgradeUrl(origin, token));
+	await sendUpgradeEmail(email, buildUpgradeUrl(origin, token));
 }
 
 export async function isValidUpgradeToken(token: string) {

@@ -1,5 +1,5 @@
-// Public marketing pages only — (app)/(portal) are behind auth, /demo is dev-only,
-// and the invite/become-therapist routes are single-use private links. None belong indexed.
+// Public marketing pages only — (app)/(portal) are behind auth, and the
+// invite/become-therapist routes are single-use private links. None belong indexed.
 const SITE_URL = 'https://www.lumno.in';
 const PAGES = ['/', '/pricing', '/login', '/privacy', '/terms'];
 

@@ -9,10 +9,11 @@
 <section class="hero">
 	<div class="hero-copy">
 		<div class="eyebrow">For solo therapists</div>
-		<h1 class="display">Run your practice, <span class="italic-accent">calmly.</span></h1>
+		<h1 class="display">Stop chasing payments <span class="italic-accent">and reminders.</span></h1>
 		<p class="lede">
-			Scheduling, reminders, payments, and notes — one calm place to run the parts of your
-			practice that aren't the session itself.
+			No more guessing who paid and who still owes you, or messaging clients back and forth to
+			book a session. Lumno tracks every booking and rupee, and reminds clients automatically —
+			so you don't have to.
 		</p>
 		<div class="hero-actions">
 			<Button href="/login?tab=register" variant="primary" size="lg">Get started for free</Button>
