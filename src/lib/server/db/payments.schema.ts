@@ -26,8 +26,9 @@ export const packStatusEnum = pgEnum('pack_status', [
 ]);
 export const paymentStatusEnum = pgEnum('payment_status', ['unpaid', 'paid']);
 // how a therapist collects session payments:
-//   'manual'    — client pays off-platform, therapist ticks the row paid (today's default)
-//   'automatic' — client pays inside the portal via Razorpay partner OAuth; the webhook ticks it
+//   'manual'    — client pays off-platform, therapist ticks the row paid (the default)
+//   'automatic' — everything manual does, plus a portal "Pay now" via Razorpay partner
+//                 OAuth; the webhook ticks those rows
 // 'automatic' only takes effect when therapistRazorpayConnection.status is 'active' and currency is INR.
 export const paymentModeEnum = pgEnum('payment_mode', ['manual', 'automatic']);
 // how a specific payment row was settled — 'manual' until a Razorpay capture flips it
@@ -182,7 +183,8 @@ export const therapistRazorpayConnection = pgTable('therapist_razorpay_connectio
 // is null` when someone asks.
 export const razorpayReconcileExceptionKindEnum = pgEnum('razorpay_reconcile_exception_kind', [
 	'amount_mismatch', // captured amount != payment.amount
-	'unresolved_order' // order still unpaid on Razorpay's side well past checkout
+	'unresolved_order', // order still unpaid on Razorpay's side well past checkout
+	'already_paid' // captured after the therapist had already marked it paid by hand — refund owed
 ]);
 
 export const razorpayReconcileException = pgTable(

@@ -10,9 +10,15 @@ process.env.RAZORPAY_OAUTH_REDIRECT_URI = 'https://app.test/settings/payments/co
 // Keep the real RazorpayOAuthError / config; stub only the two network calls.
 const refreshMock = vi.fn();
 const exchangeMock = vi.fn();
+const revokeMock = vi.fn();
 vi.mock('$lib/server/razorpay', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/server/razorpay')>();
-	return { ...actual, refreshOAuthToken: refreshMock, exchangeOAuthCode: exchangeMock };
+	return {
+		...actual,
+		refreshOAuthToken: refreshMock,
+		exchangeOAuthCode: exchangeMock,
+		revokeOAuthToken: revokeMock
+	};
 });
 
 // The refresh-failure path emails the therapist; don't hit the mailer in tests.
@@ -29,6 +35,7 @@ const {
 	storeConnection,
 	connectionHealth,
 	disconnect,
+	revokeConnection,
 	refreshExpiringConnections
 } = await import('$lib/server/razorpayConnection');
 const { db } = await import('$lib/server/db');
@@ -55,6 +62,7 @@ beforeEach(async () => {
 	therapistId = (await mkTherapist()).id;
 	refreshMock.mockReset();
 	exchangeMock.mockReset();
+	revokeMock.mockReset();
 });
 
 describe('tokenCrypto', () => {
@@ -166,6 +174,25 @@ describe('connectionHealth / disconnect', () => {
 		expect(await connectionHealth(therapistId)).toBe('connected');
 
 		await disconnect(therapistId);
+		expect(await connectionHealth(therapistId)).toBe('action_needed');
+	});
+
+	it('revokeConnection tells Razorpay with the decrypted refresh token', async () => {
+		const res = tokenResponse();
+		await storeConnection(therapistId, res, 'test');
+
+		await revokeConnection(therapistId);
+
+		expect(revokeMock).toHaveBeenCalledWith(res.refresh_token);
+		expect(await connectionHealth(therapistId)).toBe('action_needed');
+	});
+
+	it('revokeConnection still revokes locally when Razorpay rejects the call', async () => {
+		await storeConnection(therapistId, tokenResponse(), 'test');
+		revokeMock.mockRejectedValueOnce(new RazorpayOAuthError(400));
+
+		await revokeConnection(therapistId);
+
 		expect(await connectionHealth(therapistId)).toBe('action_needed');
 	});
 });

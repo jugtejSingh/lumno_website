@@ -31,11 +31,16 @@ const { payment, therapistRazorpayConnection, razorpayReconcileException } =
 	await import('$lib/server/db/schema');
 const { storeConnection, revokeConnectionByAccountId } =
 	await import('$lib/server/razorpayConnection');
-const { startInvoiceCheckout, handleSessionInvoicePaid, sweepStaleOrders } =
-	await import('$lib/server/sessionPayments');
+const {
+	startInvoiceCheckout,
+	handleSessionInvoicePaid,
+	sweepStaleOrders,
+	listDoubleCharges,
+	dismissDoubleCharge
+} = await import('$lib/server/sessionPayments');
 const { recordWebhookEvent } = await import('$lib/server/billing');
 const { updatePayment } = await import('$lib/server/payments');
-const { resetDb, mkTherapist, mkClient, mkPayment } = await import('./helpers');
+const { resetDb, mkTherapist, mkClient, mkPayment, mkPaymentSettings } = await import('./helpers');
 
 function tokenResponse(overrides: Record<string, unknown> = {}) {
 	return {
@@ -55,6 +60,8 @@ beforeEach(async () => {
 	await resetDb();
 	therapistId = (await mkTherapist()).id;
 	clientId = (await mkClient(therapistId)).id;
+	// portal checkout only opens in automatic mode — the manual-mode test below flips it back
+	await mkPaymentSettings(therapistId, { paymentMode: 'automatic' });
 	createOrderMock.mockReset();
 	fetchOrderMock.mockReset();
 	fetchOrderPaymentsMock.mockReset();
@@ -148,6 +155,15 @@ describe('startInvoiceCheckout', () => {
 		const res = await startInvoiceCheckout(clientId, pay.id);
 		expect(res).toEqual({ ok: false, message: 'not_payable' });
 	});
+
+	it('blocks a therapist in manual mode', async () => {
+		await storeConnection(therapistId, tokenResponse(), 'test');
+		await mkPaymentSettings(therapistId, { paymentMode: 'manual' });
+		const pay = await mkPayment(therapistId, clientId);
+		const res = await startInvoiceCheckout(clientId, pay.id);
+		expect(res).toEqual({ ok: false, message: 'payments_unavailable' });
+		expect(createOrderMock).not.toHaveBeenCalled();
+	});
 });
 
 describe('handleSessionInvoicePaid', () => {
@@ -205,6 +221,44 @@ describe('handleSessionInvoicePaid', () => {
 			.from(razorpayReconcileException)
 			.where(eq(razorpayReconcileException.paymentId, pay.id));
 		expect(exc.kind).toBe('amount_mismatch');
+	});
+
+	it('flags a capture on an invoice the therapist already marked paid by hand', async () => {
+		const pay = await mkPayment(therapistId, clientId, {
+			amount: 1500,
+			status: 'paid',
+			paidVia: 'manual',
+			razorpayOrderId: 'order_LATE'
+		});
+
+		await handleSessionInvoicePaid({
+			orderId: 'order_LATE',
+			razorpayPaymentId: 'pay_late',
+			amountMinor: 150000
+		});
+
+		// the row stays as the therapist left it
+		const [row] = await db.select().from(payment).where(eq(payment.id, pay.id));
+		expect(row.paidVia).toBe('manual');
+		expect(row.razorpayPaymentId).toBeNull();
+
+		const [exc] = await db
+			.select()
+			.from(razorpayReconcileException)
+			.where(eq(razorpayReconcileException.paymentId, pay.id));
+		expect(exc.kind).toBe('already_paid');
+
+		// shows on the therapist's banner until they dismiss it — nobody else can
+		const listed = await listDoubleCharges(therapistId);
+		expect(listed).toHaveLength(1);
+		expect(listed[0]).toMatchObject({ id: exc.id, amount: 1500 });
+
+		const otherTherapist = (await mkTherapist()).id;
+		expect(await dismissDoubleCharge(otherTherapist, exc.id)).toBe(false);
+		expect(await listDoubleCharges(therapistId)).toHaveLength(1);
+
+		expect(await dismissDoubleCharge(therapistId, exc.id)).toBe(true);
+		expect(await listDoubleCharges(therapistId)).toHaveLength(0);
 	});
 });
 

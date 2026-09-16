@@ -14,12 +14,13 @@ import {
 import {
 	getPaymentSettings,
 	updatePaymentSettings,
+	updatePaymentMode,
 	getManualPayDetails,
 	updateManualPayDetails
 } from '$lib/server/paymentSettings';
 import { putObject, deleteObject, signedUrl } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
-import { connectionHealth } from '$lib/server/razorpayConnection';
+import { connectionHealth, revokeConnection } from '$lib/server/razorpayConnection';
 import { isGoogleCalendarConnected } from '$lib/server/googleCalendar';
 import { CHANGE_WINDOW_HOURS_OPTIONS, formatHours } from '$lib/server/paymentPolicy';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
@@ -211,6 +212,20 @@ export const actions: Actions = {
 			partialChangeWindowHours
 		};
 
+		// ---- portal "Pay now" (Razorpay) ----
+		// Only honoured while Razorpay is connected. The switch isn't rendered
+		// otherwise, so skipping the write keeps the saved choice through a lapsed
+		// connection and stops 'automatic' being posted without one.
+		const razorpayHealth = await connectionHealth(therapistId);
+		let paymentMode: 'manual' | 'automatic' | null = null;
+		if (razorpayHealth === 'connected' || razorpayHealth === 'expiring') {
+			if (form.get('paymentModeAutomatic') === 'on') {
+				paymentMode = 'automatic';
+			} else {
+				paymentMode = 'manual';
+			}
+		}
+
 		// ---- manual payment details (QR image + bank text) ----
 		const bankDetails = form.get('payBankDetails')?.toString().trim() || null;
 		const removeQr = form.get('removePayQr') === 'on';
@@ -243,6 +258,9 @@ export const actions: Actions = {
 			await updateTherapistScheduleSettings(therapistId, schedule, tx);
 			await updateNotificationSettings(therapistId, notifications, tx);
 			await updatePaymentSettings(therapistId, payments, tx);
+			if (paymentMode !== null) {
+				await updatePaymentMode(therapistId, paymentMode, tx);
+			}
 			await updateManualPayDetails(therapistId, { qrKey, bankDetails }, tx);
 		});
 
@@ -256,6 +274,14 @@ export const actions: Actions = {
 		}
 
 		return { saved: true };
+	},
+
+	// Disconnect Razorpay. Past payments keep their order ids; only new portal
+	// checkouts stop. Reconnecting is the same authorize round-trip as the first
+	// time — storeConnection upserts over the revoked row.
+	disconnectRazorpay: async ({ locals }) => {
+		await revokeConnection(locals.therapistId!);
+		return redirect(303, '/settings?payments=disconnected');
 	},
 
 	connectGoogleCalendar: async (event) => {

@@ -9,6 +9,7 @@ import {
 	deletePayment
 } from '$lib/server/payments';
 import { listClients } from '$lib/server/clients';
+import { listDoubleCharges, dismissDoubleCharge } from '$lib/server/sessionPayments';
 
 const BALANCES_PER_PAGE = 15;
 
@@ -27,13 +28,31 @@ export const load: PageServerLoad = async (event) => {
 	const now = new Date();
 	const balancesPage = Math.max(1, Number(event.url.searchParams.get('balancesPage')) || 1);
 
-	const [summary, balances, clients] = await Promise.all([
+	const [summary, balances, clients, doubleChargeRows] = await Promise.all([
 		getMonthlyPaymentSummary(therapist.id, now.getFullYear(), now.getMonth()),
 		listOutstandingBalancesByClient(therapist.id),
-		listClients(therapist.id)
+		listClients(therapist.id),
+		listDoubleCharges(therapist.id)
 	]);
 
+	const doubleCharges: { id: string; name: string; amount: number; date: string }[] = [];
+	for (const row of doubleChargeRows) {
+		let name = 'A client';
+		if (row.clientName) {
+			name = row.clientName;
+		} else if (row.customName) {
+			name = row.customName;
+		}
+		doubleCharges.push({
+			id: row.id,
+			name,
+			amount: row.amount,
+			date: row.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+		});
+	}
+
 	return {
+		doubleCharges,
 		summary,
 		balances: balances.slice((balancesPage - 1) * BALANCES_PER_PAGE, balancesPage * BALANCES_PER_PAGE),
 		balancesPage,
@@ -97,6 +116,16 @@ export const actions: Actions = {
 		const found = await deletePayment(therapistId, paymentId);
 		if (!found) {
 			return fail(404, { message: PAYMENT_NOT_FOUND });
+		}
+	},
+
+	dismissDoubleCharge: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const exceptionId = formData.get('exceptionId')?.toString() ?? '';
+		const found = await dismissDoubleCharge(therapistId, exceptionId);
+		if (!found) {
+			return fail(404, { message: 'That alert could not be found. Refresh and try again.' });
 		}
 	}
 };

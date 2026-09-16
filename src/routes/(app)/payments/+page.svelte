@@ -7,6 +7,7 @@
 	import ClientSidebar from '$lib/components/Payments/ClientSidebar.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { goto } from '$app/navigation';
+	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -32,6 +33,23 @@
 			<div class="title">Payments</div>
 			<Button variant="pop" onclick={() => (addChargeOpen = true)}>+ Add charge</Button>
 		</div>
+
+		{#if data.doubleCharges.length > 0}
+			<div class="double-charges" role="alert">
+				{#each data.doubleCharges as dc (dc.id)}
+					<div class="double-charge">
+						<span>
+							<strong>{dc.name}</strong> paid {formatCurrency(dc.amount, data.currency)} through Razorpay on
+							{dc.date} for an invoice you'd already marked paid. Refund it from your Razorpay dashboard.
+						</span>
+						<form method="POST" action="?/dismissDoubleCharge" use:enhance>
+							<input type="hidden" name="exceptionId" value={dc.id} />
+							<Button type="submit" variant="secondary" size="sm">Dismiss</Button>
+						</form>
+					</div>
+				{/each}
+			</div>
+		{/if}
 
 		<div class="stat-row">
 			<StatCard label="Paid this month" value={formatCurrency(data.summary.paid, data.currency)} accent="sage" />
@@ -125,6 +143,26 @@
 		font-family: var(--font-display);
 		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
+	}
+
+	.double-charges {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.double-charge {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
+		font-size: 13px;
+		color: #b3261e;
+		background: #fdecea;
+		border: 1px solid #f3c1bc;
+		border-radius: var(--radius-sm);
+		padding: 10px 12px;
 	}
 
 	.stat-row {

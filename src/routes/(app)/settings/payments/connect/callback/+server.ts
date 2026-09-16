@@ -9,6 +9,7 @@ import {
 	type OAuthTokenResponse
 } from '$lib/server/razorpay';
 import { storeConnection } from '$lib/server/razorpayConnection';
+import { updatePaymentMode } from '$lib/server/paymentSettings';
 import { _OAUTH_STATE_COOKIE } from '../+server';
 import { logError } from '$lib/server/log';
 
@@ -44,6 +45,12 @@ export const GET: RequestHandler = async ({ locals, url, cookies }) => {
 	}
 
 	await storeConnection(therapistId, tokens, RAZORPAY_OAUTH_MODE);
+
+	// First connect turns portal pay on. Reconnects keep whatever the therapist
+	// last chose, so a deliberate "off" survives a lapsed connection.
+	if (!existing) {
+		await updatePaymentMode(therapistId, 'automatic');
+	}
 
 	if (existing && existing.razorpayAccountId !== tokens.razorpay_account_id) {
 		// Historic orders stay linked to the old acc_… — warn so it's a conscious

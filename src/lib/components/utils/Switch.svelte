@@ -1,22 +1,36 @@
 <script lang="ts">
 	let {
 		label,
-		checked = $bindable(false)
+		checked = $bindable(false),
+		locked = false,
+		onlockedclick
 	}: {
 		label?: string;
 		checked?: boolean;
+		// shown but can't be flipped — a click calls onlockedclick instead (e.g. to explain why)
+		locked?: boolean;
+		onlockedclick?: () => void;
 	} = $props();
+
+	function handleClick() {
+		if (locked) {
+			onlockedclick?.();
+		} else {
+			checked = !checked;
+		}
+	}
 </script>
 
-<label class="switch-row">
+<label class="switch-row" class:locked>
 	<button
 		type="button"
 		class="switch"
-		class:on={checked}
+		class:on={checked && !locked}
 		role="switch"
-		aria-checked={checked}
+		aria-checked={checked && !locked}
+		aria-disabled={locked}
 		aria-label={label}
-		onclick={() => (checked = !checked)}
+		onclick={handleClick}
 	>
 		<span class="switch-knob"></span>
 	</button>
@@ -62,5 +76,10 @@
 	.switch-label {
 		font-size: 14px;
 		color: var(--text-primary);
+	}
+
+	.locked .switch,
+	.locked .switch-label {
+		opacity: 0.5;
 	}
 </style>

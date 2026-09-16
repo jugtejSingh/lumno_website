@@ -8,7 +8,8 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import PortalMonthGrid from '$lib/components/Calendar/PortalMonthGrid.svelte';
 	import BookSlotDialog from '$lib/components/Calendar/BookSlotDialog.svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
@@ -16,10 +17,7 @@
 
 	let bookDay = $state<number | null>(null);
 	let rescheduleId = $state<string | null>(null);
-	// Automated Razorpay payments are disabled for now — re-enable by uncommenting
-	// this block and the "Pay now" form below, and re-import `invalidateAll` from
-	// '$app/navigation' and `toast` from 'svelte-sonner'.
-	/*
+	// ---- portal "Pay now" (Razorpay, automatic mode only) ----
 	let payingId = $state<string | null>(null);
 
 	function loadCheckoutScript(): Promise<void> {
@@ -77,7 +75,6 @@
 			payingId = null;
 		}
 	}
-	*/
 
 	const bookSlots = $derived(bookDay !== null ? (data.slotsByDay[bookDay] ?? []) : []);
 
@@ -125,7 +122,9 @@
 	</div>
 
 	<div id="calendar" class="section">
-		<div class="section-title">Your sessions</div>
+		{#if data.sessions.length > 0}
+			<div class="section-title">Your sessions</div>
+		{/if}
 		{#each data.sessions as s (s.id)}
 			<Card>
 				<div class="row">
@@ -158,10 +157,6 @@
 				</div>
 			</Card>
 		{/each}
-		{#if data.sessions.length === 0}
-			<div class="hint">No upcoming sessions. Book one below.</div>
-		{/if}
-		<div class="hint">{data.cancellationPolicy}</div>
 		{#if rescheduleId}
 			<div class="reschedule-banner">
 				Pick a new time below for your session.
@@ -184,6 +179,7 @@
 			slotsByDay={data.slotsByDay}
 			onDayClick={(day) => (bookDay = day)}
 		/>
+		<div class="hint">{data.cancellationPolicy}</div>
 	</div>
 
 	<div id="payments" class="section">
@@ -196,7 +192,7 @@
 				<div class="pay-how">
 					<div class="row-title">How to pay {data.therapistName.split(' ')[0]}</div>
 					<div class="row-sub">
-						Pay your balance directly using the details below, then let your therapist know so they
+						Prefer to pay directly? Use the details below, then let your therapist know so they
 						can mark the invoice as paid.
 					</div>
 					<div class="pay-how-body">
@@ -220,7 +216,6 @@
 						</div>
 						<div class="amount">{inv.amount}</div>
 						<Badge tone="citrus">unpaid</Badge>
-						<!-- Automated payments disabled for now — see the commented block in <script>.
 						{#if inv.payable}
 							<form
 								method="POST"
@@ -255,7 +250,6 @@
 								</Button>
 							</form>
 						{/if}
-						-->
 					</div>
 				</Card>
 			{/each}

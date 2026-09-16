@@ -10,6 +10,7 @@
 		variant = 'primary',
 		size = 'md',
 		type = 'button',
+		formaction,
 		onclick,
 		children
 	}: {
@@ -17,6 +18,8 @@
 		variant?: Variant;
 		size?: Size;
 		type?: ButtonType;
+		// lets a submit button inside a form post to a different action (SvelteKit ?/name)
+		formaction?: string;
 		onclick?: () => void;
 		children: Snippet;
 	} = $props();
@@ -25,7 +28,7 @@
 {#if href}
 	<a {href} class="btn btn-{variant} btn-{size}">{@render children()}</a>
 {:else}
-	<button {type} class="btn btn-{variant} btn-{size}" {onclick}>{@render children()}</button>
+	<button {type} {formaction} class="btn btn-{variant} btn-{size}" {onclick}>{@render children()}</button>
 {/if}
 
 <style>

@@ -22,6 +22,7 @@ export async function listClientsWithNotes(therapistId: string, therapistTimezon
 			.select({
 				id: clientNote.id,
 				clientId: clientNote.clientId,
+				appointmentId: clientNote.appointmentId,
 				visibility: clientNote.visibility,
 				body: clientNote.body,
 				description: clientNote.description,
@@ -76,6 +77,39 @@ export async function createNote(
 	const [row] = await db
 		.insert(clientNote)
 		.values({ therapistId, clientId, visibility, body, appointmentId, description })
+		.returning();
+	return { note: row };
+}
+
+export async function updateNote(
+	therapistId: string,
+	noteId: string,
+	body: string,
+	appointmentId: string | null,
+	description: string | null
+) {
+	const [noteRow] = await db
+		.select({ id: clientNote.id, clientId: clientNote.clientId })
+		.from(clientNote)
+		.where(and(eq(clientNote.id, noteId), eq(clientNote.therapistId, therapistId)));
+	if (!noteRow) {
+		return { error: 'not_found' as const };
+	}
+
+	if (appointmentId) {
+		const [apptRow] = await db
+			.select({ id: appointment.id })
+			.from(appointment)
+			.where(and(eq(appointment.id, appointmentId), eq(appointment.clientId, noteRow.clientId)));
+		if (!apptRow) {
+			return { error: 'not_found' as const };
+		}
+	}
+
+	const [row] = await db
+		.update(clientNote)
+		.set({ body, appointmentId, description })
+		.where(eq(clientNote.id, noteId))
 		.returning();
 	return { note: row };
 }

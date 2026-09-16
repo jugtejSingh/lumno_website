@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { listClientsWithNotes, createNote, type NoteVisibility } from '$lib/server/notes';
+import { listClientsWithNotes, createNote, updateNote, type NoteVisibility } from '$lib/server/notes';
 import { listPastAppointmentsForClient } from '$lib/server/appointments';
 import { listClients } from '$lib/server/clients';
 import { fixNoteText, summarizeNoteText, isOverAiBudget } from '$lib/server/ai';
@@ -39,6 +39,24 @@ export const actions: Actions = {
 		}
 
 		const result = await createNote(therapistId, clientId, visibility, body, appointmentId, description);
+		if (result.error) {
+			return fail(400, { message: 'Could not save that note' });
+		}
+	},
+
+	editNote: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const noteId = formData.get('noteId')?.toString() ?? '';
+		const body = formData.get('body')?.toString().trim() ?? '';
+		const appointmentId = formData.get('appointmentId')?.toString() || null;
+		const description = formData.get('description')?.toString().trim() || null;
+
+		if (!noteId || !body) {
+			return fail(400, { message: 'Write something before saving' });
+		}
+
+		const result = await updateNote(therapistId, noteId, body, appointmentId, description);
 		if (result.error) {
 			return fail(400, { message: 'Could not save that note' });
 		}

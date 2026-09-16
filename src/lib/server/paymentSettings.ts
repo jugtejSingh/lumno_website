@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
 import { paymentSettings } from '$lib/server/db/schema';
-import type { PaymentSettings } from '$lib/server/paymentPolicy';
+import type { PaymentMode, PaymentSettings } from '$lib/server/paymentPolicy';
 
 export type { PaymentSettings, PaymentMode, PackExhaustedAction, ChangeTier, PolicyOutcome } from '$lib/server/paymentPolicy';
 
@@ -37,6 +37,15 @@ export async function updatePaymentSettings(
 		throw new Error('partialChangeWindowHours must be less than freeChangeWindowHours');
 	}
 	await executor.update(paymentSettings).set(input).where(eq(paymentSettings.therapistId, therapistId));
+}
+
+// The portal "Pay now" switch. The settings save action only calls this while the
+// Razorpay connection is healthy, so 'automatic' can't be set without one.
+export async function updatePaymentMode(therapistId: string, mode: PaymentMode, executor: DbOrTx = db) {
+	await executor
+		.update(paymentSettings)
+		.set({ paymentMode: mode })
+		.where(eq(paymentSettings.therapistId, therapistId));
 }
 
 // Off-platform payment details for manual mode. qrKey is an S3 object key

@@ -147,11 +147,14 @@
 	);
 	let payBankDetails = $state(initial.manualPay.bankDetails);
 	let removePayQr = $state(false);
+	let paymentModeAutomatic = $state(initial.payments.paymentMode === 'automatic');
+	// the portal-pay switch is always shown, but locked until Razorpay is connected;
+	// clicking it while locked opens the connect prompt below it
+	let showConnectPrompt = $state(false);
+	// disconnecting stops portal payments for every client, so it takes two clicks
+	let confirmDisconnect = $state(false);
 
 	// ---- Razorpay connection ----
-	// Automated payments disabled for now — uncomment this block and the banner in
-	// the Payments card to re-enable.
-	/*
 	const rzp = $derived(data.razorpay);
 	const RZP_NOTICES: Record<string, string> = {
 		connected: 'Razorpay connected — clients can now pay their invoices in the portal.',
@@ -159,12 +162,47 @@
 		state_error: "Couldn't complete the Razorpay connection. Please try again.",
 		account_changed:
 			'You connected a different Razorpay account — past invoices stay linked to the old one.',
-		not_inr: 'Portal payments are INR-only. Set your currency to INR before connecting Razorpay.'
+		not_inr: 'Portal payments are INR-only. Set your currency to INR before connecting Razorpay.',
+		disconnected: 'Razorpay disconnected. Clients can no longer pay invoices in the portal.'
 	};
 	const rzpNotice = $derived(rzp.notice ? RZP_NOTICES[rzp.notice] : undefined);
-	*/
 
 	let saveLabel = $state('Save Changes');
+
+	// Everything the save action writes, as one comparable string. The QR file
+	// input is uncontrolled, so qrFileName is what makes a picked file count.
+	// Save stays disabled until this drifts from the last-saved snapshot.
+	let qrFileName = $state('');
+	function currentValues(): string {
+		return JSON.stringify([
+			name,
+			bio,
+			location,
+			years,
+			rate,
+			formatLabel,
+			visible,
+			showYears,
+			showRate,
+			specialties,
+			bufferMinutes,
+			workStart,
+			workEnd,
+			weeklySchedule,
+			sendMeetLinks,
+			sendBookingEmails,
+			sendSessionReminderEmails,
+			sendPaymentReminderEmails,
+			freeChangeWindowHours,
+			partialChangeWindowHours,
+			payBankDetails,
+			removePayQr,
+			paymentModeAutomatic,
+			qrFileName
+		]);
+	}
+	let savedValues = $state(currentValues());
+	const dirty = $derived(currentValues() !== savedValues);
 
 	// account section stays non-functional (out of scope). Email is display-only —
 	// changing it isn't supported here.
@@ -198,17 +236,24 @@
 	method="POST"
 	action="?/save"
 	enctype="multipart/form-data"
-	use:enhance={() => {
+	use:enhance={({ action }) => {
+		// the Disconnect button posts to ?/disconnectRazorpay via formaction — same
+		// form, different action, so "Saved" must not flash for it
+		const isSave = action.search === '?/save';
 		return async ({ update }) => {
 			await update({ reset: false });
-			saveLabel = 'Saved';
-			setTimeout(() => (saveLabel = 'Save Changes'), 1400);
+			if (isSave) {
+				// update({ reset: false }) leaves the inputs (file input included)
+				// exactly as posted, so what's on screen is now what's saved
+				savedValues = currentValues();
+				saveLabel = 'Saved';
+				setTimeout(() => (saveLabel = 'Save Changes'), 1400);
+			}
 		};
 	}}
 >
 	<div class="header">
 		<div class="title">Settings</div>
-		<Button variant="primary" type="submit">{saveLabel}</Button>
 	</div>
 
 	{#if form?.message}
@@ -226,6 +271,7 @@
 	<input type="hidden" name="sendMeetLinks" value={sendMeetLinks ? 'on' : ''} />
 	<input type="hidden" name="removePayQr" value={removePayQr ? 'on' : ''} />
 	<input type="hidden" name="sendBookingEmails" value={sendBookingEmails ? 'on' : ''} />
+	<input type="hidden" name="paymentModeAutomatic" value={paymentModeAutomatic ? 'on' : ''} />
 	<input
 		type="hidden"
 		name="sendSessionReminderEmails"
@@ -359,8 +405,8 @@
 
 			<div class="helper">
 				Each logged session becomes an invoice for the client. Mark invoices paid by hand from the
-				Payments page for cash, bank transfers, or anything settled outside the portal. Automated
-				card and UPI payments are coming soon.
+				Payments page for cash, bank transfers, or anything settled outside the portal. Connect
+				Razorpay below to let clients pay by card or UPI in the portal.
 			</div>
 			<div class="helper">
 				The two windows below set your late-change policy: a client who cancels or reschedules with
@@ -368,35 +414,69 @@
 				session rate; with less notice than that they owe the full rate.
 			</div>
 
-			<!-- Automated payments disabled for now — see the commented block in <script>.
 			{#if rzpNotice}
 				<div class="rzp-notice" class:rzp-notice-bad={rzp.notice === 'state_error'}>
 					{rzpNotice}
 				</div>
 			{/if}
 
-			<div
-				class="rzp-banner"
-				class:rzp-banner-amber={rzp.health === 'expiring'}
-				class:rzp-banner-red={rzp.health === 'action_needed'}
-				data-sveltekit-reload
-			>
-				{#if rzp.health === 'connected'}
-					<span>Payments connected · renews automatically</span>
-				{:else if rzp.health === 'expiring'}
-					<span>Reconnect Razorpay to keep portal payments working</span>
-					<a class="rzp-link" href="/settings/payments/connect">Reconnect</a>
-				{:else if rzp.health === 'action_needed'}
-					<span>Portal payments are paused — reconnect Razorpay to resume</span>
-					<a class="rzp-link" href="/settings/payments/connect">Reconnect</a>
-				{:else if rzp.currencySupported}
-					<span>Connect Razorpay to let clients pay their invoices in the portal</span>
-					<a class="rzp-link" href="/settings/payments/connect">Connect Razorpay</a>
-				{:else}
-					<span>Portal payments are available for INR practices only.</span>
+			<!-- connection status, once they've connected at least once -->
+			{#if rzp.health !== 'not_connected'}
+				<div
+					class="rzp-banner"
+					class:rzp-banner-amber={rzp.health === 'expiring'}
+					class:rzp-banner-red={rzp.health === 'action_needed'}
+					data-sveltekit-reload
+				>
+					{#if rzp.health === 'connected'}
+						<span>Razorpay connected · renews automatically</span>
+					{:else if rzp.health === 'expiring'}
+						<span>Reconnect Razorpay to keep portal payments working</span>
+						<Button href="/settings/payments/connect" variant="secondary" size="sm">Reconnect</Button>
+					{:else}
+						<span>Portal payments are paused — reconnect Razorpay to resume</span>
+						<Button href="/settings/payments/connect" variant="secondary" size="sm">Reconnect</Button>
+					{/if}
+					{#if !confirmDisconnect}
+						<Button variant="secondary" size="sm" onclick={() => (confirmDisconnect = true)}>
+							Disconnect
+						</Button>
+					{/if}
+				</div>
+				{#if confirmDisconnect}
+					<div class="rzp-connect">
+						<span>
+							Disconnect Razorpay? Clients won't be able to pay invoices in the portal until you
+							connect again. Payments already taken are unaffected.
+						</span>
+						<Button type="submit" formaction="?/disconnectRazorpay" variant="secondary" size="sm">
+							Yes, disconnect
+						</Button>
+						<Button size="sm" onclick={() => (confirmDisconnect = false)}>Keep connected</Button>
+					</div>
 				{/if}
-			</div>
-			-->
+			{/if}
+
+			<Switch
+				label="Let clients pay invoices in the portal with Razorpay"
+				bind:checked={paymentModeAutomatic}
+				locked={rzp.health !== 'connected' && rzp.health !== 'expiring'}
+				onlockedclick={() => (showConnectPrompt = true)}
+			/>
+			{#if showConnectPrompt && rzp.health !== 'connected' && rzp.health !== 'expiring'}
+				<div class="rzp-connect" data-sveltekit-reload>
+					{#if !rzp.currencySupported}
+						<span>Online payments are only available for INR practices.</span>
+					{:else if rzp.health === 'action_needed'}
+						<span>Your Razorpay connection stopped working. Reconnect it to turn this on.</span>
+						<Button href="/settings/payments/connect" size="sm">Reconnect Razorpay</Button>
+					{:else}
+						<span>To let clients pay online, connect your Razorpay account first.</span>
+						<Button href="/settings/payments/connect" size="sm">Connect Razorpay</Button>
+					{/if}
+				</div>
+			{/if}
+			<div class="helper">Your QR code, bank details and "Mark paid" keep working either way.</div>
 
 			<label class="field">
 				<span class="field-label">Free Cancellation / Reschedule Window</span>
@@ -435,7 +515,13 @@
 				<span class="field-label">
 					{data.manualPay.qrUrl ? 'Replace QR Code Image' : 'QR Code Image'}
 				</span>
-				<input class="field-input" type="file" name="payQrImage" accept="image/png,image/jpeg,image/webp" />
+				<input
+					class="field-input"
+					type="file"
+					name="payQrImage"
+					accept="image/png,image/jpeg,image/webp"
+					onchange={(e) => (qrFileName = e.currentTarget.files?.[0]?.name ?? '')}
+				/>
 			</label>
 			<Textarea
 				label="Bank / UPI Details"
@@ -496,6 +582,13 @@
 			<div><Button variant="secondary" onclick={updatePassword}>Update Password</Button></div>
 		</div>
 	</Card>
+
+	<!-- nothing edited yet = nothing to save, so the bar isn't there at all -->
+	{#if dirty || saveLabel === 'Saved'}
+		<div class="save-bar">
+			<Button variant="primary" size="lg" type="submit">{saveLabel}</Button>
+		</div>
+	{/if}
 </form>
 
 {#if !data.googleConnected}
@@ -511,6 +604,27 @@
 		gap: 24px;
 		max-width: 640px;
 		margin-inline: auto;
+	}
+
+	/* sticks to the bottom of the scrolling .app-content while the form is on screen */
+	.save-bar {
+		position: sticky;
+		bottom: 16px;
+		/* .settings is a flex column, so align-self shrinks the wrapper to the button
+		   and centres it. No card around it — drop-shadow follows the button shape,
+		   which is what lifts it off the content scrolling underneath. */
+		align-self: center;
+		display: flex;
+		filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.18));
+		max-width: 100%;
+		z-index: 10;
+	}
+
+	/* bigger than any Button size preset, and clamp()ed so it scales with the
+	   viewport instead of overflowing a 320px phone */
+	.save-bar :global(.btn) {
+		font-size: clamp(15px, 4vw, 19px);
+		padding: clamp(13px, 3.6vw, 20px) clamp(30px, 10vw, 64px);
 	}
 
 	.connect-form {
@@ -648,8 +762,6 @@
 		font-size: 13px;
 	}
 
-	/* Razorpay styles — dormant while automated payments are disabled (see script). */
-	/*
 	.rzp-notice {
 		font-size: 13px;
 		color: var(--text-secondary);
@@ -689,12 +801,19 @@
 		border-color: #f3c1bc;
 	}
 
-	.rzp-link {
-		font-weight: 700;
-		color: inherit;
-		white-space: nowrap;
+	.rzp-connect {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
+		font-size: 13px;
+		color: var(--text-primary);
+		background: var(--surface-canvas);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 12px;
 	}
-	*/
 
 	.plan-block {
 		display: flex;

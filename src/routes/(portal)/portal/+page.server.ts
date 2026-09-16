@@ -68,12 +68,13 @@ export const load: PageServerLoad = async (event) => {
 	// ponytail: gate on 'connected' per design §12.9. 'expiring' also has live
 	// tokens but refreshExpiresAt is pushed 180d out on every refresh, so it
 	// realistically never shows before the Phase 3 cron lands.
-	const portalPayEnabled = currency === 'INR' && rzpHealth === 'connected';
+	const portalPayEnabled =
+		currency === 'INR' && rzpHealth === 'connected' && paymentSettings.paymentMode === 'automatic';
 
-	// Manual-mode payment details. Only offered when the client can't pay in the
-	// portal — once Razorpay is live there is no off-platform path.
+	// Off-platform payment details. Shown whenever the therapist filled them in —
+	// paying directly stays available alongside "Pay now" in automatic mode.
 	let manualPay: { qrUrl: string | null; bankDetails: string | null } | null = null;
-	if (!portalPayEnabled && (manualPayRow.qrKey || manualPayRow.bankDetails)) {
+	if (manualPayRow.qrKey || manualPayRow.bankDetails) {
 		let qrUrl: string | null = null;
 		if (manualPayRow.qrKey) {
 			qrUrl = await signedUrl(manualPayRow.qrKey);

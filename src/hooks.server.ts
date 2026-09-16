@@ -21,7 +21,16 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		event.url.pathname.startsWith(prefix)
 	);
 	if (!isExempt) {
-		const { success } = await ratelimit.limit(event.getClientAddress());
+		// getClientAddress() throws when the socket is already gone (client aborted:
+		// reload, HMR, cancelled preload). Reject rather than skip — skipping would
+		// let fire-and-disconnect requests bypass the limiter.
+		let clientAddress: string;
+		try {
+			clientAddress = event.getClientAddress();
+		} catch {
+			error(400, 'Could not determine client address.');
+		}
+		const { success } = await ratelimit.limit(clientAddress);
 		if (!success) {
 			error(429, 'Too many requests. Please try again shortly.');
 		}

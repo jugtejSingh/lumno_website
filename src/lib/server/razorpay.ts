@@ -198,7 +198,43 @@ export function refreshOAuthToken(refreshToken: string): Promise<OAuthTokenRespo
 	});
 }
 
+// Therapist-initiated disconnect. Revoking the refresh token kills the whole
+// grant (the access token with it), so one call is enough. Throws like the other
+// token calls — the caller decides whether a Razorpay-side failure should stop
+// it from marking the connection revoked on our side.
+export async function revokeOAuthToken(refreshToken: string): Promise<void> {
+	const { clientId, clientSecret } = razorpayOAuthConfig();
+	const res = await fetch(`${OAUTH_BASE}/token/revoke`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			client_id: clientId,
+			client_secret: clientSecret,
+			token_type_hint: 'refresh_token',
+			token: refreshToken
+		}),
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+	});
+	if (!res.ok) {
+		throw new RazorpayOAuthError(res.status);
+	}
+}
+
 const API_BASE = 'https://api.razorpay.com/v1';
+
+// Razorpay's error body is { error: { description } } — it names what was
+// rejected and never contains the access token, so it's safe to surface.
+async function errorReason(res: Response): Promise<string> {
+	try {
+		const body = (await res.json()) as { error?: { description?: string } };
+		if (body.error?.description) {
+			return body.error.description;
+		}
+	} catch {
+		// not JSON; the status alone will do
+	}
+	return '';
+}
 
 export interface SubMerchantOrder {
 	id: string;
@@ -234,9 +270,7 @@ export async function createSubMerchantOrder(opts: {
 		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
 	});
 	if (!res.ok) {
-		// Don't log the body — it echoes the request, which is fine, but keep the
-		// access token out of any error string.
-		throw new Error(`Razorpay order create failed: ${res.status}`);
+		throw new Error(`Razorpay order create failed: ${res.status} ${await errorReason(res)}`.trim());
 	}
 	return (await res.json()) as SubMerchantOrder;
 }
@@ -260,7 +294,7 @@ export async function fetchSubMerchantOrder(
 		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
 	});
 	if (!res.ok) {
-		throw new Error(`Razorpay order fetch failed: ${res.status}`);
+		throw new Error(`Razorpay order fetch failed: ${res.status} ${await errorReason(res)}`.trim());
 	}
 	return (await res.json()) as SubMerchantOrderStatus;
 }
@@ -280,7 +314,9 @@ export async function fetchSubMerchantOrderPayments(
 		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
 	});
 	if (!res.ok) {
-		throw new Error(`Razorpay order payments fetch failed: ${res.status}`);
+		throw new Error(
+			`Razorpay order payments fetch failed: ${res.status} ${await errorReason(res)}`.trim()
+		);
 	}
 	const body = (await res.json()) as { items?: SubMerchantPayment[] };
 	return body.items ?? [];

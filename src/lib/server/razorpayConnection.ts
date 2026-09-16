@@ -6,6 +6,7 @@ import { decryptToken, encryptToken } from '$lib/server/tokenCrypto';
 import {
 	RazorpayOAuthError,
 	refreshOAuthToken,
+	revokeOAuthToken,
 	type OAuthTokenResponse
 } from '$lib/server/razorpay';
 import { sendRazorpayReconnectEmail } from '$lib/server/reminderEmails';
@@ -159,6 +160,26 @@ export async function disconnect(therapistId: string): Promise<void> {
 		.update(therapistRazorpayConnection)
 		.set({ status: 'revoked' })
 		.where(eq(therapistRazorpayConnection.therapistId, therapistId));
+}
+
+// Therapist clicked Disconnect. Tell Razorpay first, then mark the row revoked.
+// A failure on Razorpay's side only gets logged: the local status is what gates
+// portal payments, so leaving the connection "active" because their endpoint was
+// down would be the worse outcome. No-op if there's nothing to disconnect.
+export async function revokeConnection(therapistId: string): Promise<void> {
+	const [cred] = await db
+		.select({ refreshTokenEnc: therapistRazorpayConnection.refreshTokenEnc })
+		.from(therapistRazorpayConnection)
+		.where(eq(therapistRazorpayConnection.therapistId, therapistId));
+	if (!cred) {
+		return;
+	}
+	try {
+		await revokeOAuthToken(decryptToken(cred.refreshTokenEnc));
+	} catch (err) {
+		logError('razorpayConnection.revoke', err, { therapistId });
+	}
+	await disconnect(therapistId);
 }
 
 // account.app.authorization_revoked webhook — Razorpay tells us the therapist

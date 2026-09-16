@@ -1,7 +1,9 @@
-import { and, eq, gt, isNull, lt } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, lt } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
+	client,
 	payment,
+	paymentSettings,
 	razorpayReconcileException,
 	therapist,
 	therapistRazorpayConnection,
@@ -41,10 +43,12 @@ export async function startInvoiceCheckout(
 			therapistId: therapist.id,
 			therapistName: user.name,
 			connectionStatus: therapistRazorpayConnection.status,
-			publicToken: therapistRazorpayConnection.publicToken
+			publicToken: therapistRazorpayConnection.publicToken,
+			paymentMode: paymentSettings.paymentMode
 		})
 		.from(payment)
 		.innerJoin(therapist, eq(therapist.id, payment.therapistId))
+		.innerJoin(paymentSettings, eq(paymentSettings.therapistId, payment.therapistId))
 		.innerJoin(user, eq(user.id, therapist.userId))
 		.leftJoin(
 			therapistRazorpayConnection,
@@ -62,6 +66,11 @@ export async function startInvoiceCheckout(
 		return { ok: false, message: 'currency_unsupported' };
 	}
 	if (row.connectionStatus !== 'active' || !row.publicToken) {
+		return { ok: false, message: 'payments_unavailable' };
+	}
+	// The portal hides "Pay now" in manual mode; this is the server-side half of
+	// that gate so a hand-built ?/payInvoice POST can't open checkout anyway.
+	if (row.paymentMode !== 'automatic') {
 		return { ok: false, message: 'payments_unavailable' };
 	}
 
@@ -127,7 +136,12 @@ export async function handleSessionInvoicePaid(opts: {
 	amountMinor: number;
 }): Promise<void> {
 	const [row] = await db
-		.select({ id: payment.id, status: payment.status, amount: payment.amount })
+		.select({
+			id: payment.id,
+			status: payment.status,
+			amount: payment.amount,
+			paidVia: payment.paidVia
+		})
 		.from(payment)
 		.where(eq(payment.razorpayOrderId, opts.orderId));
 
@@ -135,6 +149,23 @@ export async function handleSessionInvoicePaid(opts: {
 		return; // not one of ours (e.g. a subscription payment.captured)
 	}
 	if (row.status === 'paid') {
+		// Already paid through Razorpay — a webhook replay, or the sweep got here
+		// first. Same payment seen twice, nothing to do.
+		if (row.paidVia === 'razorpay') {
+			return;
+		}
+		// The therapist marked it paid by hand while the client's checkout was open,
+		// and the client has now paid through Razorpay as well. The money is already
+		// taken, so leave the row as it is and flag the double payment for a refund.
+		await recordReconcileException(
+			row.id,
+			'already_paid',
+			`captured ${opts.razorpayPaymentId} (${opts.amountMinor} paise) on an invoice already marked paid manually`
+		);
+		logError('sessionPayments.alreadyPaid', new Error('captured payment on a manually paid invoice'), {
+			paymentId: row.id,
+			razorpayPaymentId: opts.razorpayPaymentId
+		});
 		return;
 	}
 	if (row.amount * 100 !== opts.amountMinor) {
@@ -160,7 +191,7 @@ export async function handleSessionInvoicePaid(opts: {
 
 async function recordReconcileException(
 	paymentId: string,
-	kind: 'amount_mismatch' | 'unresolved_order',
+	kind: 'amount_mismatch' | 'unresolved_order' | 'already_paid',
 	detail: string
 ): Promise<void> {
 	await db
@@ -169,6 +200,50 @@ async function recordReconcileException(
 		.onConflictDoNothing({
 			target: [razorpayReconcileException.paymentId, razorpayReconcileException.kind]
 		});
+}
+
+// Double charges the therapist needs to refund — a Razorpay capture that landed on
+// an invoice they'd already marked paid by hand. Shown as a banner on /payments
+// until dismissed.
+export async function listDoubleCharges(therapistId: string) {
+	return db
+		.select({
+			id: razorpayReconcileException.id,
+			clientName: client.name,
+			customName: payment.customName,
+			amount: payment.amount,
+			createdAt: razorpayReconcileException.createdAt
+		})
+		.from(razorpayReconcileException)
+		.innerJoin(payment, eq(payment.id, razorpayReconcileException.paymentId))
+		.leftJoin(client, eq(client.id, payment.clientId))
+		.where(
+			and(
+				eq(payment.therapistId, therapistId),
+				eq(razorpayReconcileException.kind, 'already_paid'),
+				isNull(razorpayReconcileException.resolvedAt)
+			)
+		)
+		.orderBy(desc(razorpayReconcileException.createdAt));
+}
+
+// Scoped to the therapist's own invoices so a posted id can't clear someone else's flag.
+export async function dismissDoubleCharge(therapistId: string, exceptionId: string): Promise<boolean> {
+	const updated = await db
+		.update(razorpayReconcileException)
+		.set({ resolvedAt: new Date() })
+		.where(
+			and(
+				eq(razorpayReconcileException.id, exceptionId),
+				eq(razorpayReconcileException.kind, 'already_paid'),
+				inArray(
+					razorpayReconcileException.paymentId,
+					db.select({ id: payment.id }).from(payment).where(eq(payment.therapistId, therapistId))
+				)
+			)
+		)
+		.returning({ id: razorpayReconcileException.id });
+	return updated.length > 0;
 }
 
 // don't chase an order the webhook may still deliver / stop chasing after a week

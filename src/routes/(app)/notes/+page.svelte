@@ -22,6 +22,9 @@
 	let draftBody = $state('');
 	let draftAppointmentId = $state('');
 	let draftDescription = $state('');
+	// empty = writing a new note; set = editing that existing note
+	let editingNoteId = $state('');
+	let editingDateLabel = $state('');
 	let saveForm: HTMLFormElement;
 	let saveRetries = 0;
 	let expandedNoteIds = $state(new Set<string>());
@@ -68,6 +71,7 @@
 		draftBody = '';
 		draftAppointmentId = '';
 		draftDescription = '';
+		editingNoteId = '';
 		writingType = 'private';
 	}
 
@@ -75,12 +79,53 @@
 		draftBody = '';
 		draftAppointmentId = '';
 		draftDescription = '';
+		editingNoteId = '';
 		writingType = 'shared';
+	}
+
+	function startEdit(n: (typeof data.clients)[number]['notes'][number]) {
+		draftBody = n.body;
+		draftAppointmentId = n.appointmentId ?? '';
+		draftDescription = n.description ?? '';
+		editingNoteId = n.id;
+		editingDateLabel = n.createdAt.toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		});
+		writingType = n.visibility;
 	}
 
 	function cancelWriting() {
 		writingType = null;
+		editingNoteId = '';
 	}
+
+	const editing = $derived(editingNoteId !== '');
+
+	const formAction = $derived.by(() => {
+		if (editing) {
+			return '?/editNote';
+		}
+		return '?/addNote';
+	});
+
+	const editorDateLabel = $derived.by(() => {
+		if (editing) {
+			return editingDateLabel;
+		}
+		return todayLabel;
+	});
+
+	const editorSaveLabel = $derived.by(() => {
+		if (editing) {
+			return 'Save changes';
+		}
+		if (isSharedWriting) {
+			return 'Send to client';
+		}
+		return 'Save note';
+	});
 
 	function excerpt(body: string) {
 		const flat = body.replace(/\s+/g, ' ').trim();
@@ -144,17 +189,18 @@
 				{#if writing}
 					<form
 						method="POST"
-						action="?/addNote"
+						action={formAction}
 						bind:this={saveForm}
 						use:enhance={saveNoteSubmit}
 					>
 						<input type="hidden" name="clientId" value={selected.id} />
+						<input type="hidden" name="noteId" value={editingNoteId} />
 						<input type="hidden" name="visibility" value={writingType} />
 						<input type="hidden" name="body" value={draftBody} />
 						<input type="hidden" name="appointmentId" value={draftAppointmentId} />
 						<input type="hidden" name="description" value={draftDescription} />
 						<NoteEditor
-							{todayLabel}
+							todayLabel={editorDateLabel}
 							subtitle={isSharedWriting
 								? `Visible to ${selected.name} in their portal`
 								: 'Private — only you see this'}
@@ -162,7 +208,7 @@
 								? 'Write the note or homework for your client…'
 								: "Write today's private note here…"}
 							shared={isSharedWriting}
-							saveLabel={isSharedWriting ? 'Send to client' : 'Save note'}
+							saveLabel={editorSaveLabel}
 							{sessions}
 							bind:body={draftBody}
 							bind:appointmentId={draftAppointmentId}
@@ -202,6 +248,9 @@
 										{#if expandedNoteIds.has(n.id)}
 											<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in renderMarkdown -->
 											<div class="note-body">{@html renderMarkdown(n.body)}</div>
+											<div class="note-actions">
+												<Button size="sm" variant="secondary" onclick={() => startEdit(n)}>Edit</Button>
+											</div>
 										{/if}
 									</Card>
 								{/each}
@@ -260,6 +309,9 @@
 										{#if expandedNoteIds.has(n.id)}
 											<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in renderMarkdown -->
 											<div class="note-body">{@html renderMarkdown(n.body)}</div>
+											<div class="note-actions">
+												<Button size="sm" variant="secondary" onclick={() => startEdit(n)}>Edit</Button>
+											</div>
 										{/if}
 									</Card>
 								{/each}
@@ -431,6 +483,12 @@
 		margin-top: 10px;
 		padding-top: 10px;
 		border-top: 1px solid var(--border-subtle);
+	}
+
+	.note-actions {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 10px;
 	}
 
 	.empty {

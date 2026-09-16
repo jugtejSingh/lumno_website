@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createNote, listSharedNotesForClient } from '$lib/server/notes';
+import { createNote, updateNote, listSharedNotesForClient } from '$lib/server/notes';
 import { resetDb, mkTherapist, mkClient, mkAppointment } from './helpers';
 
 let therapistId: string;
@@ -27,6 +27,31 @@ it('rejects an appointmentId that is not this client’s', async () => {
 	const appt = await mkAppointment(therapistId, otherClient.id);
 	expect(await createNote(therapistId, clientId, 'private', 'x', appt.id, null)).toEqual({
 		error: 'not_found'
+	});
+});
+
+describe('editing', () => {
+	it('rewrites body and description', async () => {
+		const { note } = await createNote(therapistId, clientId, 'private', 'first draft', null, 'old');
+		const res = await updateNote(therapistId, note!.id, 'second draft', null, 'new');
+		expect(res).toMatchObject({ note: { body: 'second draft', description: 'new' } });
+	});
+
+	it('rejects editing another therapist’s note', async () => {
+		const { note } = await createNote(therapistId, clientId, 'private', 'mine', null, null);
+		const other = await mkTherapist();
+		expect(await updateNote(other.id, note!.id, 'hijacked', null, null)).toEqual({
+			error: 'not_found'
+		});
+	});
+
+	it('rejects an appointmentId that is not this note’s client', async () => {
+		const { note } = await createNote(therapistId, clientId, 'private', 'mine', null, null);
+		const otherClient = await mkClient(therapistId);
+		const appt = await mkAppointment(therapistId, otherClient.id);
+		expect(await updateNote(therapistId, note!.id, 'mine', appt.id, null)).toEqual({
+			error: 'not_found'
+		});
 	});
 });
 
