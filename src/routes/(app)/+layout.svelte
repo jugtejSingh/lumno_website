@@ -74,13 +74,14 @@
 	.app-shell {
 		display: flex;
 		height: 100vh;
-		background: var(--surface-app);
+		background: var(--wallpaper) var(--surface-app);
 	}
 
 	.sidebar {
 		width: 220px;
 		flex-shrink: 0;
-		border-right: 1px solid var(--border-subtle);
+		border-right: 2px solid var(--border-subtle);
+		background: var(--surface-canvas);
 		padding: 16px;
 		display: flex;
 		flex-direction: column;
@@ -157,12 +158,19 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 16px clamp(16px, 4vw, 24px);
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px solid var(--border-subtle);
+		background-color: var(--surface-canvas);
+		background-image: repeating-linear-gradient(
+			180deg,
+			transparent 0 6px,
+			rgb(239 196 166 / 0.35) 6px 8px
+		);
 	}
 
 	.app-header-title {
-		font-weight: 700;
-		font-size: 15px;
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 20px;
 		color: var(--text-primary);
 	}
 

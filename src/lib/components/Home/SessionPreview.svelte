@@ -153,8 +153,9 @@
 <style>
 	.preview-card {
 		background: var(--surface-card);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-lg);
+		border-top-width: 14px;
 		box-shadow: var(--shadow-lg);
 		padding: clamp(16px, 4vw, 28px);
 	}
@@ -163,7 +164,7 @@
 		display: flex;
 		gap: 6px;
 		margin-bottom: 18px;
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px dotted var(--beige-400);
 	}
 
 	.tab {
@@ -171,7 +172,7 @@
 		background: transparent;
 		font: inherit;
 		font-size: 13px;
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--text-muted);
 		padding: 0 4px 10px;
 		cursor: pointer;
@@ -179,8 +180,8 @@
 	}
 
 	.tab.active {
-		color: var(--accent-primary);
-		border-bottom-color: var(--accent-primary);
+		color: var(--text-link);
+		border-bottom-color: var(--coral-500);
 	}
 
 	.panel-block {
@@ -220,6 +221,7 @@
 		padding: 4px;
 		border-radius: var(--radius-sm);
 		background: var(--surface-canvas);
+		border: 1.5px solid var(--beige-300);
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
@@ -227,11 +229,12 @@
 
 	.cal-cell.empty {
 		background: transparent;
+		border-color: transparent;
 	}
 
 	.cal-cell.today {
 		background: var(--plum-300);
-		box-shadow: inset 0 0 0 1px var(--plum-500);
+		border: 2px solid var(--outline);
 	}
 
 	.cal-daynum {
@@ -246,6 +249,7 @@
 
 	.cal-chip {
 		border-radius: 4px;
+		border: 1px solid var(--outline);
 		padding: 1px 4px;
 		font-size: 9px;
 		font-weight: 600;
@@ -256,15 +260,16 @@
 	}
 
 	.cal-chip-plum {
-		background: var(--plum-500);
+		background: var(--plum-400);
 	}
 
 	.cal-chip-coral {
-		background: var(--coral-500);
+		background: var(--citrus-400);
 	}
 
 	.cal-chip-sage {
-		background: var(--sage-500);
+		background: var(--beige-600);
+		color: var(--beige-0);
 	}
 
 	.email-toast {
@@ -273,6 +278,7 @@
 		align-items: flex-start;
 		gap: 10px;
 		background: var(--surface-canvas);
+		border: 2px dashed var(--beige-400);
 		border-radius: var(--radius-sm);
 		padding: 10px 14px;
 	}
@@ -295,7 +301,7 @@
 	}
 
 	.meet-link {
-		color: var(--accent-primary);
+		color: var(--text-link);
 		font-weight: 600;
 	}
 
@@ -313,7 +319,7 @@
 		align-items: center;
 		gap: 10px;
 		padding: 8px 0;
-		border-top: 1px solid var(--border-subtle);
+		border-top: 2px dotted var(--beige-400);
 		font-size: 13px;
 	}
 
@@ -347,6 +353,8 @@
 	.pay-stat {
 		flex: 1;
 		background: var(--surface-canvas);
+		border: 2px solid var(--outline);
+		box-shadow: var(--shadow-xs);
 		border-radius: var(--radius-sm);
 		padding: 12px 14px;
 	}
@@ -360,6 +368,7 @@
 	.pay-stat-value {
 		font-family: var(--font-display);
 		font-size: 22px;
+		font-weight: 600;
 		color: var(--text-primary);
 	}
 
@@ -397,6 +406,7 @@
 		color: var(--text-secondary);
 		line-height: var(--lh-relaxed);
 		background: var(--surface-canvas);
+		border: 2px dashed var(--beige-400);
 		border-radius: var(--radius-sm);
 		padding: 12px 14px;
 		margin: 0 0 16px;
@@ -414,7 +424,8 @@
 		font-size: 12px;
 		font-weight: 600;
 		color: var(--text-secondary);
-		background: var(--surface-canvas);
+		background: var(--sage-300);
+		border: 2px dashed var(--sage-600);
 		border-radius: var(--radius-sm);
 		padding: 10px 14px;
 	}

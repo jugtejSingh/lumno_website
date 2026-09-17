@@ -86,7 +86,7 @@
 	.stat-row {
 		display: flex;
 		gap: 10px;
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px dotted var(--beige-400);
 		padding-bottom: 14px;
 	}
 
@@ -110,7 +110,7 @@
 		display: flex;
 		align-items: flex-end;
 		gap: 8px;
-		border-top: 1px solid var(--border-subtle);
+		border-top: 2px dotted var(--beige-400);
 		padding-top: 14px;
 	}
 </style>

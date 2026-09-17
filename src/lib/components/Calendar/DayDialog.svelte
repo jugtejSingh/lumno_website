@@ -231,14 +231,16 @@
 		font-size: 13px;
 		font-weight: 700;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
+		box-shadow: var(--shadow-xs);
 		background: var(--surface-card);
 		color: var(--text-primary);
 		cursor: pointer;
 	}
 
 	.fee-btn:hover {
-		background: var(--surface-canvas);
+		background: var(--coral-100);
+		box-shadow: var(--shadow-xs);
 	}
 
 	.fee-back {

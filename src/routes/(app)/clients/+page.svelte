@@ -273,6 +273,7 @@
 
 	.title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
@@ -287,7 +288,8 @@
 		padding: 10px 14px;
 		border-radius: var(--radius-md, 8px);
 		font-size: 13px;
-		background: var(--beige-200);
+		background: var(--citrus-300);
+		border: 2px dashed var(--citrus-600);
 		color: var(--text-secondary);
 		word-break: break-all;
 	}

@@ -336,15 +336,16 @@
 
 	.title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(26px, 6vw, 36px);
 		color: var(--text-primary);
 	}
 
 	.subtitle {
 		font-family: var(--font-display);
-		font-style: italic;
+		font-weight: 600;
 		font-size: clamp(16px, 4vw, 18px);
-		color: var(--accent-primary);
+		color: var(--text-link);
 		margin-top: 2px;
 	}
 
@@ -424,6 +425,7 @@
 
 	.month-label {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(18px, 4vw, 20px);
 		color: var(--text-primary);
 	}
@@ -437,7 +439,8 @@
 		width: 28px;
 		height: 28px;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
+		box-shadow: var(--shadow-xs);
 		background: var(--surface-card);
 		cursor: pointer;
 		font-size: 14px;
@@ -474,7 +477,7 @@
 		width: 180px;
 		height: 180px;
 		object-fit: contain;
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 	}
@@ -522,7 +525,8 @@
 		font-size: 13px;
 		font-weight: 600;
 		color: var(--text-primary);
-		background: var(--beige-200);
+		background: var(--citrus-300);
+		border: 2px dashed var(--citrus-600);
 		border-radius: var(--radius-md, 8px);
 		padding: 10px 14px;
 	}
@@ -530,7 +534,7 @@
 	.reschedule-cancel {
 		border: none;
 		background: none;
-		color: var(--accent-primary);
+		color: var(--text-link);
 		font-weight: 700;
 		cursor: pointer;
 		padding: 0;

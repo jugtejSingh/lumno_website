@@ -7,8 +7,8 @@
 
 <section id="features" class="features">
 	<div class="features-heading">
-		<h2 class="display">Everything your practice runs on</h2>
-		<p class="lede">Every page in the app. Nothing to configure before it's useful.</p>
+		<h2 class="display">Your whole practice, one login</h2>
+		<p class="lede">Swap the calendar app, the payment tracker, the notes doc and the WhatsApp reminders for one calm place.</p>
 	</div>
 	<div class="features-grid">
 		{#each features as feature (feature.title)}
@@ -33,6 +33,7 @@
 		font-family: var(--font-display);
 		color: var(--text-primary);
 		margin: 0;
+		font-weight: 600;
 		font-size: clamp(26px, 5vw, 36px);
 	}
 

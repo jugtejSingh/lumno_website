@@ -23,7 +23,8 @@
 
 <style>
 	.footer {
-		border-top: 1px solid var(--border-subtle);
+		border-top: 2px solid var(--border-subtle);
+		background: var(--surface-canvas);
 		padding: 28px clamp(16px, 5vw, 48px);
 		display: flex;
 		align-items: center;

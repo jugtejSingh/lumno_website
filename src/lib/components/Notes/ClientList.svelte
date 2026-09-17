@@ -44,7 +44,7 @@
 	.list-panel {
 		width: 280px;
 		flex-shrink: 0;
-		border-right: 1px solid var(--border-subtle);
+		border-right: 2px solid var(--border-subtle);
 		padding: 16px;
 		display: flex;
 		flex-direction: column;
@@ -57,7 +57,7 @@
 		.list-panel {
 			width: auto;
 			border-right: none;
-			border-bottom: 1px solid var(--border-subtle);
+			border-bottom: 2px dotted var(--beige-400);
 			overflow-y: visible;
 		}
 
@@ -98,7 +98,8 @@
 	}
 
 	.row.active {
-		background: var(--surface-sunken);
+		background: var(--coral-400);
+		box-shadow: 0 0 0 2px var(--outline), var(--shadow-sm);
 	}
 
 	.row-info {

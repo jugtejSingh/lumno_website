@@ -38,7 +38,7 @@
 	.overlay {
 		position: fixed;
 		inset: 0;
-		background: oklch(20% 0.02 50 / 0.4);
+		background: rgb(53 25 14 / 0.35);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -47,35 +47,67 @@
 
 	.dialog {
 		background: var(--surface-card);
+		border: 2px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
-		padding: 24px;
+		padding: 0;
 		max-height: 90vh;
 		max-width: calc(100vw - 32px);
 		overflow-y: auto;
 	}
 
+	/* old-OS window title bar */
 	.dialog-header {
+		position: sticky;
+		top: 0;
+		z-index: 1;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		margin-bottom: 16px;
+		padding: 10px 12px 10px 18px;
+		background-color: var(--coral-400);
+		background-image: repeating-linear-gradient(
+			180deg,
+			transparent 0 5px,
+			rgb(255 253 248 / 0.22) 5px 7px
+		);
+		border-bottom: 2px solid var(--outline);
 	}
 
 	.dialog-title {
 		font-family: var(--font-display);
-		font-size: 22px;
+		font-weight: 600;
+		font-size: 20px;
 		color: var(--text-primary);
 	}
 
 	.dialog-close {
-		border: none;
-		background: transparent;
-		font-size: 20px;
+		width: 28px;
+		height: 28px;
+		flex-shrink: 0;
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-xs);
+		background: var(--plum-300);
+		box-shadow: var(--shadow-xs);
+		font-size: 18px;
+		font-weight: 700;
 		line-height: 1;
-		color: var(--text-muted);
+		color: var(--text-primary);
 		cursor: pointer;
 		padding: 0;
+	}
+
+	.dialog-close:hover {
+		background: var(--plum-400);
+	}
+
+	.dialog-close:active {
+		transform: translate(2px, 2px);
+		box-shadow: none;
+	}
+
+	.dialog-body {
+		padding: 22px 24px 24px;
 	}
 </style>

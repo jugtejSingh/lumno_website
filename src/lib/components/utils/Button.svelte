@@ -41,8 +41,24 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: var(--radius-sm);
-		border: none;
+		border: 2px solid var(--outline);
+		box-shadow: var(--shadow-sm);
 		cursor: pointer;
+		transition:
+			transform var(--duration-fast) var(--ease-standard),
+			box-shadow var(--duration-fast) var(--ease-standard),
+			background var(--duration-fast) var(--ease-standard);
+	}
+
+	.btn:hover {
+		text-decoration: none;
+		transform: translate(-1px, -1px);
+		box-shadow: var(--shadow-md);
+	}
+
+	.btn:active {
+		transform: translate(2px, 2px);
+		box-shadow: 1px 1px 0 var(--outline);
 	}
 
 	.btn-sm {
@@ -72,11 +88,10 @@
 	.btn-secondary {
 		background: var(--surface-card);
 		color: var(--text-primary);
-		border: 1px solid var(--border-subtle);
 	}
 
 	.btn-secondary:hover {
-		background: var(--surface-canvas);
+		background: var(--coral-100);
 		color: var(--text-primary);
 	}
 

@@ -118,7 +118,7 @@
 		},
 		{
 			title: 'Reminders',
-			desc: "No more manually texting clients — sessions and payments due get their own automatic nudge.",
+			desc: "No more manually texting clients — upcoming sessions, payments due, and clients who haven't booked in a while all get a friendly nudge.",
 			cta: 'Open calendar',
 			href: '/calendar',
 			icon: 'reminders',
@@ -175,7 +175,7 @@
 <style>
 	.page {
 		min-height: 100vh;
-		background: var(--surface-app);
+		background: var(--wallpaper) var(--surface-app);
 		color: var(--text-primary);
 		overflow-x: hidden;
 	}

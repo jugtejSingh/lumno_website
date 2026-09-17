@@ -19,6 +19,7 @@
 		flex-shrink: 0;
 		border-radius: var(--radius-pill);
 		background: var(--plum-400);
+		border: 2px solid var(--outline);
 		color: var(--text-on-accent);
 		display: flex;
 		align-items: center;

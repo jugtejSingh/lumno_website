@@ -153,9 +153,9 @@
 		grid-template-columns: repeat(7, 1fr);
 		gap: 6px;
 		background: var(--surface-card);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-xs);
+		box-shadow: var(--shadow-md);
 		padding: 16px;
 	}
 
@@ -168,17 +168,20 @@
 		font-size: 12px;
 		color: var(--text-secondary);
 		background: var(--surface-canvas);
+		border: 1.5px solid var(--beige-300);
 	}
 
 	.cal-cell.busy {
 		background: var(--plum-300);
 		color: var(--plum-700);
+		border: 2px solid var(--outline);
 		font-weight: 700;
 	}
 
 	.cal-cell.pending {
 		background: var(--citrus-300);
 		color: var(--citrus-600);
+		border: 2px dashed var(--citrus-600);
 	}
 
 	.cal-legend {
@@ -197,7 +200,7 @@
 	}
 
 	.pay-row + .pay-row {
-		border-top: 1px solid var(--border-subtle);
+		border-top: 2px dotted var(--beige-400);
 	}
 
 	.note-header {
@@ -225,6 +228,7 @@
 		line-height: var(--lh-relaxed);
 		color: var(--text-primary);
 		background: var(--sage-300);
+		border: 2px dashed var(--sage-600);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}

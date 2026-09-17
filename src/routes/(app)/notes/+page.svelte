@@ -394,6 +394,7 @@
 
 	.client-name {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(22px, 5vw, 26px);
 		color: var(--text-primary);
 	}
@@ -482,7 +483,7 @@
 		line-height: var(--lh-relaxed);
 		margin-top: 10px;
 		padding-top: 10px;
-		border-top: 1px solid var(--border-subtle);
+		border-top: 2px dotted var(--beige-400);
 	}
 
 	.note-actions {

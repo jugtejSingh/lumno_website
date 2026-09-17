@@ -42,14 +42,17 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(155deg, var(--accent-300), var(--accent-300) 60%, var(--accent-400));
-		color: var(--accent-700, var(--accent-600));
-		box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent-500) 25%, transparent);
+		background: var(--accent-300);
+		color: var(--text-primary);
+		border: 2px solid var(--outline);
+		box-shadow: var(--shadow-xs);
+		transform: rotate(-3deg);
 	}
 
 	.feature-icon svg {
 		width: 26px;
 		height: 26px;
+		stroke-width: 2.2;
 	}
 
 	.accent-plum {
@@ -82,8 +85,9 @@
 	}
 
 	.feature-title {
-		font-weight: 700;
-		font-size: 17px;
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 19px;
 		margin: 18px 0 6px;
 		color: var(--text-primary);
 	}
@@ -98,7 +102,7 @@
 	.feature-cta {
 		font-size: 13px;
 		font-weight: 700;
-		color: var(--accent-600, var(--accent-primary));
+		color: var(--text-link);
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;

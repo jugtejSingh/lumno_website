@@ -22,7 +22,8 @@
 		flex: 1;
 		border-radius: var(--radius-md);
 		padding: 14px 16px;
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.stat-plum {
@@ -43,13 +44,16 @@
 
 	.stat-label {
 		font-size: 12px;
-		font-weight: 600;
+		font-weight: 800;
+		letter-spacing: var(--ls-wide);
+		text-transform: uppercase;
 		color: var(--text-secondary);
 	}
 
 	.stat-value {
 		font-family: var(--font-display);
 		font-size: 28px;
+		font-weight: 600;
 		color: var(--text-primary);
 	}
 

@@ -96,7 +96,8 @@
 		flex: 1;
 		padding: 8px 10px;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
+		box-shadow: var(--shadow-xs);
 		background: var(--surface-card);
 		color: var(--text-secondary);
 		font-family: var(--font-body);
@@ -107,7 +108,7 @@
 
 	.toggle-btn.active {
 		background: var(--accent-primary);
-		border-color: var(--accent-primary);
+		box-shadow: var(--shadow-xs);
 		color: var(--text-on-accent);
 	}
 

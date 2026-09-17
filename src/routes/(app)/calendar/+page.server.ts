@@ -64,14 +64,14 @@ const rescheduleErrorMessages = {
 } as const;
 
 const modalityColor: Record<string, string> = {
-	online: 'var(--sage-300)',
-	in_person: 'var(--plum-300)'
+	online: 'var(--citrus-400)',
+	in_person: 'var(--plum-400)'
 };
 
 // cancelled/rescheduled/completed override the modality colour so dead and done sessions
 // read differently at a glance; a live confirmed session keeps its modality colour.
 const statusColor: Record<string, string> = {
-	completed: 'var(--sage-500)',
+	completed: 'var(--beige-600)',
 	cancelled: 'var(--beige-300)',
 	rescheduled: 'var(--beige-300)'
 };

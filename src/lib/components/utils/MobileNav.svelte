@@ -46,8 +46,10 @@
 		width: 32px;
 		height: 32px;
 		padding: 7px;
-		border: none;
-		background: transparent;
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-xs);
+		background: var(--surface-card);
+		box-shadow: var(--shadow-xs);
 		cursor: pointer;
 	}
 
@@ -87,8 +89,8 @@
 		width: min(224px, 72vw);
 		max-width: calc(100vw - 20px);
 		padding: 0;
-		border: 1px solid var(--border-subtle);
-		border-top: 3px solid var(--sage-500);
+		border: 2px solid var(--border-subtle);
+		border-top: 12px solid var(--coral-400);
 		border-radius: var(--radius-lg);
 		background: var(--surface-card);
 		box-shadow: var(--shadow-lg);
@@ -110,7 +112,7 @@
 	}
 
 	.drawer::backdrop {
-		background: rgba(0, 0, 0, 0.35);
+		background: rgb(53 25 14 / 0.35);
 	}
 
 	.drawer-inner {
@@ -125,17 +127,20 @@
 		justify-content: space-between;
 		padding: 2px 4px 8px;
 		margin-bottom: 6px;
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px solid var(--border-subtle);
 	}
 
 	.drawer-close {
 		width: 28px;
 		height: 28px;
-		border: none;
-		background: transparent;
-		font-size: 22px;
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-xs);
+		background: var(--plum-300);
+		box-shadow: var(--shadow-xs);
+		font-size: 18px;
+		font-weight: 700;
 		line-height: 1;
-		color: var(--text-muted);
+		color: var(--text-primary);
 		cursor: pointer;
 	}
 
@@ -148,9 +153,9 @@
 	.drawer-foot {
 		margin: 8px 4px 2px;
 		padding-top: 8px;
-		border-top: 1px solid var(--border-subtle);
+		border-top: 2px dotted var(--beige-400);
 		font-family: var(--font-display);
-		font-style: italic;
+		font-weight: 600;
 		font-size: 12px;
 		color: var(--text-muted);
 	}
@@ -186,7 +191,7 @@
 
 	.drawer-links :global(a:hover),
 	.drawer-links :global(button:hover) {
-		background: var(--sage-300);
+		background: var(--coral-100);
 		color: var(--text-primary);
 	}
 

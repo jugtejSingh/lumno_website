@@ -171,7 +171,7 @@
 
 	.today {
 		font-family: var(--font-display);
-		font-style: italic;
+		font-weight: 600;
 		font-size: clamp(20px, 5vw, 24px);
 		color: var(--text-primary);
 	}
@@ -198,7 +198,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
@@ -208,7 +208,7 @@
 		flex-wrap: wrap;
 		gap: 4px;
 		padding-bottom: 10px;
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px dotted var(--beige-400);
 	}
 
 	.toolbar button {
@@ -224,7 +224,8 @@
 	}
 
 	.toolbar button:hover {
-		background: var(--surface-canvas);
+		background: var(--coral-100);
+		box-shadow: 0 0 0 2px var(--beige-400);
 	}
 
 	.fix-btn {

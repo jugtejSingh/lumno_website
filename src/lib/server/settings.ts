@@ -9,6 +9,7 @@ export type WeeklySchedule = ScheduleKind[];
 
 export type TherapistScheduleSettings = {
 	bufferMinutes: number;
+	sessionMinutes: number;
 	earliestBookingTime: string; // "HH:MM:SS"
 	latestBookingTime: string;
 	weeklySchedule: WeeklySchedule;
@@ -18,6 +19,7 @@ export async function getTherapistScheduleSettings(therapistId: string): Promise
 	const [row] = await db
 		.select({
 			bufferMinutes: therapistSettings.bufferMinutes,
+			sessionMinutes: therapistSettings.sessionMinutes,
 			earliestBookingTime: therapistSettings.earliestBookingTime,
 			latestBookingTime: therapistSettings.latestBookingTime,
 			weeklySchedule: therapistSettings.weeklySchedule

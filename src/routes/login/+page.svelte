@@ -170,7 +170,7 @@
 		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
-		background: var(--surface-app);
+		background: var(--wallpaper) var(--surface-app);
 	}
 
 	.header {
@@ -178,7 +178,8 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 20px clamp(20px, 5vw, 48px);
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px solid var(--border-subtle);
+		background: var(--surface-canvas);
 	}
 
 	.center {
@@ -192,9 +193,10 @@
 	.auth-card {
 		width: min(380px, 100%);
 		background: var(--surface-card);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
+		border-top-width: 14px;
 		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--shadow-lg);
 		padding: 36px;
 		/* ponytail: shared frame so Therapist/Client cards match in shape; inner content can differ */
 		min-height: 540px;
@@ -232,13 +234,15 @@
 		border-radius: var(--radius-md, 8px);
 		font-size: 13px;
 		font-weight: 600;
-		background: var(--beige-200);
+		background: var(--citrus-300);
+		border: 2px dashed var(--citrus-600);
 		color: var(--text-secondary);
 	}
 
 	.banner-bad {
-		background: var(--coral-100, #fbe9e7);
-		color: var(--accent-danger, #c0392b);
+		background: var(--danger-bg);
+		border-color: var(--danger);
+		color: var(--danger);
 	}
 
 	.role-pill {
@@ -246,6 +250,7 @@
 		gap: 4px;
 		margin-bottom: 20px;
 		background: var(--beige-200);
+		border: 2px solid var(--outline);
 		border-radius: var(--radius-pill);
 		padding: 4px;
 	}
@@ -264,9 +269,9 @@
 	}
 
 	.pill-btn.active {
-		background: var(--surface-card);
+		background: var(--coral-400);
 		color: var(--text-primary);
-		box-shadow: var(--shadow-xs);
+		box-shadow: 0 0 0 2px var(--outline);
 	}
 
 	.google-form {
@@ -280,7 +285,7 @@
 	.mode-tabs {
 		display: flex;
 		gap: 16px;
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px dotted var(--beige-400);
 	}
 
 	.tab {
@@ -297,7 +302,7 @@
 
 	.tab.active {
 		color: var(--text-primary);
-		border-bottom-color: var(--accent-primary);
+		border-bottom-color: var(--coral-500);
 	}
 
 	.form-block {
@@ -306,6 +311,7 @@
 
 	.form-title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(24px, 5vw, 30px);
 		color: var(--text-primary);
 	}
@@ -360,7 +366,7 @@
 	.link-btn {
 		border: none;
 		background: transparent;
-		color: var(--accent-primary);
+		color: var(--text-link);
 		font-weight: 700;
 		cursor: pointer;
 		font-size: 13px;

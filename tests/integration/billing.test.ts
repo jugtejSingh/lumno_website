@@ -29,7 +29,7 @@ describe('getEffectivePlan', () => {
 describe('usageLimit', () => {
 	it('returns the tier cap for a known usage', async () => {
 		const t = await mkTherapist();
-		expect(await usageLimit(t.id, 'clients')).toBe(5);
+		expect(await usageLimit(t.id, 'clients')).toBe(10);
 	});
 
 	it('returns null for an unknown usage key', async () => {
@@ -42,7 +42,7 @@ describe('syncClientActivationForCap', () => {
 	it('deactivates the newest clients past the free cap, keeps the oldest bookable', async () => {
 		const t = await mkTherapist();
 		const clients = [];
-		for (let i = 0; i < 7; i++) {
+		for (let i = 0; i < 12; i++) {
 			clients.push(await mkClient(t.id, { name: `Client ${i}` }));
 		}
 
@@ -50,10 +50,10 @@ describe('syncClientActivationForCap', () => {
 
 		const rows = await db.select().from(client).where(eq(client.therapistId, t.id));
 		const byId = new Map(rows.map((r) => [r.id, r]));
-		for (let i = 0; i < 5; i++) {
+		for (let i = 0; i < 10; i++) {
 			expect(byId.get(clients[i].id)?.deactivatedAt).toBeNull();
 		}
-		for (let i = 5; i < 7; i++) {
+		for (let i = 10; i < 12; i++) {
 			expect(byId.get(clients[i].id)?.deactivatedAt).not.toBeNull();
 		}
 	});
@@ -61,7 +61,7 @@ describe('syncClientActivationForCap', () => {
 	it('reactivates everyone once the therapist is back over the cap', async () => {
 		const t = await mkTherapist();
 		const clients = [];
-		for (let i = 0; i < 7; i++) {
+		for (let i = 0; i < 12; i++) {
 			clients.push(await mkClient(t.id, { name: `Client ${i}` }));
 		}
 		await syncClientActivationForCap(t.id);

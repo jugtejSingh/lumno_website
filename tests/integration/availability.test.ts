@@ -59,15 +59,43 @@ describe('listAvailabilityForMonth', () => {
 		expect(byDay[d]).toHaveLength(10);
 	});
 
-	it('buffer minutes also block the adjacent slots', async () => {
+	it('buffer minutes space the slots out', async () => {
 		await mkSettings(therapistId, { bufferMinutes: 30 });
-		await mkAppointment(therapistId, clientId, { startAt: at(10), endAt: at(11), status: 'confirmed' });
+		const byDay = await listAvailabilityForMonth(therapistId, y, m);
+		expect(byDay[d].map((s) => s.startTime)).toEqual([
+			'09:00', '10:30', '12:00', '13:30', '15:00', '16:30', '18:00'
+		]);
+	});
+
+	it('a booked slot only removes itself, the next spaced slot stays open', async () => {
+		await mkSettings(therapistId, { bufferMinutes: 30 });
+		await mkAppointment(therapistId, clientId, {
+			startAt: new Date(Date.UTC(y, m, d, 10, 30)),
+			endAt: new Date(Date.UTC(y, m, d, 11, 30)),
+			status: 'confirmed'
+		});
 		const byDay = await listAvailabilityForMonth(therapistId, y, m);
 		const times = byDay[d].map((s) => s.startTime);
-		expect(times).not.toContain('09:00');
-		expect(times).not.toContain('10:00');
-		expect(times).not.toContain('11:00');
+		expect(times).toContain('09:00');
+		expect(times).not.toContain('10:30');
 		expect(times).toContain('12:00');
+	});
+
+	it('session length and buffer together set the slot grid', async () => {
+		await mkSettings(therapistId, { sessionMinutes: 50, bufferMinutes: 10, latestBookingTime: '13:00' });
+		const byDay = await listAvailabilityForMonth(therapistId, y, m);
+		expect(byDay[d].map((s) => s.startTime)).toEqual(['09:00', '10:00', '11:00', '12:00']);
+	});
+
+	it('a client booking lasts the configured session length', async () => {
+		await mkSettings(therapistId, { sessionMinutes: 45 });
+		const result = await createAppointmentForClient(therapistId, clientId, {
+			year: y,
+			month: m,
+			day: d,
+			startTime: '09:00'
+		});
+		expect(result.appointment!.endAt.getTime() - result.appointment!.startAt.getTime()).toBe(45 * 60_000);
 	});
 
 	it('a cancelled appointment does not block anything', async () => {

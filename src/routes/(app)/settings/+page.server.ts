@@ -168,6 +168,10 @@ export const actions: Actions = {
 		if (!Number.isFinite(bufferMinutes) || bufferMinutes < 0) {
 			return fail(400, { message: 'Buffer must be a non-negative number of minutes' });
 		}
+		const sessionMinutes = Number(form.get('sessionMinutes'));
+		if (!Number.isInteger(sessionMinutes) || sessionMinutes < 15 || sessionMinutes > 240) {
+			return fail(400, { message: 'Session length must be between 15 and 240 minutes' });
+		}
 		if (
 			weeklySchedule.length !== 7 ||
 			!weeklySchedule.every((k) => SCHEDULE_KINDS.includes(k as ScheduleKind))
@@ -176,6 +180,7 @@ export const actions: Actions = {
 		}
 		const schedule = {
 			bufferMinutes,
+			sessionMinutes,
 			earliestBookingTime,
 			latestBookingTime,
 			weeklySchedule: weeklySchedule as ScheduleKind[]

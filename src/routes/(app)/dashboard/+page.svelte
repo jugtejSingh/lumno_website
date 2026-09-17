@@ -51,15 +51,16 @@
 
 	.greeting-title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(28px, 6vw, 40px);
 		color: var(--text-primary);
 	}
 
 	.greeting-sub {
 		font-family: var(--font-display);
-		font-style: italic;
+		font-weight: 600;
 		font-size: clamp(18px, 4vw, 22px);
-		color: var(--accent-primary);
+		color: var(--text-link);
 		margin-top: 2px;
 	}
 

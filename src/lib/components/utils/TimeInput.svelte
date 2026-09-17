@@ -1,13 +1,17 @@
 <script lang="ts">
+	import InfoTip from './InfoTip.svelte';
 	// Native <input type="time"> renders in whatever format the OS locale picks (often 24h),
 	// and there's no HTML attribute to force 12h — so this is a small 12h picker instead.
 	// The bound value stays a plain "HH:MM" 24h string, same shape as type="time" everywhere else.
 	let {
 		label,
+		info,
 		name,
 		value = $bindable('09:00')
 	}: {
 		label?: string;
+		// explanation behind an "i" button next to the label
+		info?: string;
 		name?: string;
 		value?: string;
 	} = $props();
@@ -30,7 +34,7 @@
 
 <label class="field">
 	{#if label}
-		<span class="field-label">{label}</span>
+		<span class="field-label">{label}{#if info}<InfoTip text={info} {label} />{/if}</span>
 	{/if}
 	<div class="time-row">
 		<select
@@ -81,7 +85,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
@@ -92,7 +96,7 @@
 
 	.field-input:focus {
 		outline: none;
-		border-color: var(--accent-primary);
+		border-color: var(--outline);
 		box-shadow: var(--shadow-focus);
 	}
 </style>

@@ -1,47 +1,58 @@
 :root{
-/* ---- Beige / neutral scale (warm, low-chroma) ---- */
---beige-0:oklch(99% 0.005 85);
---beige-50:oklch(97.5% 0.012 85);
---beige-100:oklch(95% 0.018 84);
---beige-200:oklch(91% 0.024 83);
---beige-300:oklch(85% 0.03 81);
---beige-400:oklch(76% 0.034 78);
---beige-500:oklch(64% 0.032 72);
---beige-600:oklch(50% 0.028 62);
---beige-700:oklch(38% 0.024 52);
---beige-800:oklch(27% 0.02 45);
---beige-900:oklch(17% 0.014 42);
+/* Cozy skin — warm peach desktop, thick warm-brown outlines, tight palette:
+   peach + cream/white neutrals, one warm orange, one dusty pink, one muted sky blue.
+   Scale names are kept from the previous skin so components need no rewiring:
+   beige = peach→brown neutrals, coral = warm orange, plum = dusty pink, sage = warm moss green (done / paid / online),
+   citrus = soft apricot (warnings/highlights, stays inside the orange family). */
+
+/* ---- Beige / neutral scale (cream → peach → warm brown) ---- */
+--beige-0:#FFFDF8;
+--beige-50:#FFF5EB;
+--beige-100:#FCE7D5;
+--beige-200:#F8D9C2;
+--beige-300:#EFC4A6;
+--beige-400:#D69C78;
+--beige-500:#B27350;
+--beige-600:#8B4A2B;
+--beige-700:#6E3821;
+--beige-800:#4F2717;
+--beige-900:#35190E;
 
 /* ---- Accents ---- */
---plum-300:oklch(85% 0.045 350);
---plum-400:oklch(72% 0.07 350);
---plum-500:oklch(58% 0.09 352);
---plum-600:oklch(46% 0.08 354);
---plum-700:oklch(34% 0.06 356);
+--plum-300:#F7D6D2;
+--plum-400:#EDB3AF;
+--plum-500:#DB8F8E;
+--plum-600:#B66A6D;
+--plum-700:#86474D;
 
---coral-300:oklch(84% 0.08 42);
---coral-400:oklch(72% 0.12 40);
---coral-500:oklch(60% 0.15 38);
---coral-600:oklch(48% 0.14 34);
+--coral-100:#FEEBDD;
+--coral-300:#FCD5B7;
+--coral-400:#F7AA77;
+--coral-500:#F08A4B;
+--coral-600:#D46B2E;
+--coral-700:#A94F1C;
 
---sage-300:oklch(85% 0.06 152);
---sage-400:oklch(70% 0.09 152);
---sage-500:oklch(58% 0.1 152);
---sage-600:oklch(46% 0.09 152);
+--sage-300:#E6EDCB;
+--sage-400:#C5D69A;
+--sage-500:#8FAE5D;
+--sage-600:#4A6A2A;
 
---citrus-300:oklch(92% 0.08 95);
---citrus-400:oklch(85% 0.13 92);
---citrus-500:oklch(78% 0.16 88);
---citrus-600:oklch(62% 0.14 75);
+--citrus-300:#FDE8BC;
+--citrus-400:#F9D291;
+--citrus-500:#F2B865;
+--citrus-600:#8F5316;
+
+/* ---- Cozy outline ---- */
+--outline:var(--beige-600);
 
 /* ---- Semantic ---- */
---success:var(--sage-500);
+--success:var(--sage-600);
 --success-bg:var(--sage-300);
 --warning:var(--citrus-600);
 --warning-bg:var(--citrus-300);
---danger:oklch(55% 0.19 25);
---danger-bg:oklch(90% 0.06 25);
---info:var(--plum-500);
+--danger:#A83A28;
+--danger-bg:#F9D3C9;
+--info:var(--plum-700);
 --info-bg:var(--plum-300);
 
 /* ---- Surfaces & text (semantic aliases) ---- */
@@ -50,21 +61,23 @@
 --surface-card:var(--beige-0);
 --surface-sunken:var(--beige-200);
 --surface-inverse:var(--beige-900);
---border-subtle:var(--beige-300);
---border-strong:var(--beige-500);
+--border-subtle:var(--outline);
+--border-strong:var(--beige-700);
 
 --text-primary:var(--beige-900);
 --text-secondary:var(--beige-700);
 --text-muted:var(--beige-600);
---text-on-accent:var(--beige-0);
+--text-on-accent:var(--beige-900);
 --text-inverse:var(--beige-50);
+--text-link:var(--coral-700);
 
---accent-primary:var(--plum-500);
---accent-primary-hover:var(--plum-600);
---accent-primary-press:var(--plum-700);
---accent-pop:var(--coral-500);
---accent-pop-hover:var(--coral-600);
+--accent-primary:var(--coral-500);
+--accent-primary-hover:var(--coral-600);
+--accent-primary-press:var(--coral-700);
+--accent-pop:var(--plum-500);
+--accent-pop-hover:var(--plum-600);
 --accent-calm:var(--sage-500);
 --accent-calm-hover:var(--sage-600);
---focus-ring:var(--plum-400);
+--accent-danger:var(--danger);
+--focus-ring:var(--plum-500);
 }

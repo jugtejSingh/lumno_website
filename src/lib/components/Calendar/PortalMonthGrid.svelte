@@ -105,7 +105,7 @@
 		padding: 8px;
 		border-radius: var(--radius-sm);
 		background: var(--surface-canvas);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--beige-400);
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
@@ -118,12 +118,13 @@
 	}
 
 	.cell.today {
-		border-color: var(--plum-400);
-		box-shadow: inset 0 0 0 1px var(--plum-400);
+		border-color: var(--outline);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.cell.available {
-		background: var(--sage-300);
+		background: var(--coral-100);
+		border-color: var(--coral-600);
 		cursor: pointer;
 	}
 

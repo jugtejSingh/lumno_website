@@ -26,9 +26,9 @@ export const TIER_NAMES: Record<TherapistTier, string> = { 0: 'Free', 1: 'Basic'
 // giving it a key here; guards read it via usageLimit(therapistId, 'key').
 // Use Infinity for "allowed, no cap". A missing key means not allowed.
 export const THERAPIST_PLAN_USAGE: Record<TherapistTier, Record<string, number>> = {
-	0: { clients: 5, appointmentsPerMonth: 40 },
-	1: { clients: 50, appointmentsPerMonth: 400 },
-	2: { clients: Infinity, appointmentsPerMonth: Infinity }
+	0: { clients: 10 },
+	1: { clients: 30 },
+	2: { clients: Infinity }
 };
 
 // Every therapist has exactly one subscription row (edvion model — free is a

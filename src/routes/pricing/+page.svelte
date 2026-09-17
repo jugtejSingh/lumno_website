@@ -44,10 +44,10 @@
 			name: 'Free',
 			price: 'Free',
 			period: '',
-			blurb: 'Try it out with a small caseload, no card required.',
+			blurb: 'For therapists starting their careers — a small gift from us.',
 			features: [
-				'Up to 5 clients',
-				'40 appointments / month',
+				'Up to 10 clients',
+				'Unlimited appointments',
 				'Calendar with Google Meet links',
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
@@ -171,8 +171,8 @@
 
 		<div class="plans">
 			{#each PLANS as plan (plan.tier)}
-				<div class="plan-card" class:featured={plan.tier === 2}>
-					{#if plan.tier === 2}
+				<div class="plan-card" class:featured={plan.tier === 1}>
+					{#if plan.tier === 1}
 						<div class="popular-badge">Most popular</div>
 					{/if}
 					<Card>
@@ -217,7 +217,7 @@
 <style>
 	.page {
 		min-height: 100vh;
-		background: var(--surface-app);
+		background: var(--wallpaper) var(--surface-app);
 		color: var(--text-primary);
 	}
 
@@ -239,6 +239,7 @@
 
 	.title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(32px, 8vw, 52px);
 	}
 
@@ -264,8 +265,9 @@
 	}
 
 	.plan-card.featured :global(.card) {
-		border: 2px solid var(--accent-primary);
-		box-shadow: var(--shadow-lg);
+		background: var(--coral-100);
+		border-color: var(--coral-600);
+		box-shadow: 6px 6px 0 var(--coral-600);
 	}
 
 	.popular-badge {
@@ -280,6 +282,8 @@
 		letter-spacing: var(--ls-wide);
 		text-transform: uppercase;
 		padding: 5px 14px;
+		border: 2px solid var(--outline);
+		box-shadow: var(--shadow-xs);
 		border-radius: var(--radius-pill);
 		z-index: 1;
 	}
@@ -292,12 +296,14 @@
 	}
 
 	.plan-name {
-		font-weight: 700;
-		font-size: 20px;
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 22px;
 	}
 
 	.plan-price {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(36px, 8vw, 48px);
 	}
 
@@ -334,7 +340,7 @@
 	.feature-mark {
 		flex-shrink: 0;
 		font-weight: 700;
-		color: var(--accent-calm);
+		color: var(--sage-600);
 	}
 
 	.current-badge {

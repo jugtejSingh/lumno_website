@@ -8,7 +8,8 @@
 
 <style>
 	.nav-item {
-		padding: 10px 12px;
+		padding: 8px 12px;
+		border: 2px solid transparent;
 		border-radius: var(--radius-sm);
 		font-size: 14px;
 		font-weight: 600;
@@ -16,11 +17,14 @@
 	}
 
 	.nav-item:hover {
-		background: var(--surface-canvas);
+		background: var(--coral-100);
+		border-color: var(--beige-400);
 	}
 
 	.nav-item.active {
-		background: var(--surface-sunken);
+		background: var(--coral-400);
+		border-color: var(--outline);
+		box-shadow: var(--shadow-xs);
 		color: var(--text-primary);
 	}
 </style>

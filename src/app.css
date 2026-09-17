@@ -12,11 +12,11 @@ body {
 }
 
 a {
-	color: var(--accent-primary);
+	color: var(--text-link);
 }
 
 a:hover {
-	color: var(--accent-primary-hover);
+	color: var(--beige-700);
 }
 
 /* set by $lib/enhance while a form action is in flight */

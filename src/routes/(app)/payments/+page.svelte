@@ -141,6 +141,7 @@
 
 	.title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
@@ -158,9 +159,9 @@
 		gap: 12px;
 		flex-wrap: wrap;
 		font-size: 13px;
-		color: #b3261e;
-		background: #fdecea;
-		border: 1px solid #f3c1bc;
+		color: var(--danger);
+		background: var(--danger-bg);
+		border: 2px dashed var(--danger);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}

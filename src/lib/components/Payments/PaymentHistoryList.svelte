@@ -195,8 +195,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		box-shadow: var(--shadow-sm);
 		padding: 10px 12px;
 	}
 

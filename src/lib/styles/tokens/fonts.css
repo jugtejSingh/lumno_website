@@ -1,5 +1,5 @@
-/* Lumno type system — Google Fonts CDN (no client-supplied binaries exist; brand built from scratch).
-   Display: Instrument Serif — a modern, editorial take on a Times-like serif: classical proportions, contemporary trim.
-   UI/Body: Archivo — a warm, grounded grotesk with enough personality to read as gen-z without sacrificing legibility in dense admin UI.
-   Mono: Space Mono — for timestamps, IDs, codes; adds a playful, typewriter-adjacent texture in small doses. */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Space+Mono:wght@400;700&display=swap');
+/* Cozy type system — Google Fonts CDN.
+   Display: Fredoka — chunky, rounded, sticker-like headings.
+   UI/Body: Nunito — soft rounded grotesk that stays legible in dense admin UI.
+   Mono: Space Mono — timestamps, IDs, codes; a small dose of old-computer texture. */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Space+Mono:wght@400;700&display=swap');

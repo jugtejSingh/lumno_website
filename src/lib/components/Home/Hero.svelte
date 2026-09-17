@@ -9,11 +9,11 @@
 <section class="hero">
 	<div class="hero-copy">
 		<div class="eyebrow">For solo therapists</div>
-		<h1 class="display">Stop chasing payments <span class="italic-accent">and reminders.</span></h1>
+		<h1 class="display">Why juggle five apps <span class="italic-accent">when one will do?</span></h1>
 		<p class="lede">
-			No more guessing who paid and who still owes you, or messaging clients back and forth to
-			book a session. Lumno tracks every booking and rupee, and reminds clients automatically —
-			so you don't have to.
+			Bookings, payments, cancellations and reminders — Lumno handles all of it in one place.
+			Clients only see the hours you're actually free, so no one books over your lunch. And if
+			someone hasn't booked in a while, we'll gently remind them for you.
 		</p>
 		<div class="hero-actions">
 			<Button href="/login?tab=register" variant="primary" size="lg">Get started for free</Button>
@@ -46,21 +46,30 @@
 		font-weight: 700;
 		letter-spacing: var(--ls-wide);
 		text-transform: uppercase;
-		color: var(--accent-primary);
-		margin-bottom: 14px;
+		color: var(--text-primary);
+		display: inline-block;
+		background: var(--citrus-300);
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-pill);
+		box-shadow: var(--shadow-xs);
+		padding: 4px 12px;
+		margin-bottom: 18px;
 	}
 
 	.display {
 		font-family: var(--font-display);
 		color: var(--text-primary);
 		margin: 0;
+		font-weight: 600;
 		font-size: clamp(36px, 7vw, 60px);
 		line-height: var(--lh-tight);
 	}
 
 	.italic-accent {
-		font-style: italic;
-		color: var(--accent-primary);
+		color: var(--text-link);
+		text-decoration: underline wavy var(--plum-500);
+		text-decoration-thickness: 3px;
+		text-underline-offset: 8px;
 	}
 
 	.lede {

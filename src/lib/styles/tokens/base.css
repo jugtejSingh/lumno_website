@@ -1,5 +1,16 @@
 *{box-sizing:border-box}
-body{background:var(--surface-app);color:var(--text-primary);font-family:var(--font-body)}
-a{color:var(--accent-primary);text-decoration:none}
-a:hover{color:var(--accent-primary-hover);text-decoration:underline}
+/* Cozy desktop: warm peach with a faint dotted wallpaper */
+:root{--wallpaper:radial-gradient(rgb(139 74 43 / 0.13) 1.2px,transparent 1.2px) 0 0 / 22px 22px}
+body{background:var(--wallpaper) var(--surface-app);color:var(--text-primary);font-family:var(--font-body)}
+a{color:var(--text-link);text-decoration:none}
+a:hover{color:var(--beige-700);text-decoration:underline;text-decoration-style:wavy;text-underline-offset:3px}
 ::selection{background:var(--plum-300);color:var(--beige-900)}
+input:not([type=checkbox]):not([type=radio]):focus,select:focus,textarea:focus{background-color:var(--coral-100)}
+input[type=checkbox],input[type=radio]{accent-color:var(--coral-500)}
+:focus-visible{outline:2px dashed var(--focus-ring);outline-offset:2px}
+/* chunky old-OS scrollbars */
+html{scrollbar-color:var(--coral-400) var(--beige-50)}
+::-webkit-scrollbar{width:14px;height:14px}
+::-webkit-scrollbar-track{background:var(--beige-50);border-left:2px solid var(--outline)}
+::-webkit-scrollbar-thumb{background:var(--coral-400);border:2px solid var(--outline);border-radius:var(--radius-xs)}
+::-webkit-scrollbar-thumb:hover{background:var(--coral-500)}

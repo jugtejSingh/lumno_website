@@ -62,14 +62,20 @@
 		font-weight: 700;
 		letter-spacing: var(--ls-wide);
 		text-transform: uppercase;
-		color: var(--accent-primary);
-		margin-bottom: 10px;
+		color: var(--text-primary);
+		display: inline-block;
+		background: var(--sage-300);
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-pill);
+		padding: 3px 11px;
+		margin-bottom: 12px;
 	}
 
 	.display {
 		font-family: var(--font-display);
 		color: var(--text-primary);
 		margin: 0 0 14px;
+		font-weight: 600;
 		font-size: clamp(24px, 5vw, 32px);
 	}
 

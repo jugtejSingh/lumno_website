@@ -46,6 +46,8 @@ export const therapistSettings = pgTable('therapist_settings', {
 	earliestBookingTime: time('earliest_booking_time').notNull().default('09:00'),
 	latestBookingTime: time('latest_booking_time').notNull().default('20:00'),
 	bufferMinutes: integer('buffer_minutes').notNull().default(0),
+	// length of a client self-booked session; the therapist's manual bookings pick their own end
+	sessionMinutes: integer('session_minutes').notNull().default(60),
 	maxBookingsPerClientPerWeek: integer('max_bookings_per_client_per_week'),
 	// stub: real enforcement needs a payments/ledger table
 	requireZeroBalance: boolean('require_zero_balance').notNull().default(false),

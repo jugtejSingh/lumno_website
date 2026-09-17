@@ -119,7 +119,7 @@
 <style>
 	.page {
 		min-height: 100vh;
-		background: var(--surface-app);
+		background: var(--wallpaper) var(--surface-app);
 		color: var(--text-primary);
 	}
 
@@ -131,6 +131,7 @@
 
 	.display {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(28px, 7vw, 40px);
 		margin: 0;
 	}

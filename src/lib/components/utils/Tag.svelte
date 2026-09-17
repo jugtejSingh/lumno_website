@@ -22,7 +22,8 @@
 		border-radius: var(--radius-pill);
 		padding: 2px 8px;
 		font-size: 11px;
-		font-weight: 700;
+		font-weight: 800;
+		border: 1.5px solid currentColor;
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;

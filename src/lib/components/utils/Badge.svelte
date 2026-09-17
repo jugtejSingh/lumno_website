@@ -13,8 +13,9 @@
 		border-radius: var(--radius-pill);
 		padding: 3px 10px;
 		font-size: 12px;
-		font-weight: 700;
+		font-weight: 800;
 		display: inline-block;
+		border: 2px solid currentColor;
 	}
 
 	.badge-success {

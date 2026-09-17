@@ -41,6 +41,7 @@
 								class="session-chip"
 								class:dim={s.status === 'cancelled' || s.status === 'rescheduled'}
 								class:struck={s.status === 'cancelled'}
+								class:done={s.status === 'completed'}
 								style="background: {s.color}"
 							>
 								<span class="session-time">{s.time}</span>
@@ -111,37 +112,37 @@
 		border-radius: var(--radius-sm);
 		cursor: pointer;
 		background: var(--surface-canvas);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--beige-400);
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
 	}
 
 	.cell.today {
-		border-color: var(--plum-400);
-		box-shadow: inset 0 0 0 1px var(--plum-400);
+		border-color: var(--outline);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.cell.empty {
 		cursor: default;
 	}
 
-	/* in-person days keep the default beige surface */
+	/* day tints stay quiet so the session chips carry the contrast */
 	.cell.kind-in_person {
-		background: var(--beige-200);
+		background: var(--beige-0);
 	}
 
 	.cell.kind-online {
-		background: var(--sage-300);
+		background: var(--coral-100);
 	}
 
 	.cell.kind-hybrid {
-		background: linear-gradient(135deg, var(--sage-300) 50%, var(--beige-200) 50%);
+		background: repeating-linear-gradient(135deg, var(--coral-100) 0 8px, var(--beige-0) 8px 16px);
 	}
 
 	.cell.kind-off {
-		background: var(--beige-200);
-		filter: grayscale(1);
+		background: repeating-linear-gradient(135deg, var(--beige-200) 0 6px, var(--beige-50) 6px 12px);
+		border-style: dashed;
 		opacity: 0.6;
 	}
 
@@ -162,6 +163,7 @@
 	}
 
 	.session-chip {
+		border: 1.5px solid var(--outline);
 		border-radius: var(--radius-sm);
 		padding: 3px 6px;
 		font-size: 11px;
@@ -169,6 +171,11 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	/* completed sessions are filled solid brown so done vs upcoming reads at a glance */
+	.session-chip.done {
+		color: var(--beige-0);
 	}
 
 	.session-chip.dim {

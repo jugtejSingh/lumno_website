@@ -1,11 +1,15 @@
 <script lang="ts">
+	import InfoTip from './InfoTip.svelte';
 	let {
 		label,
+		info,
 		checked = $bindable(false),
 		locked = false,
 		onlockedclick
 	}: {
 		label?: string;
+		// explanation behind an "i" button next to the label
+		info?: string;
 		checked?: boolean;
 		// shown but can't be flipped — a click calls onlockedclick instead (e.g. to explain why)
 		locked?: boolean;
@@ -35,7 +39,7 @@
 		<span class="switch-knob"></span>
 	</button>
 	{#if label}
-		<span class="switch-label">{label}</span>
+		<span class="switch-label">{label}{#if info}<InfoTip text={info} {label} />{/if}</span>
 	{/if}
 </label>
 
@@ -48,12 +52,12 @@
 	}
 
 	.switch {
-		width: 38px;
-		height: 22px;
+		width: 42px;
+		height: 24px;
 		flex-shrink: 0;
-		border: none;
+		border: 2px solid var(--outline);
 		border-radius: var(--radius-pill);
-		background: var(--border-strong);
+		background: var(--beige-200);
 		padding: 2px;
 		cursor: pointer;
 		display: flex;
@@ -66,11 +70,11 @@
 	}
 
 	.switch-knob {
-		width: 18px;
-		height: 18px;
+		width: 16px;
+		height: 16px;
 		border-radius: var(--radius-pill);
 		background: var(--surface-card);
-		box-shadow: var(--shadow-xs);
+		border: 2px solid var(--outline);
 	}
 
 	.switch-label {

@@ -8,6 +8,7 @@
 	import Switch from '$lib/components/utils/Switch.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
+	import InfoTip from '$lib/components/utils/InfoTip.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import { invalidateAll } from '$app/navigation';
@@ -19,7 +20,7 @@
 	const TIER_NAMES: Record<number, string> = { 0: 'Free', 1: 'Basic', 2: 'Pro' };
 	const PLAN_SUMMARY: Record<number, { caseload: string; perks: string[] }> = {
 		0: {
-			caseload: 'Up To 5 Clients · 40 Appointments / Month',
+			caseload: 'Up To 10 Clients · Unlimited Appointments',
 			perks: [
 				'Calendar With Google Meet Links',
 				'Automated Session & Payment Emails',
@@ -128,6 +129,7 @@
 
 	// ---- schedule ----
 	let bufferMinutes = $state(initial.schedule.bufferMinutes);
+	let sessionMinutes = $state(initial.schedule.sessionMinutes);
 	let workStart = $state(initial.schedule.earliestBookingTime.slice(0, 5));
 	let workEnd = $state(initial.schedule.latestBookingTime.slice(0, 5));
 	let weeklySchedule = $state([...initial.schedule.weeklySchedule]);
@@ -186,6 +188,7 @@
 			showRate,
 			specialties,
 			bufferMinutes,
+			sessionMinutes,
 			workStart,
 			workEnd,
 			weeklySchedule,
@@ -285,13 +288,30 @@
 
 	<Card>
 		<div class="section">
-			<div class="section-title">Referral Profile</div>
+			<div class="section-title">
+				Referral Profile<InfoTip
+					label="Referral Profile"
+					text="This is your card on the Referrals page, where other therapists on the app can find you and refer clients. Your clients never see it."
+				/>
+			</div>
 			<div class="name-row">
 				<Avatar {name} size={44} />
-				<div class="name-field"><Input label="Name" name="name" bind:value={name} /></div>
+				<div class="name-field">
+					<Input
+						label="Name"
+						name="name"
+						info="Shown on your referral card, and in the emails and calendar invites your clients get."
+						bind:value={name}
+					/>
+				</div>
 			</div>
 			<div>
-				<div class="field-label">Specialties</div>
+				<div class="field-label">
+					Specialties<InfoTip
+						label="Specialties"
+						text="Tags on your referral card that tell other therapists what you work with."
+					/>
+				</div>
 				<div class="tag-row">
 					{#each specialtyTags as s (s.label)}
 						<Tag color={s.color} onremove={() => removeTag(s.label)}>{s.label}</Tag>
@@ -307,16 +327,37 @@
 				label="Bio"
 				name="bio"
 				placeholder="A few sentences other therapists will see"
+				info="A few sentences other therapists read when deciding whether to refer someone to you."
 				bind:value={bio}
 				rows={3}
 			/>
 			<div class="grid-2">
-				<Select label="Session Format" options={formatLabels} bind:value={formatLabel} />
-				<Input label="Location" name="location" bind:value={location} />
+				<Select
+					label="Session Format"
+					options={formatLabels}
+					info="Whether you see people remotely, in person, or both. Shown on your referral card."
+					bind:value={formatLabel}
+				/>
+				<Input
+					label="Location"
+					name="location"
+					info="Where you practise. Helps therapists refer clients who need in-person sessions nearby."
+					bind:value={location}
+				/>
 			</div>
 			<div class="grid-2">
-				<Input label="Years of Experience" name="yearsExperience" bind:value={years} />
-				<Input label="Session Rate" name="sessionRate" bind:value={rate} />
+				<Input
+					label="Years of Experience"
+					name="yearsExperience"
+					info="Shown on your card only if &quot;Show My Years of Experience&quot; is on."
+					bind:value={years}
+				/>
+				<Input
+					label="Session Rate"
+					name="sessionRate"
+					info="Shown to other therapists only if &quot;Show My Session Rate&quot; is on. It doesn't change what any client pays; each client's rate is set on their own profile."
+					bind:value={rate}
+				/>
 			</div>
 		</div>
 	</Card>
@@ -324,7 +365,11 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">Referral Visibility</div>
-			<Switch label="List Me in Referrals" bind:checked={visible} />
+			<Switch
+				label="List Me in Referrals"
+				info="On: other therapists can find you. Off: you're hidden from the list. Your clients aren't affected either way."
+				bind:checked={visible}
+			/>
 			<div class="helper">
 				{#if visible}
 					You're visible to other therapists on the Referrals page. Turn this off any time to
@@ -333,31 +378,84 @@
 					You're hidden from the Referrals page. Turn this on when you're open to taking referrals.
 				{/if}
 			</div>
-			<Switch label="Show My Years of Experience" bind:checked={showYears} />
-			<Switch label="Show My Session Rate" bind:checked={showRate} />
+			<Switch
+				label="Show My Years of Experience"
+				info="When off, your years of experience are left off your card."
+				bind:checked={showYears}
+			/>
+			<Switch
+				label="Show My Session Rate"
+				info="When off, your session rate is left off your card."
+				bind:checked={showRate}
+			/>
 		</div>
 	</Card>
 
 	<Card>
 		<div class="section">
-			<div class="section-title">Schedule</div>
-			<label class="field">
-				<span class="field-label">Buffer Between Sessions (Minutes)</span>
-				<input
-					class="field-input"
-					type="number"
-					name="bufferMinutes"
-					min="0"
-					step="5"
-					bind:value={bufferMinutes}
+			<div class="section-title">
+				Schedule<InfoTip
+					label="Schedule"
+					text="Decides which times clients can book in their portal. Clients can book up to 14 days ahead, and they only see open slots, never why a time is taken."
 				/>
-			</label>
+			</div>
 			<div class="grid-2">
-				<TimeInput label="Working Hours From" name="earliestBookingTime" bind:value={workStart} />
-				<TimeInput label="Working Hours To" name="latestBookingTime" bind:value={workEnd} />
+				<label class="field">
+					<span class="field-label">
+						Session Length (Minutes)<InfoTip
+							label="Session Length"
+							text="How long a session lasts when a client books from their portal. Sessions you add yourself on the Calendar can be any length."
+						/>
+					</span>
+					<input
+						class="field-input"
+						type="number"
+						name="sessionMinutes"
+						min="15"
+						max="240"
+						step="5"
+						required
+						bind:value={sessionMinutes}
+					/>
+				</label>
+				<label class="field">
+					<span class="field-label">
+						Buffer Between Sessions (Minutes)<InfoTip
+							label="Buffer Between Sessions"
+							text="Breathing room added after every session before the next one can start. With 60-minute sessions and a 5-minute buffer, slots go 9:00, 10:05, 11:10. At 0, sessions run back to back: 9:00, 10:00, 11:00."
+						/>
+					</span>
+					<input
+						class="field-input"
+						type="number"
+						name="bufferMinutes"
+						min="0"
+						step="5"
+						bind:value={bufferMinutes}
+					/>
+				</label>
+			</div>
+			<div class="grid-2">
+				<TimeInput
+					label="Working Hours From"
+					name="earliestBookingTime"
+					info="The first slot of the day starts here. Each next slot starts one session length plus your buffer later."
+					bind:value={workStart}
+				/>
+				<TimeInput
+					label="Working Hours To"
+					name="latestBookingTime"
+					info="Sessions must end by this time. With 60-minute sessions and 18:00, the last slot clients can book starts at 17:00."
+					bind:value={workEnd}
+				/>
 			</div>
 			<div class="field">
-				<span class="field-label">Weekly Pattern</span>
+				<span class="field-label">
+					Weekly Pattern<InfoTip
+						label="Weekly Pattern"
+						text="Online: video sessions only.&#10;In Person: at your location only.&#10;Hybrid: the client picks one when booking.&#10;Holiday: nothing can be booked that day."
+					/>
+				</span>
 				<div class="week-list">
 					{#each weekdayLabels as label, i (label)}
 						<label class="week-row">
@@ -376,9 +474,18 @@
 
 	<Card>
 		<div class="section">
-			<div class="section-title">Notifications</div>
+			<div class="section-title">
+				Notifications<InfoTip
+					label="Notifications"
+					text="Emails only go to clients who have an email address on file."
+				/>
+			</div>
 			{#if data.googleConnected}
-				<Switch label="Add a Google Meet link to online sessions" bind:checked={sendMeetLinks} />
+				<Switch
+					label="Add a Google Meet link to online sessions"
+					info="For online sessions, a Google Calendar event with a Meet link is created automatically and the client gets the link in their booking email."
+					bind:checked={sendMeetLinks}
+				/>
 			{:else}
 				<div class="helper">
 					Connect Google Calendar (below) to add a Meet link to online sessions automatically.
@@ -386,14 +493,18 @@
 			{/if}
 			<Switch
 				label="Email clients when a session is booked, cancelled, or rescheduled"
+				info="The client gets an email when a session is booked, moved or cancelled, whether they did it or you did."
 				bind:checked={sendBookingEmails}
 			/>
+			<!-- the 1h reminder is disabled in reminderEmails.ts (cron limit), so only 24h is promised -->
 			<Switch
-				label="Email clients a reminder 24 hours and 1 hour before their session"
+				label="Email clients a reminder 24 hours before their session"
+				info="An email the day before each session."
 				bind:checked={sendSessionReminderEmails}
 			/>
 			<Switch
 				label="Email clients with an outstanding balance a reminder every week"
+				info="At most once a week, clients with an unpaid balance get an email listing what they owe."
 				bind:checked={sendPaymentReminderEmails}
 			/>
 		</div>
@@ -401,7 +512,12 @@
 
 	<Card>
 		<div class="section">
-			<div class="section-title">Payments</div>
+			<div class="section-title">
+				Payments<InfoTip
+					label="Payments"
+					text="Every logged session becomes an invoice for the client. Clients see their unpaid invoices in their portal."
+				/>
+			</div>
 
 			<div class="helper">
 				Each logged session becomes an invoice for the client. Mark invoices paid by hand from the
@@ -459,6 +575,7 @@
 
 			<Switch
 				label="Let clients pay invoices in the portal with Razorpay"
+				info="Adds a &quot;Pay now&quot; button next to unpaid invoices in the client's portal (card or UPI). The money goes to your own Razorpay account and the invoice is marked paid automatically. INR only."
 				bind:checked={paymentModeAutomatic}
 				locked={rzp.health !== 'connected' && rzp.health !== 'expiring'}
 				onlockedclick={() => (showConnectPrompt = true)}
@@ -479,7 +596,12 @@
 			<div class="helper">Your QR code, bank details and "Mark paid" keep working either way.</div>
 
 			<label class="field">
-				<span class="field-label">Free Cancellation / Reschedule Window</span>
+				<span class="field-label">
+					Free Cancellation / Reschedule Window<InfoTip
+						label="Free Cancellation / Reschedule Window"
+						text="If a client cancels or reschedules with at least this much notice, there's no charge. With less notice, a fee invoice is created automatically; you can change the amount or delete it from Payments. Clients see this policy in their portal."
+					/>
+				</span>
 				<select class="field-input" name="freeChangeWindowHours" bind:value={freeChangeWindowHours}>
 					{#each data.hourOptions as o (o.hours)}
 						<option value={o.hours}>{o.label}</option>
@@ -487,7 +609,12 @@
 				</select>
 			</label>
 			<label class="field">
-				<span class="field-label">50% Fee Window</span>
+				<span class="field-label">
+					50% Fee Window<InfoTip
+						label="50% Fee Window"
+						text="Example: free window 24h, 50% window 2h. More than 24h notice costs nothing, 2–24h costs half the rate, and under 2h costs the full rate. Pick &quot;No partial tier&quot; to go straight from free to full."
+					/>
+				</span>
 				<select
 					class="field-input"
 					name="partialChangeWindowHours"
@@ -513,7 +640,10 @@
 			{/if}
 			<label class="field">
 				<span class="field-label">
-					{data.manualPay.qrUrl ? 'Replace QR Code Image' : 'QR Code Image'}
+					{data.manualPay.qrUrl ? 'Replace QR Code Image' : 'QR Code Image'}<InfoTip
+						label="QR Code Image"
+						text="Shown in the client's portal next to unpaid invoices. You can't see these payments in the app, so mark the invoice paid yourself on the Payments page."
+					/>
 				</span>
 				<input
 					class="field-input"
@@ -528,6 +658,7 @@
 				name="payBankDetails"
 				rows={4}
 				placeholder="Account name&#10;Account number&#10;IFSC&#10;UPI id"
+				info="Same as the QR code: shown to clients next to unpaid invoices, and you mark those invoices paid yourself."
 				bind:value={payBankDetails}
 			/>
 		</div>
@@ -615,7 +746,7 @@
 		   which is what lifts it off the content scrolling underneath. */
 		align-self: center;
 		display: flex;
-		filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.18));
+		filter: drop-shadow(0 6px 16px rgb(53 25 14 / 0.22));
 		max-width: 100%;
 		z-index: 10;
 	}
@@ -642,6 +773,7 @@
 
 	.title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
@@ -686,7 +818,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
@@ -696,7 +828,7 @@
 		color: var(--text-secondary);
 		padding: 10px 12px;
 		background: var(--surface-canvas);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 	}
 
@@ -752,7 +884,7 @@
 		width: 160px;
 		height: 160px;
 		object-fit: contain;
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 	}
@@ -766,7 +898,7 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		background: var(--surface-canvas);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 8px 12px;
 	}
@@ -784,21 +916,23 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		background: var(--surface-canvas);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
 
 	.rzp-banner-amber {
-		color: #8a5a00;
-		background: #fff6e5;
-		border-color: #f0d9a8;
+		color: var(--warning);
+		background: var(--warning-bg);
+		border-color: var(--warning);
+		border-style: dashed;
 	}
 
 	.rzp-banner-red {
-		color: #b3261e;
-		background: #fdecea;
-		border-color: #f3c1bc;
+		color: var(--danger);
+		background: var(--danger-bg);
+		border-color: var(--danger);
+		border-style: dashed;
 	}
 
 	.rzp-connect {
@@ -810,7 +944,7 @@
 		font-size: 13px;
 		color: var(--text-primary);
 		background: var(--surface-canvas);
-		border: 1px solid var(--border-subtle);
+		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 12px;
 	}

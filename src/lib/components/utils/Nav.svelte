@@ -28,7 +28,8 @@
 		gap: 12px;
 		flex-wrap: wrap;
 		padding: 20px clamp(16px, 5vw, 48px);
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 2px solid var(--border-subtle);
+		background: var(--surface-canvas);
 	}
 
 	.nav-links {
@@ -39,9 +40,15 @@
 
 	.nav-links > a {
 		font-size: 14px;
-		font-weight: 600;
+		font-weight: 700;
 		text-decoration: none;
 		color: var(--text-secondary);
+	}
+
+	.nav-links > a:hover {
+		color: var(--text-primary);
+		text-decoration: underline wavy var(--coral-500);
+		text-underline-offset: 5px;
 	}
 
 	/* below 820px the burger (in MobileNav) takes over */

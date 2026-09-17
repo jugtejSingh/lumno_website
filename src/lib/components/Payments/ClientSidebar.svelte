@@ -35,7 +35,7 @@
 	.client-sidebar {
 		width: 180px;
 		flex-shrink: 0;
-		border-right: 1px solid var(--border-subtle);
+		border-right: 2px solid var(--border-subtle);
 		padding-right: 16px;
 		display: flex;
 		flex-direction: column;
@@ -47,7 +47,7 @@
 		.client-sidebar {
 			width: auto;
 			border-right: none;
-			border-bottom: 1px solid var(--border-subtle);
+			border-bottom: 2px dotted var(--beige-400);
 			padding-right: 0;
 			padding-bottom: 10px;
 		}
@@ -92,11 +92,12 @@
 	}
 
 	.client-item:hover {
-		background: var(--surface-canvas);
+		background: var(--coral-100);
 	}
 
 	.client-item.active {
 		background: var(--accent-primary);
+		box-shadow: 0 0 0 2px var(--outline), var(--shadow-sm);
 		color: var(--text-on-accent);
 	}
 

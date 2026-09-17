@@ -163,13 +163,14 @@
 
 	.title {
 		font-family: var(--font-display);
+		font-weight: 600;
 		font-size: clamp(24px, 5vw, 32px);
 		color: var(--text-primary);
 	}
 
 	.subtitle {
 		font-family: var(--font-display);
-		font-style: italic;
+		font-weight: 600;
 		font-size: 16px;
 		color: var(--text-muted);
 		margin-top: 2px;

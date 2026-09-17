@@ -8,9 +8,6 @@ import { getActivePackForClient, hasOutstandingBalance, addCharge, completePackI
 import { attachMeetingLinkIfOnline, finishReschedule, type RescheduleAppointmentResult } from '$lib/server/appointments';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
 
-// fixed session length for client self-booking; the therapist's own manual
-// bookings (createAppointmentForTherapist) can still use any start/end.
-const SESSION_MINUTES = 60;
 // clients can only book within the next 2 weeks
 const BOOKING_WINDOW_DAYS = 14;
 
@@ -34,7 +31,9 @@ export async function listAvailabilityForMonth(therapistId: string, year: number
 		.where(eq(therapist.id, therapistId));
 	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
 
-	const { weeklySchedule, bufferMinutes, earliestBookingTime, latestBookingTime } =
+	// sessionMinutes is the client self-booking length; the therapist's own manual
+	// bookings (createAppointmentForTherapist) can still use any start/end.
+	const { weeklySchedule, bufferMinutes, sessionMinutes, earliestBookingTime, latestBookingTime } =
 		await getTherapistScheduleSettings(therapistId);
 	const [earliestHour, earliestMinute] = parseTimeOfDay(earliestBookingTime);
 	const [latestHour, latestMinute] = parseTimeOfDay(latestBookingTime);
@@ -87,11 +86,11 @@ export async function listAvailabilityForMonth(therapistId: string, year: number
 		const slots: AvailableSlot[] = [];
 
 		let minutesFromMidnight = earliestHour * 60 + earliestMinute;
-		while (minutesFromMidnight + SESSION_MINUTES <= latestTotalMinutes) {
+		while (minutesFromMidnight + sessionMinutes <= latestTotalMinutes) {
 			const hour = Math.floor(minutesFromMidnight / 60);
 			const minute = minutesFromMidnight % 60;
 			const slotStart = zonedDateToUTC(year, month, day, hour, minute, timezone);
-			const slotEnd = new Date(slotStart.getTime() + SESSION_MINUTES * 60_000);
+			const slotEnd = new Date(slotStart.getTime() + sessionMinutes * 60_000);
 
 			const blocked =
 				slotStart <= now ||
@@ -115,7 +114,11 @@ export async function listAvailabilityForMonth(therapistId: string, year: number
 				});
 			}
 
-			minutesFromMidnight += SESSION_MINUTES;
+			// buffer spaces the grid (9:00, 10:05, 11:10 for a 5-min buffer); the overlap check
+			// above keeps the same gap around off-grid sessions the therapist booked by hand.
+			// ponytail: grid stays anchored at earliestBookingTime, so an off-grid session hides
+			// neighbouring slots instead of shifting them; re-anchor after bookings if that bites.
+			minutesFromMidnight += sessionMinutes + bufferMinutes;
 		}
 
 		if (slots.length > 0) slotsByDay[day] = slots;
@@ -167,7 +170,8 @@ async function insertAppointmentForClient(
 
 	const [hourRaw, minuteRaw] = input.startTime.split(':');
 	const startAt = zonedDateToUTC(input.year, input.month, input.day, Number(hourRaw), Number(minuteRaw), timezone);
-	const endAt = new Date(startAt.getTime() + SESSION_MINUTES * 60_000);
+	const { sessionMinutes } = await getTherapistScheduleSettings(therapistId);
+	const endAt = new Date(startAt.getTime() + sessionMinutes * 60_000);
 
 	try {
 		const [row] = await executor
