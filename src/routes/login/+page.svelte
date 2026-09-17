@@ -128,25 +128,22 @@
 					<div class="form-fields">
 						<div class="field-row">
 							<Input label="Full name" name="name" placeholder="Dana Reyes" />
-							<Input label="Practice name" name="practice" placeholder="Reyes Therapy" />
-						</div>
-						<div class="field-row">
 							<Input label="Email" name="email" placeholder="you@practice.com" type="email" />
-							<Input label="Password" name="password" placeholder="••••••••" type="password" />
 						</div>
 						<div class="field-row">
-							<Input label="Profile picture URL (optional)" name="photoUrl" placeholder="https://..." />
-							<Input label="Date of birth" name="dateOfBirth" type="date" />
+							<Input label="Password" name="password" placeholder="••••••••" type="password" />
+							<Input label="Date of birth (optional)" name="dateOfBirth" type="date" />
 						</div>
 						<Textarea
-							label="Bio"
+							label="Bio (optional)"
 							name="bio"
 							placeholder="A few sentences for your booking page"
 						/>
 						<Input
-							label="Tags (comma-separated)"
+							label="Specialties (optional, comma-separated)"
 							name="tags"
-							placeholder="CBT, anxiety, sliding-scale"
+							info="Shown on your community card so other therapists know who to send your way. Add the approaches you practise (e.g. CBT, psychodynamic, EMDR), specialist areas (e.g. sex therapy, couples), the concerns you help with (e.g. anxiety, trauma) and practical details (e.g. online, sliding scale). You can change these later in Settings."
+							placeholder="CBT, Sex therapy, Anxiety, Online"
 						/>
 						{#if form?.message}
 							<div class="form-error">{form.message}</div>
@@ -332,6 +329,7 @@
 	.field-row {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
+		align-items: end;
 		gap: 14px;
 	}
 

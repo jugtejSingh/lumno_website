@@ -18,7 +18,7 @@
 		{ href: '/clients', label: 'Clients' },
 		{ href: '/payments', label: 'Payments' },
 		{ href: '/notes', label: 'Notes' },
-		{ href: '/referrals', label: 'Referrals' },
+		{ href: '/community', label: 'Community' },
 		{ href: '/settings', label: 'Settings' }
 	];
 </script>

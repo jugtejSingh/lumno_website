@@ -58,6 +58,58 @@ function buildSvg(scale) {
 	].join('');
 }
 
+// Link-preview card (og:image / twitter:image). 1200x630 is what every scraper crops to.
+const OG_SIZE = { width: 1200, height: 630 };
+const OG_TITLE = 'Why juggle five apps when one will do?';
+const OG_TAGLINE = 'Bookings, payments, reminders and notes for solo therapists.';
+
+function buildOgHtml() {
+	const mark = [
+		`<svg viewBox="${STAR_VIEWBOX}" width="96" height="96">`,
+		`<path fill="${STAR_COLOR}" d="${STAR_PATH}"/>`,
+		`<path fill="${SPARKLE_COLOR}" d="${SPARKLE_PATH}"/>`,
+		`</svg>`
+	].join('');
+	return `<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@600&display=swap">
+<style>
+  body {
+    margin: 0;
+    width: ${OG_SIZE.width}px;
+    height: ${OG_SIZE.height}px;
+    box-sizing: border-box;
+    padding: 80px;
+    background: ${ICON_BACKGROUND};
+    border-bottom: 24px solid ${STAR_COLOR};
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 28px;
+    font-family: 'Nunito', sans-serif;
+    color: #35190E;
+  }
+  .brand { display: flex; align-items: center; gap: 16px; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 56px; }
+  .title { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 68px; line-height: 1.1; max-width: 900px; }
+  .tagline { font-weight: 600; font-size: 32px; color: #6E3821; }
+</style>
+</head>
+<body>
+  <div class="brand">${mark}Lumno</div>
+  <div class="title">${OG_TITLE}</div>
+  <div class="tagline">${OG_TAGLINE}</div>
+</body>
+</html>`;
+}
+
+async function renderOg(page) {
+	await page.setViewportSize(OG_SIZE);
+	await page.setContent(buildOgHtml());
+	// the wordmark is a webfont — without this the shot can land on the fallback face
+	await page.evaluate(() => document.fonts.ready);
+	return page.screenshot();
+}
+
 async function renderPng(page, svg, size) {
 	await page.setViewportSize({ width: size, height: size });
 	const html = `<html><body style="margin:0;background:transparent">${svg.replace(
@@ -122,6 +174,9 @@ async function main() {
 			await writeFile(new URL(icon.file, STATIC_DIR), data);
 			console.log(`wrote ${icon.file}`);
 		}
+
+		await writeFile(new URL('brand/og-image.png', STATIC_DIR), await renderOg(page));
+		console.log('wrote brand/og-image.png');
 
 		const icoPngs = [];
 		for (const size of ICO_SIZES) {

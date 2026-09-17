@@ -62,7 +62,6 @@ export const actions: Actions = {
 		const email = formData.get('email')?.toString().trim() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 		const name = formData.get('name')?.toString().trim() ?? '';
-		const photoUrl = formData.get('photoUrl')?.toString().trim() || null;
 		const dateOfBirth = formData.get('dateOfBirth')?.toString().trim() || null;
 		const bio = formData.get('bio')?.toString().trim() || null;
 		const tags = (formData.get('tags')?.toString() ?? '')
@@ -97,7 +96,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await createTherapistProfile(userId, { photoUrl, dateOfBirth, bio, tags });
+			await createTherapistProfile(userId, { dateOfBirth, bio, tags });
 		} catch (error) {
 			const cause = error instanceof Error ? error.cause : undefined;
 			if (!(cause instanceof Error) || !('code' in cause) || cause.code !== '23503') {

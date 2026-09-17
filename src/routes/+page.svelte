@@ -141,10 +141,10 @@
 			accent: 'plum'
 		},
 		{
-			title: 'Referrals',
-			desc: 'Invite other therapists and keep track of who joined through you.',
-			cta: 'Open referrals',
-			href: '/referrals',
+			title: 'Community',
+			desc: 'Find colleagues on Lumno and refer a client who needs a different fit.',
+			cta: 'Open community',
+			href: '/community',
 			icon: 'referrals',
 			accent: 'coral'
 		},
@@ -158,10 +158,6 @@
 		}
 	];
 </script>
-
-<svelte:head>
-	<title>Lumno — Run your practice, calmly.</title>
-</svelte:head>
 
 <div class="page">
 	<Nav />

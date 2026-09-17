@@ -57,14 +57,18 @@
 	}
 </script>
 
-<div class="referrals">
+<div class="community">
 	<div class="header">
-		<div class="title">Referrals</div>
-		<div class="subtitle">Find a colleague for a client who needs a different fit</div>
+		<div class="title-row">
+			<div class="title">Community</div>
+			<Badge tone="warning">Beta</Badge>
+		</div>
+		<div class="subtitle">
+			Your personal therapist community — find a colleague for a client who needs a different fit
+		</div>
 	</div>
 
 	<div class="beta-notice">
-		<Badge tone="warning">Beta</Badge>
 		<span>This feature is in beta — enhancements are coming soon.</span>
 	</div>
 
@@ -154,11 +158,17 @@
 </Dialog>
 
 <style>
-	.referrals {
+	.community {
 		display: flex;
 		flex-direction: column;
 		gap: 20px;
 		max-width: 1040px;
+	}
+
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
 	}
 
 	.title {

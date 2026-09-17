@@ -51,7 +51,8 @@
 				'Calendar with Google Meet links',
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
-				'Payment collection & invoicing'
+				'Payment collection & invoicing',
+				'Therapist community — refer clients to colleagues'
 			]
 		},
 		{
@@ -67,8 +68,8 @@
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing',
-				'AI note clean-up',
-				'Referral program — invite other therapists'
+				'Therapist community — refer clients to colleagues',
+				'AI note clean-up'
 			]
 		},
 		{
@@ -84,8 +85,8 @@
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing',
-				'AI note clean-up',
-				'Referral program — invite other therapists'
+				'Therapist community — refer clients to colleagues',
+				'AI note clean-up'
 			]
 		}
 	];

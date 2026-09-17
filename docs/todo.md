@@ -8,8 +8,6 @@ Payment to send email ads to people to book that havent in over a month
 
 send reminders for people who havent booked in 4 days, then 2 weeks, then once a month. 
 
-what happens if I log in as a new account?
-
 currency and timezone
 
 maybe give more flexibility when it comes to holidays, like the person can tick off time per day, everyday or once a week per day etc for things they do
@@ -23,5 +21,3 @@ we take in client number for whatsapp notifications in the future, we also need 
 
 maybe add running memory of the person in a notepad perhaps
 
-
-change it to 10, the free tier

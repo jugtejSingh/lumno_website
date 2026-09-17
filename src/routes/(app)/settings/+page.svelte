@@ -25,25 +25,17 @@
 				'Calendar With Google Meet Links',
 				'Automated Session & Payment Emails',
 				'Notes Sent To Clients Automatically',
-				'Payment Collection & Invoicing'
+				'Payment Collection & Invoicing',
+				'Therapist Community — Refer Clients To Colleagues'
 			]
 		},
 		1: {
 			caseload: 'Up To 30 Clients · Unlimited Appointments',
-			perks: [
-				'Everything In Free',
-				'AI Note Clean-Up',
-				'Referral Program — Invite Other Therapists'
-			]
+			perks: ['Everything In Free', 'AI Note Clean-Up']
 		},
 		2: {
 			caseload: 'Unlimited Clients · Unlimited Appointments',
-			perks: [
-				'Everything In Basic',
-				'AI Note Clean-Up',
-				'Referral Program — Invite Other Therapists',
-				'No Caseload Ceiling'
-			]
+			perks: ['Everything In Basic', 'No Caseload Ceiling', 'AI Note Clean-Up']
 		}
 	};
 	let cancelling = $state(false);
@@ -111,7 +103,7 @@
 	// form drafts below are deliberately seeded from the initial load data only
 	const initial = untrack(() => data);
 
-	// ---- referral profile ----
+	// ---- community profile ----
 	let name = $state(initial.profile.name);
 	let bio = $state(initial.profile.bio);
 	let location = $state(initial.profile.location ?? '');
@@ -289,9 +281,9 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">
-				Referral Profile<InfoTip
-					label="Referral Profile"
-					text="This is your card on the Referrals page, where other therapists on the app can find you and refer clients. Your clients never see it."
+				Community Profile<InfoTip
+					label="Community Profile"
+					text="This is your card on the Community page, where other therapists on the app can find you and refer clients. Your clients never see it."
 				/>
 			</div>
 			<div class="name-row">
@@ -300,16 +292,16 @@
 					<Input
 						label="Name"
 						name="name"
-						info="Shown on your referral card, and in the emails and calendar invites your clients get."
+						info="Shown on your community card, and in the emails and calendar invites your clients get."
 						bind:value={name}
 					/>
 				</div>
 			</div>
 			<div>
 				<div class="field-label">
-					Specialties<InfoTip
+					Specialties (optional)<InfoTip
 						label="Specialties"
-						text="Tags on your referral card that tell other therapists what you work with."
+						text="Tags on your community card so other therapists know who to send your way. Add the approaches you practise (e.g. CBT, psychodynamic, EMDR), specialist areas (e.g. sex therapy, couples), the concerns you help with (e.g. anxiety, trauma) and practical details (e.g. online, sliding scale)."
 					/>
 				</div>
 				<div class="tag-row">
@@ -321,8 +313,7 @@
 					placeholder="Add a specialty and press enter"
 					bind:value={newTag}
 					onkeydown={addTagOnEnter}
-				/>
-			</div>
+				/>			</div>
 			<Textarea
 				label="Bio"
 				name="bio"
@@ -335,7 +326,7 @@
 				<Select
 					label="Session Format"
 					options={formatLabels}
-					info="Whether you see people remotely, in person, or both. Shown on your referral card."
+					info="Whether you see people remotely, in person, or both. Shown on your community card."
 					bind:value={formatLabel}
 				/>
 				<Input
@@ -364,18 +355,18 @@
 
 	<Card>
 		<div class="section">
-			<div class="section-title">Referral Visibility</div>
+			<div class="section-title">Community Visibility</div>
 			<Switch
-				label="List Me in Referrals"
+				label="List Me in the Community"
 				info="On: other therapists can find you. Off: you're hidden from the list. Your clients aren't affected either way."
 				bind:checked={visible}
 			/>
 			<div class="helper">
 				{#if visible}
-					You're visible to other therapists on the Referrals page. Turn this off any time to
+					You're visible to other therapists on the Community page. Turn this off any time to
 					disappear from that list.
 				{:else}
-					You're hidden from the Referrals page. Turn this on when you're open to taking referrals.
+					You're hidden from the Community page. Turn this on when you're open to taking referrals.
 				{/if}
 			</div>
 			<Switch
