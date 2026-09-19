@@ -6,6 +6,7 @@
 	import Tag from '$lib/components/utils/Tag.svelte';
 	import StatCard from '$lib/components/utils/StatCard.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
+	import Input from '$lib/components/utils/Input.svelte';
 	import PortalMonthGrid from '$lib/components/Calendar/PortalMonthGrid.svelte';
 	import BookSlotDialog from '$lib/components/Calendar/BookSlotDialog.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -14,6 +15,9 @@
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// seeded from the load data only, like every other draft in this app
+	let phone = $state(data.clientPhone);
 
 	let bookDay = $state<number | null>(null);
 	let rescheduleId = $state<string | null>(null);
@@ -313,6 +317,25 @@
 			</div>
 		{/if}
 	</div>
+
+	<div id="details" class="section">
+		<div class="section-title">Your details</div>
+		<Card>
+			<form class="details-form" method="POST" action="?/saveDetails" use:enhance>
+				<Input
+					label="Phone"
+					name="phone"
+					type="tel"
+					placeholder="+91 98765 43210"
+					bind:value={phone}
+				/>
+				<div class="hint">
+					Optional. Give us a number and session reminders come by WhatsApp instead of email.
+				</div>
+				<Button type="submit" variant="primary" size="sm">Save</Button>
+			</form>
+		</Card>
+	</div>
 </div>
 
 <BookSlotDialog
@@ -414,6 +437,19 @@
 	.hint {
 		font-size: 13px;
 		color: var(--text-muted);
+	}
+
+	.details-form {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: flex-start;
+		max-width: 320px;
+	}
+
+	/* align-items: flex-start keeps Save from stretching, so the field needs its width back */
+	.details-form > :global(.field) {
+		width: 100%;
 	}
 
 	.book-toolbar {

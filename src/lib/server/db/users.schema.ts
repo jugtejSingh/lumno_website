@@ -68,6 +68,11 @@ export const client = pgTable(
 		userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
 		name: text('name').notNull(),
 		email: text('email'),
+		// client-supplied, unverified, optional. WhatsApp reminders will prefer it
+		// over email once that integration lands.
+		// ponytail: stored as typed, no canonical E.164 normalising until WhatsApp
+		// actually needs one.
+		phone: text('phone'),
 		age: integer('age'),
 		bio: text('bio'),
 		tags: text('tags').array().notNull().default([]),

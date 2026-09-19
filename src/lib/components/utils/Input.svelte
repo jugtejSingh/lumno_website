@@ -1,6 +1,6 @@
 <script lang="ts">
 	import InfoTip from './InfoTip.svelte';
-	type Type = 'text' | 'email' | 'password' | 'date';
+	type Type = 'text' | 'email' | 'password' | 'date' | 'tel';
 
 	let {
 		label,

@@ -3,7 +3,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { therapist, user, client as clientTable } from '$lib/server/db/schema';
-import { listClientsForUser } from '$lib/server/clients';
+import { listClientsForUser, setClientPhone } from '$lib/server/clients';
+import { parsePhone } from '$lib/phone';
 import { setActiveClientCookie } from '$lib/server/activeClient';
 import {
 	listUpcomingAppointmentsForClient,
@@ -112,6 +113,7 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		clientName,
+		clientPhone: client.phone ?? '',
 		therapistName,
 		year,
 		month,
@@ -170,6 +172,21 @@ export const actions: Actions = {
 
 		setActiveClientCookie(event.cookies, clientId);
 		return redirect(302, '/portal');
+	},
+
+	// the client editing their own phone number. Unverified — see setClientPhone.
+	saveDetails: async (event) => {
+		if (!event.locals.clientId) {
+			return fail(401);
+		}
+
+		const formData = await event.request.formData();
+		const parsedPhone = parsePhone(formData.get('phone')?.toString());
+		if ('error' in parsedPhone) {
+			return fail(400, { message: parsedPhone.error });
+		}
+
+		await setClientPhone(event.locals.clientId, parsedPhone.phone);
 	},
 
 	bookSession: async (event) => {

@@ -7,6 +7,10 @@
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// optional, unverified — used for WhatsApp reminders instead of email when given.
+	// Shared by the Google and password forms below via hidden inputs.
+	let phone = $state('');
 </script>
 
 <svelte:head>
@@ -57,12 +61,24 @@
 					<div class="form-error">{data.oauthError}</div>
 				{/if}
 
+				<div class="form-fields">
+					<Input
+						label="Phone (optional)"
+						type="tel"
+						placeholder="+91 98765 43210"
+						bind:value={phone}
+					/>
+					<div class="form-hint">We'll send session reminders on WhatsApp instead of email.</div>
+				</div>
+
 				<form method="POST" action="?/google" use:enhance>
+					<input type="hidden" name="phone" value={phone} />
 					<Button type="submit" variant="secondary">Continue with Google</Button>
 				</form>
 				<div class="divider"><span>or</span></div>
 
 				<form class="form-fields" method="POST" action="?/password" use:enhance>
+					<input type="hidden" name="phone" value={phone} />
 					<Input label="Password" name="password" type="password" placeholder="••••••••" />
 					{#if form?.message}
 						<div class="form-error">{form.message}</div>
@@ -137,6 +153,12 @@
 	.form-error {
 		font-size: 13px;
 		color: var(--accent-danger, #c0392b);
+	}
+
+	.form-hint {
+		font-size: 12px;
+		color: var(--text-muted);
+		margin-top: -8px;
 	}
 
 	.divider {

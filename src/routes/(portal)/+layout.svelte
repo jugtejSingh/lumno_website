@@ -15,7 +15,8 @@
 	const links = [
 		{ href: '#calendar', label: 'Calendar' },
 		{ href: '#payments', label: 'Payments' },
-		{ href: '#notes', label: 'Notes' }
+		{ href: '#notes', label: 'Notes' },
+		{ href: '#details', label: 'Your details' }
 	];
 </script>
 

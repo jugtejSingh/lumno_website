@@ -25,6 +25,11 @@ export default defineConfig({
 			}
 		})
 	],
+	// Tunnel hostnames for testing webhooks against the dev server. A leading dot
+	// matches the domain and its subdomains. Dev only — Vercel never sees this.
+	server: {
+		allowedHosts: ['.ngrok-free.dev', '.ngrok-free.app', '.ngrok.io', '.trycloudflare.com']
+	},
 	// svelte-sonner ships uncompiled .svelte files; Node's SSR loader can't read
 	// them directly, so bundle it through the svelte plugin instead of externalizing.
 	ssr: {

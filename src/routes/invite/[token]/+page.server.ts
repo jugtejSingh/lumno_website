@@ -4,8 +4,9 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
-import { getInviteByToken, linkClientToUser } from '$lib/server/clients';
+import { getInviteByToken, linkClientToUser, setClientPhone } from '$lib/server/clients';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
+import { parsePhone } from '$lib/phone';
 import { logError } from '$lib/server/log';
 
 // A client row can be created without an email (the invite is then never sent);
@@ -77,6 +78,12 @@ export const actions: Actions = {
 		if (!password) {
 			return fail(400, { message: 'Password is required.' });
 		}
+		// validated before the account is touched, so a bad number can't leave a
+		// signed-up user behind
+		const parsedPhone = parsePhone(formData.get('phone')?.toString());
+		if ('error' in parsedPhone) {
+			return fail(400, { message: parsedPhone.error });
+		}
 
 		const [existingUser] = await db.select().from(user).where(eq(user.email, invite.email));
 
@@ -116,6 +123,9 @@ export const actions: Actions = {
 				message: "You're signed in, but the invite could not be attached to your account. Please try again."
 			});
 		}
+		if (parsedPhone.phone) {
+			await setClientPhone(invite.id, parsedPhone.phone);
+		}
 		return redirect(302, '/portal');
 	},
 
@@ -123,6 +133,16 @@ export const actions: Actions = {
 		const invite = await loadValidInvite(event.params.token);
 		if (!invite) {
 			return fail(400, { message: 'This invite is no longer valid.' });
+		}
+
+		const parsedPhone = parsePhone((await event.request.formData()).get('phone')?.toString());
+		if ('error' in parsedPhone) {
+			return fail(400, { message: parsedPhone.error });
+		}
+		// saved before we hand off to Google — the invite token already identifies this
+		// client row, so nothing needs stashing across the OAuth round trip
+		if (parsedPhone.phone) {
+			await setClientPhone(invite.id, parsedPhone.phone);
 		}
 
 		let url: string;

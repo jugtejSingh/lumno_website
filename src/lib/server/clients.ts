@@ -239,6 +239,13 @@ export async function linkClientToUser(clientId: string, userId: string) {
 	await db.update(user).set({ emailVerified: true }).where(eq(user.id, userId));
 }
 
+// Unverified number the client typed themselves, either while accepting the invite
+// or later from their portal. Callers must have already established that clientId
+// belongs to the caller (invite token or locals.clientId).
+export async function setClientPhone(clientId: string, phone: string | null) {
+	await db.update(client).set({ phone }).where(eq(client.id, clientId));
+}
+
 export async function listClientsForUser(userId: string) {
 	return db
 		.select({
