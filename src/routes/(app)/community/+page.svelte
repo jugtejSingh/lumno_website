@@ -280,7 +280,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		width: min(360px, 100%);
 	}
 
 	.detail-head {

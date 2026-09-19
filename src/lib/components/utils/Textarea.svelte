@@ -58,4 +58,11 @@
 		background: var(--coral-100);
 		box-shadow: var(--shadow-focus);
 	}
+
+	/* 16px stops iOS zooming the page in when the field takes focus */
+	@media (max-width: 520px) {
+		.field-input {
+			font-size: 16px;
+		}
+	}
 </style>

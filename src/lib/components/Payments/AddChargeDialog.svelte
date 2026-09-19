@@ -84,7 +84,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		width: 300px;
 	}
 
 	.client-toggle {

@@ -67,11 +67,19 @@
 		text-decoration: none;
 	}
 
+	/* opens a dialog rather than a page, so it shouldn't read as another page link */
 	.footer-link-btn {
 		border: none;
 		background: transparent;
 		padding: 0;
 		font-family: var(--font-body);
+		text-decoration: underline dotted var(--beige-400);
+		text-underline-offset: 4px;
 		cursor: pointer;
+	}
+
+	.footer-link-btn:hover {
+		color: var(--text-primary);
+		text-decoration-color: var(--coral-500);
 	}
 </style>

@@ -50,18 +50,12 @@
 	// New client draft
 	let newName = $state('');
 	let newEmail = $state('');
-	let newAge = $state('');
 	let newRate = $state('');
-	let newBio = $state('');
-	let newTags = $state<string[]>([]);
 
 	function openAdd() {
 		newName = '';
 		newEmail = '';
-		newAge = '';
 		newRate = '';
-		newBio = '';
-		newTags = [];
 		addOpen = true;
 	}
 
@@ -184,7 +178,12 @@
 	{/if}
 </div>
 
-<Dialog open={addOpen} title="Add a client" onclose={() => (addOpen = false)}>
+<Dialog
+	open={addOpen}
+	title="Add a client"
+	width="clamp(280px, 26vw, 380px)"
+	onclose={() => (addOpen = false)}
+>
 	<form
 		class="dialog-form"
 		method="POST"
@@ -199,10 +198,8 @@
 		<ClientForm
 			bind:name={newName}
 			bind:email={newEmail}
-			bind:age={newAge}
 			bind:rate={newRate}
-			bind:bio={newBio}
-			bind:tags={newTags}
+			showDetails={false}
 			errors={form?.fieldErrors ?? {}}
 		/>
 		{#if form?.message}
@@ -249,9 +246,7 @@
 	onclose={() => (historyClientId = null)}
 >
 	{#if historyClientId}
-		<div class="history-dialog">
-			<PaymentHistoryList clientId={historyClientId} {currency} />
-		</div>
+		<PaymentHistoryList clientId={historyClientId} {currency} />
 	{/if}
 </Dialog>
 
@@ -400,11 +395,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
-		width: min(340px, 100%);
-	}
-
-	.history-dialog {
-		width: min(420px, 100%);
 	}
 
 	.form-error {

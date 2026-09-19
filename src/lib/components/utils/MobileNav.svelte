@@ -199,6 +199,45 @@
 		color: var(--text-primary);
 	}
 
+	/* actions aren't destinations: no chevron, and each one looks like what it does */
+	.drawer-links :global([data-kind])::after {
+		content: none;
+	}
+
+	.drawer-links :global([data-kind='cta']) {
+		margin-top: 6px;
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-sm);
+		background: var(--accent-primary);
+		box-shadow: var(--shadow-xs);
+		color: var(--text-on-accent);
+		justify-content: center;
+	}
+
+	.drawer-links :global([data-kind='cta']:hover) {
+		background: var(--accent-primary-hover);
+		color: var(--text-on-accent);
+	}
+
+	.drawer-links :global([data-kind='quiet']) {
+		margin-top: 6px;
+		padding-top: 12px;
+		border-top: 2px dotted var(--beige-400);
+		border-radius: 0;
+		font-size: 13px;
+		color: var(--text-muted);
+	}
+
+	.drawer-links :global([data-kind='danger']) {
+		font-size: 13px;
+		color: var(--danger);
+	}
+
+	.drawer-links :global([data-kind='danger']:hover) {
+		background: var(--danger-bg);
+		color: var(--danger);
+	}
+
 	.drawer-links :global(form) {
 		margin: 0;
 	}

@@ -16,7 +16,7 @@
 		<a href="/#features">Features</a>
 		<a href="/pricing">Pricing</a>
 		<a href="/login">Log in</a>
-		<a href="/login?tab=register">Get started for free</a>
+		<a href="/login?tab=register" data-kind="cta">Get started for free</a>
 	</MobileNav>
 </header>
 

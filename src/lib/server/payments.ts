@@ -104,7 +104,9 @@ export async function listPaymentsForClientPage(
 			.from(payment)
 			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
 			.where(where)
-			.orderBy(desc(payment.createdAt))
+			// unpaid first across the whole paginated set (false sorts before true in
+			// postgres), then newest first within each group
+			.orderBy(sql`${payment.status} <> 'unpaid'`, desc(payment.createdAt))
 			.limit(pageSize)
 			.offset((page - 1) * pageSize),
 		db.select({ count: sql<number>`count(*)::int` }).from(payment).where(where)

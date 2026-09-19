@@ -10,6 +10,7 @@ import {
 	completePackIfExhausted,
 	listOutstandingBalancesByClient,
 	getClientPaymentTotals,
+	listPaymentsForClientPage,
 	getMonthlyPaymentSummary,
 	listVisiblePaymentsForClient,
 	getBalanceDueForClient
@@ -52,6 +53,19 @@ describe('charges and balance', () => {
 		expect(totals.owed).toBe(500);
 		expect(totals.paidThisMonth).toBe(1000);
 		expect(totals.paidThisYear).toBe(1000);
+	});
+
+	it('listPaymentsForClientPage puts unpaid first, then newest first', async () => {
+		const first = await addCharge(therapistId, { clientId, amount: 100, note: 'first' });
+		await addCharge(therapistId, { clientId, amount: 200, note: 'second' });
+		const third = await addCharge(therapistId, { clientId, amount: 300, note: 'third' });
+		// the oldest and the newest are paid; only the middle one is still owed
+		await setPaymentStatus(therapistId, first.id, 'paid');
+		await setPaymentStatus(therapistId, third.id, 'paid');
+
+		const { rows, total } = await listPaymentsForClientPage(therapistId, clientId, 1, 10);
+		expect(total).toBe(3);
+		expect(rows.map((r) => r.note)).toEqual(['second', 'third', 'first']);
 	});
 
 	it('getMonthlyPaymentSummary buckets by created month', async () => {

@@ -81,6 +81,19 @@
 	}
 </script>
 
+{#snippet rowHead(p: ClientPaymentHistoryRow)}
+	<span class="row-date">{formatDate(p.appointmentStartAt ?? p.createdAt)}</span>
+	<span class="row-note">{p.note ?? ''}</span>
+	<span class="row-amount">{formatCurrency(p.amount, currency)}</span>
+	<span class="row-status">
+		{#if p.status === 'unpaid'}
+			<Badge tone="warning">unpaid</Badge>
+		{:else}
+			paid
+		{/if}
+	</span>
+{/snippet}
+
 <div class="history">
 	{#if loading && rows.length === 0}
 		<div class="empty">Loading…</div>
@@ -94,17 +107,12 @@
 	{:else}
 		<div class="history-list">
 			{#each rows as p (p.id)}
-				<div class="history-row">
-					<div class="history-row-head">
-						<span class="history-date">{formatDate(p.appointmentStartAt ?? p.createdAt)}</span>
-						<Badge tone={p.status === 'paid' ? 'success' : 'warning'}>{p.status}</Badge>
-						<span class="history-amount">{formatCurrency(p.amount, currency)}</span>
-					</div>
-					{#if p.note}
-						<div class="history-note">{p.note}</div>
-					{/if}
-					{#if editable}
-						<div class="history-actions">
+				{#if editable}
+					<!-- native disclosure: the edit fields only cost height once opened, so a
+					     full page of rows stays scannable -->
+					<details class="row" class:is-unpaid={p.status === 'unpaid'}>
+						<summary class="row-head">{@render rowHead(p)}</summary>
+						<div class="row-body">
 							<form
 								method="POST"
 								action="?/updatePayment"
@@ -116,16 +124,31 @@
 								}}
 							>
 								<input type="hidden" name="paymentId" value={p.id} />
-								<div class="history-edit-fields">
+								<div class="row-edit-fields">
 									<Input name="amount" value={String(p.amount)} />
 									<Input name="note" value={p.note ?? ''} placeholder="Note" />
 									<Button type="submit" variant="secondary" size="sm">Save</Button>
 								</div>
 							</form>
-							{#if p.status === 'unpaid'}
+							<div class="row-actions">
+								{#if p.status === 'unpaid'}
+									<form
+										method="POST"
+										action="?/markPaid"
+										use:enhance={() => {
+											return async ({ update }) => {
+												await update();
+												await load();
+											};
+										}}
+									>
+										<input type="hidden" name="paymentId" value={p.id} />
+										<Button type="submit" variant="primary" size="sm">Mark paid</Button>
+									</form>
+								{/if}
 								<form
 									method="POST"
-									action="?/markPaid"
+									action="?/deletePayment"
 									use:enhance={() => {
 										return async ({ update }) => {
 											await update();
@@ -134,25 +157,16 @@
 									}}
 								>
 									<input type="hidden" name="paymentId" value={p.id} />
-									<Button type="submit" variant="primary" size="sm">Mark paid</Button>
+									<Button type="submit" variant="secondary" size="sm">Delete</Button>
 								</form>
-							{/if}
-							<form
-								method="POST"
-								action="?/deletePayment"
-								use:enhance={() => {
-									return async ({ update }) => {
-										await update();
-										await load();
-									};
-								}}
-							>
-								<input type="hidden" name="paymentId" value={p.id} />
-								<Button type="submit" variant="secondary" size="sm">Delete</Button>
-							</form>
+							</div>
 						</div>
-					{/if}
-				</div>
+					</details>
+				{:else}
+					<div class="row" class:is-unpaid={p.status === 'unpaid'}>
+						<div class="row-head row-head-static">{@render rowHead(p)}</div>
+					</div>
+				{/if}
 			{/each}
 		</div>
 	{/if}
@@ -188,60 +202,138 @@
 	.history-list {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 4px;
 	}
 
-	.history-row {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
+	.row {
 		border: 2px solid var(--border-subtle);
-		border-radius: var(--radius-md);
+		border-left-width: 5px;
+		border-left-color: var(--border-subtle);
+		border-radius: var(--radius-sm);
 		background: var(--surface-card);
-		box-shadow: var(--shadow-sm);
-		padding: 10px 12px;
 	}
 
-	.history-row-head {
-		display: flex;
+	/* the stripe is the at-a-glance split between the unpaid block and the paid one */
+	.row.is-unpaid {
+		border-left-color: var(--warning);
+	}
+
+	.row-head {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
 		align-items: center;
 		gap: 10px;
+		padding: 7px 10px;
+		list-style: none;
+		cursor: pointer;
 	}
 
-	.history-date {
+	.row-head-static {
+		cursor: default;
+	}
+
+	/* Safari still draws the default triangle without this */
+	.row-head::-webkit-details-marker {
+		display: none;
+	}
+
+	.row-head:hover {
+		background: var(--coral-100);
+	}
+
+	.row-head-static:hover {
+		background: transparent;
+	}
+
+	.row-date {
 		font-size: 13px;
 		font-weight: 700;
 		color: var(--text-primary);
+		white-space: nowrap;
 	}
 
-	.history-amount {
-		margin-left: auto;
-		font-family: var(--font-mono);
-		font-size: 13px;
-		color: var(--text-primary);
-	}
-
-	.history-note {
+	.row-note {
 		font-size: 13px;
 		color: var(--text-secondary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
-	.history-actions {
+	.row-amount {
+		font-family: var(--font-mono);
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--text-primary);
+		white-space: nowrap;
+	}
+
+	.row-status {
+		font-size: 12px;
+		font-weight: 700;
+		color: var(--text-muted);
+		justify-self: end;
+	}
+
+	.row-body {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 10px;
+		border-top: 2px dotted var(--beige-400);
+	}
+
+	.row-edit-fields {
+		display: flex;
+		align-items: flex-end;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+
+	.row-edit-fields :global(.field:first-child) {
+		width: 90px;
+	}
+
+	.row-edit-fields :global(.field:nth-child(2)) {
+		flex: 1;
+		min-width: 120px;
+	}
+
+	.row-actions {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		flex-wrap: wrap;
-		margin-top: 4px;
 	}
 
-	.history-edit-fields {
-		display: flex;
-		align-items: flex-end;
-		gap: 8px;
-	}
+	/* phones: date + amount on the first line, note + status under it, so nothing
+	   squashes and the whole row stays one tap target */
+	@media (max-width: 520px) {
+		.row-head {
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 2px 10px;
+		}
 
-	.history-edit-fields :global(.field:first-child) {
-		width: 90px;
+		.row-amount {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.row-note {
+			grid-column: 1;
+			grid-row: 2;
+		}
+
+		.row-status {
+			grid-column: 2;
+			grid-row: 2;
+		}
+
+		.row-edit-fields :global(.field:first-child),
+		.row-edit-fields :global(.field:nth-child(2)) {
+			width: 100%;
+			flex: 1 0 100%;
+		}
 	}
 
 	.pager {

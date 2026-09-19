@@ -5,11 +5,14 @@
 		open,
 		title,
 		onclose,
+		// any CSS width; the default suits a normal form
+		width = 'clamp(300px, 42vw, 560px)',
 		children
 	}: {
 		open: boolean;
 		title?: string;
 		onclose: () => void;
+		width?: string;
 		children: Snippet;
 	} = $props();
 </script>
@@ -22,7 +25,13 @@
 			if (e.target === e.currentTarget) onclose();
 		}}
 	>
-		<div class="dialog" role="dialog" aria-modal="true" tabindex="-1">
+		<div
+			class="dialog"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			style="--dialog-width: {width}"
+		>
 			<div class="dialog-header">
 				<div class="dialog-title">{title}</div>
 				<button type="button" class="dialog-close" onclick={onclose} aria-label="Close">&times;</button>
@@ -42,6 +51,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		padding: 16px;
+		box-sizing: border-box;
 		z-index: 100;
 	}
 
@@ -52,8 +63,23 @@
 		box-shadow: var(--shadow-lg);
 		padding: 0;
 		max-height: 90vh;
-		max-width: calc(100vw - 32px);
+		/* dvh so the browser's own chrome on a phone can't push the dialog off-screen */
+		max-height: 90dvh;
+		/* width comes from the prop; the overlay's padding is the gutter */
+		width: var(--dialog-width);
+		max-width: 100%;
 		overflow-y: auto;
+	}
+
+	/* on a phone there's no room to be picky: every dialog fills the gutter */
+	@media (max-width: 520px) {
+		.dialog {
+			width: 100%;
+		}
+
+		.dialog-body {
+			padding: 16px;
+		}
 	}
 
 	/* old-OS window title bar */
@@ -107,7 +133,10 @@
 		box-shadow: none;
 	}
 
+	/* the only padding any dialog gets */
 	.dialog-body {
-		padding: 22px 24px 24px;
+		padding: 20px;
+		/* a long email or URL wraps instead of scrolling the dialog sideways */
+		overflow-wrap: anywhere;
 	}
 </style>

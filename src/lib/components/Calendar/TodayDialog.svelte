@@ -49,13 +49,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		min-width: 320px;
 	}
 
 	.today-row {
 		display: flex;
 		align-items: center;
 		gap: 12px;
+		flex-wrap: wrap;
 	}
 
 	.today-info {

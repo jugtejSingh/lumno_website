@@ -40,13 +40,7 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const name = formData.get('name')?.toString().trim() ?? '';
 		const email = formData.get('email')?.toString().trim() ?? '';
-		const ageRaw = formData.get('age')?.toString().trim() || '';
 		const rateRaw = formData.get('rate')?.toString().trim() || '';
-		const bio = formData.get('bio')?.toString().trim() || null;
-		const tags = (formData.get('tags')?.toString() ?? '')
-			.split(',')
-			.map((t) => t.trim())
-			.filter(Boolean);
 
 		const fieldErrors: Record<string, string> = {};
 		if (!name.includes(' ')) {
@@ -64,10 +58,11 @@ export const actions: Actions = {
 			{
 				name,
 				email,
-				age: ageRaw ? Number(ageRaw) : null,
+				// age/bio/tags are filled in later via Edit client — inviting only needs name + email
+				age: null,
 				rate: rateRaw ? Number(rateRaw) : null,
-				bio,
-				tags
+				bio: null,
+				tags: []
 			},
 			event.url.origin
 		);

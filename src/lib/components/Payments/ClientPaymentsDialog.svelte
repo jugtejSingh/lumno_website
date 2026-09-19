@@ -29,7 +29,12 @@
 	}
 </script>
 
-<Dialog open={!!clientId} title={clientId ? `${clientName} — payment history` : ''} {onclose}>
+<Dialog
+	open={!!clientId}
+	title={clientId ? `${clientName} — payment history` : ''}
+	width="clamp(320px, 56vw, 680px)"
+	{onclose}
+>
 	{#if clientId}
 		<div class="modal">
 			<div class="stat-row">
@@ -74,24 +79,20 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		width: min(460px, 100%);
 	}
 
-	@media (max-width: 520px) {
-		.stat-row {
-			flex-wrap: wrap;
-		}
-	}
-
+	/* three across even on a phone — they're short enough, and wrapping them stole
+	   the height the history rows need */
 	.stat-row {
-		display: flex;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
 		gap: 10px;
 		border-bottom: 2px dotted var(--beige-400);
-		padding-bottom: 14px;
+		padding-bottom: 10px;
 	}
 
 	.stat {
-		flex: 1;
+		min-width: 0;
 	}
 
 	.stat-label {
@@ -110,7 +111,24 @@
 		display: flex;
 		align-items: flex-end;
 		gap: 8px;
+		flex-wrap: wrap;
 		border-top: 2px dotted var(--beige-400);
 		padding-top: 14px;
+	}
+
+	.modal-add-charge :global(.field:first-of-type) {
+		width: 110px;
+	}
+
+	.modal-add-charge :global(.field:nth-of-type(2)) {
+		flex: 1;
+		min-width: 140px;
+	}
+
+	@media (max-width: 520px) {
+		.modal-add-charge :global(.field) {
+			flex: 1 0 100%;
+			width: 100%;
+		}
 	}
 </style>

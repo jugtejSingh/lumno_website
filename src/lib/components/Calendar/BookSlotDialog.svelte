@@ -100,7 +100,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-		min-width: 260px;
 	}
 
 	.slot-btn {

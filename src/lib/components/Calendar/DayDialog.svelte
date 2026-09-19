@@ -162,13 +162,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		min-width: 320px;
 	}
 
 	.dialog-row {
 		display: flex;
 		align-items: center;
 		gap: 12px;
+		flex-wrap: wrap;
 	}
 
 	.dialog-info {

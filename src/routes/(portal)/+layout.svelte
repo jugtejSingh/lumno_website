@@ -29,12 +29,16 @@
 			</a>
 		{/each}
 		<div class="sidebar-spacer"></div>
-		<button type="button" class="sidebar-link-btn" onclick={() => (feedbackOpen = true)}>
-			<SidebarNavItem label="Feedback" />
-		</button>
-		<form method="POST" action="/logout" class="sidebar-link" use:enhance>
-			<button type="submit" class="sidebar-link-btn"><SidebarNavItem label="Log out" /></button>
-		</form>
+		<div class="sidebar-actions">
+			<button type="button" class="sidebar-link-btn" onclick={() => (feedbackOpen = true)}>
+				<SidebarNavItem label="Feedback" tone="quiet" />
+			</button>
+			<form method="POST" action="/logout" class="sidebar-link" use:enhance>
+				<button type="submit" class="sidebar-link-btn">
+					<SidebarNavItem label="Log out" tone="danger" />
+				</button>
+			</form>
+		</div>
 	</aside>
 	<div class="app-main">
 		<header class="app-header">
@@ -58,9 +62,11 @@
 					{#each links as link (link.href)}
 						<a href={link.href}>{link.label}</a>
 					{/each}
-					<button type="button" onclick={() => (feedbackOpen = true)}>Feedback</button>
+					<button type="button" data-kind="quiet" onclick={() => (feedbackOpen = true)}>
+						Feedback
+					</button>
 					<form method="POST" action="/logout" use:enhance>
-						<button type="submit">Log out</button>
+						<button type="submit" data-kind="danger">Log out</button>
 					</form>
 				</MobileNav>
 			</div>
@@ -89,6 +95,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
+		overflow-y: auto;
 	}
 
 	.sidebar-logo {
@@ -130,6 +137,16 @@
 
 	.sidebar-spacer {
 		flex: 1;
+	}
+
+	/* separates the two actions from the destinations above them */
+	.sidebar-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		margin-top: 8px;
+		padding-top: 8px;
+		border-top: 2px dotted var(--beige-400);
 	}
 
 	.app-main {

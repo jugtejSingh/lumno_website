@@ -13,6 +13,7 @@
 		tags = $bindable([]),
 		status = $bindable(''),
 		showEmail = true,
+		showDetails = true,
 		statusOptions,
 		errors = {}
 	}: {
@@ -24,6 +25,7 @@
 		tags?: string[];
 		status?: string;
 		showEmail?: boolean;
+		showDetails?: boolean;
 		statusOptions?: string[];
 		errors?: Record<string, string>;
 	} = $props();
@@ -60,26 +62,30 @@
 		<Select label="Status" name="status" options={statusOptions} bind:value={status} />
 	{/if}
 	<div class="row">
-		<Input label="Age" name="age" placeholder="34" bind:value={age} />
+		{#if showDetails}
+			<Input label="Age" name="age" placeholder="34" bind:value={age} />
+		{/if}
 		<Input label="Rate per session" name="rate" placeholder="150" bind:value={rate} />
 	</div>
-	<Textarea
-		label="Bio"
-		name="bio"
-		placeholder="A short blurb on who this client is"
-		bind:value={bio}
-		rows={3}
-	/>
-	<div>
-		<div class="field-label">Tags</div>
-		<div class="tag-row">
-			{#each tags as t (t)}
-				<Tag onremove={() => removeTag(t)}>{t}</Tag>
-			{/each}
+	{#if showDetails}
+		<Textarea
+			label="Bio"
+			name="bio"
+			placeholder="A short blurb on who this client is"
+			bind:value={bio}
+			rows={3}
+		/>
+		<div>
+			<div class="field-label">Tags</div>
+			<div class="tag-row">
+				{#each tags as t (t)}
+					<Tag onremove={() => removeTag(t)}>{t}</Tag>
+				{/each}
+			</div>
+			<Input placeholder="Add a tag and press enter" bind:value={newTag} onkeydown={addTagOnEnter} />
+			<input type="hidden" name="tags" value={tags.join(',')} />
 		</div>
-		<Input placeholder="Add a tag and press enter" bind:value={newTag} onkeydown={addTagOnEnter} />
-		<input type="hidden" name="tags" value={tags.join(',')} />
-	</div>
+	{/if}
 </div>
 
 <style>

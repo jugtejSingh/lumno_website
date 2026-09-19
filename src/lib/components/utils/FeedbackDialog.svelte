@@ -85,7 +85,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		width: min(360px, calc(100vw - 80px));
 	}
 
 	.form-error {
