@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { availabilityException } from '$lib/server/db/schema';
 import { listAvailabilityForMonth, createAppointmentForClient } from '$lib/server/availability';
 import { listDayKindsForMonth } from '$lib/server/schedule';
+import { addCharge } from '$lib/server/payments';
 import { resetDb, mkTherapist, mkClient, mkSettings, mkAppointment } from './helpers';
 
 // therapist in UTC so wall-clock slot times line up with the UTC instants we insert
@@ -183,5 +184,32 @@ describe('listDayKindsForMonth', () => {
 		});
 		const kinds = await listDayKindsForMonth(therapistId, y, m);
 		expect(kinds[d]).toBe('off');
+	});
+});
+
+describe('booking rules', () => {
+	const book = (startTime: string) =>
+		createAppointmentForClient(therapistId, clientId, { year: y, month: m, day: d, startTime });
+
+	it('blocks a portal booking once the client has the max upcoming sessions', async () => {
+		await mkSettings(therapistId, { maxUpcomingBookingsPerClient: 1 });
+		expect((await book('09:00')).appointment).toBeDefined();
+		expect((await book('11:00')).error).toBe('booking_limit');
+	});
+
+	it('cancelled and past sessions do not count toward the limit', async () => {
+		await mkSettings(therapistId, { maxUpcomingBookingsPerClient: 1 });
+		await mkAppointment(therapistId, clientId, { startAt: at(10), endAt: at(11), status: 'cancelled' });
+		await mkAppointment(therapistId, clientId, {
+			startAt: new Date('2020-01-01T10:00:00Z'),
+			endAt: new Date('2020-01-01T11:00:00Z')
+		});
+		expect((await book('13:00')).appointment).toBeDefined();
+	});
+
+	it('blocks a portal booking while an invoice is unpaid when requireZeroBalance is on', async () => {
+		await mkSettings(therapistId, { requireZeroBalance: true });
+		await addCharge(therapistId, { clientId, amount: 1000 });
+		expect((await book('09:00')).error).toBe('balance_due');
 	});
 });

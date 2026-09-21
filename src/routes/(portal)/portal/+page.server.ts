@@ -139,6 +139,8 @@ const bookSessionErrorMessages = {
 	modality_required: 'Choose online or in-person for that day',
 	balance_due:
 		'You have an outstanding balance — please settle it with your therapist before booking',
+	booking_limit:
+		'You already have the maximum number of upcoming sessions — you can book another after your next one',
 	pack_exhausted: 'Your session pack is used up — contact your therapist to book another session',
 	client_inactive: 'Your therapist needs to upgrade their plan before you can book a new session'
 } as const;

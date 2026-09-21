@@ -196,8 +196,8 @@
 				<div class="pay-how">
 					<div class="row-title">How to pay {data.therapistName.split(' ')[0]}</div>
 					<div class="row-sub">
-						Prefer to pay directly? Use the details below, then let your therapist know so they
-						can mark the invoice as paid.
+						Prefer to pay directly? Use the details below. The full amount goes straight to your
+						therapist. Then let them know so they can mark the invoice as paid.
 					</div>
 					<div class="pay-how-body">
 						{#if data.manualPay.qrUrl}

@@ -48,8 +48,10 @@ export const therapistSettings = pgTable('therapist_settings', {
 	bufferMinutes: integer('buffer_minutes').notNull().default(0),
 	// length of a client self-booked session; the therapist's manual bookings pick their own end
 	sessionMinutes: integer('session_minutes').notNull().default(60),
-	maxBookingsPerClientPerWeek: integer('max_bookings_per_client_per_week'),
-	// stub: real enforcement needs a payments/ledger table
+	// cap on a client's upcoming (not yet started, not cancelled) self-booked sessions; null = no limit.
+	// Only portal bookings are checked — the therapist's own Calendar bookings are never capped.
+	maxUpcomingBookingsPerClient: integer('max_upcoming_bookings_per_client'),
+	// blocks portal bookings while the client has any unpaid payment row (availability.ts)
 	requireZeroBalance: boolean('require_zero_balance').notNull().default(false),
 	// whether an online appointment gets a Google Meet link generated at booking/reschedule
 	// time. Only meaningful once the therapist has connected Google (calendar.events scope on

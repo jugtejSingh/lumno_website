@@ -22,7 +22,10 @@
 	];
 
 	// sits with the other account actions at the bottom, not among the destinations
-	const settingsLink = { href: '/settings', label: 'Settings' };
+	const accountLinks = [
+		{ href: '/guide', label: 'Guide' },
+		{ href: '/settings', label: 'Settings' }
+	];
 </script>
 
 <div class="app-shell">
@@ -40,17 +43,16 @@
 		{/each}
 		<div class="sidebar-spacer"></div>
 		<div class="sidebar-actions">
-			<a
-				href={settingsLink.href}
-				class="sidebar-link"
-				class:pending={navigating.to?.url.pathname === settingsLink.href}
-				aria-busy={navigating.to?.url.pathname === settingsLink.href}
-			>
-				<SidebarNavItem
-					label={settingsLink.label}
-					active={page.url.pathname === settingsLink.href}
-				/>
-			</a>
+			{#each accountLinks as link (link.href)}
+				<a
+					href={link.href}
+					class="sidebar-link"
+					class:pending={navigating.to?.url.pathname === link.href}
+					aria-busy={navigating.to?.url.pathname === link.href}
+				>
+					<SidebarNavItem label={link.label} active={page.url.pathname === link.href} />
+				</a>
+			{/each}
 			<button type="button" class="sidebar-link-btn" onclick={() => (feedbackOpen = true)}>
 				<SidebarNavItem label="Feedback" tone="quiet" />
 			</button>
@@ -64,7 +66,7 @@
 	<div class="app-main">
 		<header class="app-header">
 			<div class="app-header-title">
-				{[...links, settingsLink].find((l) => l.href === page.url.pathname)?.label ?? ''}
+				{[...links, ...accountLinks].find((l) => l.href === page.url.pathname)?.label ?? ''}
 			</div>
 			<div class="app-header-right">
 				<Avatar name="Dana Reyes" />
@@ -72,7 +74,9 @@
 					{#each links as link (link.href)}
 						<a href={link.href}>{link.label}</a>
 					{/each}
-					<a href={settingsLink.href}>{settingsLink.label}</a>
+					{#each accountLinks as link (link.href)}
+						<a href={link.href}>{link.label}</a>
+					{/each}
 					<button type="button" data-kind="quiet" onclick={() => (feedbackOpen = true)}>
 						Feedback
 					</button>

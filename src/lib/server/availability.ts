@@ -1,9 +1,9 @@
-import { and, eq, gte, lt, ne } from 'drizzle-orm';
+import { and, eq, gte, lt, ne, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
-import { appointment, therapist, therapistSettings, client, availabilityException } from '$lib/server/db/schema';
+import { appointment, therapist, client, availabilityException } from '$lib/server/db/schema';
 import { zonedDayBounds, zonedDateToUTC, getZonedWeekday, parseTimeOfDay } from '$lib/server/timezone';
 import { getPaymentSettings } from '$lib/server/paymentSettings';
-import { getTherapistScheduleSettings } from '$lib/server/settings';
+import { getTherapistScheduleSettings, getBookingRules } from '$lib/server/settings';
 import { getActivePackForClient, hasOutstandingBalance, addCharge, completePackIfExhausted } from '$lib/server/payments';
 import { attachMeetingLinkIfOnline, finishReschedule, type RescheduleAppointmentResult } from '$lib/server/appointments';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
@@ -134,6 +134,7 @@ export type BookSlotResult = {
 		| 'overlap'
 		| 'modality_required'
 		| 'balance_due'
+		| 'booking_limit'
 		| 'pack_exhausted'
 		| 'client_inactive';
 };
@@ -211,12 +212,27 @@ export async function createAppointmentForClient(
 		return { error: 'client_inactive' as const };
 	}
 
-	const [settingsRow] = await db
-		.select({ requireZeroBalance: therapistSettings.requireZeroBalance })
-		.from(therapistSettings)
-		.where(eq(therapistSettings.therapistId, therapistId));
-	if (settingsRow?.requireZeroBalance && (await hasOutstandingBalance(therapistId, clientId))) {
+	const bookingRules = await getBookingRules(therapistId);
+	if (bookingRules.requireZeroBalance && (await hasOutstandingBalance(therapistId, clientId))) {
 		return { error: 'balance_due' as const };
+	}
+	if (bookingRules.maxUpcomingBookingsPerClient !== null) {
+		// ponytail: counted outside the insert transaction, so two simultaneous bookings can
+		// both slip under the cap by one; lock the client row in the tx if that ever matters
+		const [upcoming] = await db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(appointment)
+			.where(
+				and(
+					eq(appointment.therapistId, therapistId),
+					eq(appointment.clientId, clientId),
+					eq(appointment.status, 'confirmed'),
+					gte(appointment.startAt, new Date())
+				)
+			);
+		if (upcoming.count >= bookingRules.maxUpcomingBookingsPerClient) {
+			return { error: 'booking_limit' as const };
+		}
 	}
 
 	const paymentSettings = await getPaymentSettings(therapistId);

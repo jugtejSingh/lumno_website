@@ -19,5 +19,15 @@ Research MHP and how they divide workload and how so maybe i can integrate it in
 
 we take in client number for whatsapp notifications in the future, we also need to verify it using whatsapp ig
 
-maybe add running memory of the person in a notepad perhaps
+Chatbot for client notes
+
+Slot templating allowing extreme flexibility of slots
+
+Bio templates kwargs for more flexibility people can add once in the settings, then taken per person
+
+resource uploading, some mental health stuff, their reports etc
+
+allowing only booking of 3-4 slots, before the day is considered over
+
+
 

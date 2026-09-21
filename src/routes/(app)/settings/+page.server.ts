@@ -9,6 +9,8 @@ import {
 	updateTherapistScheduleSettings,
 	getNotificationSettings,
 	updateNotificationSettings,
+	getBookingRules,
+	updateBookingRules,
 	type ScheduleKind
 } from '$lib/server/settings';
 import {
@@ -30,6 +32,8 @@ const FORMATS = ['remote', 'in_person', 'hybrid'] as const;
 const SCHEDULE_KINDS: ScheduleKind[] = ['online', 'in_person', 'hybrid', 'off'];
 const MAX_QR_BYTES = 5 * 1024 * 1024;
 const QR_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+// choices in the "Upcoming Sessions Per Client" dropdown; no limit is posted as ''
+const MAX_UPCOMING_OPTIONS = [1, 2, 3];
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { therapist } = await parent();
@@ -43,7 +47,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		subscription,
 		googleConnected,
 		razorpayHealth,
-		manualPayRow
+		manualPayRow,
+		bookingRules
 	] = await Promise.all([
 		getReferralProfile(therapistId),
 		getTherapistScheduleSettings(therapistId),
@@ -55,7 +60,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		getOrCreateSubscription(therapistId),
 		isGoogleCalendarConnected(therapist.userId),
 		connectionHealth(therapistId),
-		getManualPayDetails(therapistId)
+		getManualPayDetails(therapistId),
+		getBookingRules(therapistId)
 	]);
 
 	let qrUrl: string | null = null;
@@ -97,6 +103,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		notifications,
 		payments,
 		manualPay,
+		bookingRules,
 		billing,
 		googleConnected,
 		hourOptions,
@@ -217,6 +224,20 @@ export const actions: Actions = {
 			partialChangeWindowHours
 		};
 
+		// ---- booking rules ----
+		const maxUpcomingRaw = form.get('maxUpcomingBookingsPerClient')?.toString() ?? '';
+		let maxUpcomingBookingsPerClient: number | null = null;
+		if (maxUpcomingRaw !== '') {
+			maxUpcomingBookingsPerClient = Number(maxUpcomingRaw);
+			if (!MAX_UPCOMING_OPTIONS.includes(maxUpcomingBookingsPerClient)) {
+				return fail(400, { message: 'Pick a valid limit for upcoming sessions' });
+			}
+		}
+		const bookingRules = {
+			requireZeroBalance: form.get('requireZeroBalance') === 'on',
+			maxUpcomingBookingsPerClient
+		};
+
 		// ---- portal "Pay now" (Razorpay) ----
 		// Only honoured while Razorpay is connected. The switch isn't rendered
 		// otherwise, so skipping the write keeps the saved choice through a lapsed
@@ -263,6 +284,7 @@ export const actions: Actions = {
 			await updateTherapistScheduleSettings(therapistId, schedule, tx);
 			await updateNotificationSettings(therapistId, notifications, tx);
 			await updatePaymentSettings(therapistId, payments, tx);
+			await updateBookingRules(therapistId, bookingRules, tx);
 			if (paymentMode !== null) {
 				await updatePaymentMode(therapistId, paymentMode, tx);
 			}

@@ -132,6 +132,15 @@
 	let sendSessionReminderEmails = $state(initial.notifications.sendSessionReminderEmails);
 	let sendPaymentReminderEmails = $state(initial.notifications.sendPaymentReminderEmails);
 
+	// ---- booking rules ----
+	let requireZeroBalance = $state(initial.bookingRules.requireZeroBalance);
+	// '' = no limit, matching the empty <option> value
+	let maxUpcomingBookingsPerClient = $state(
+		initial.bookingRules.maxUpcomingBookingsPerClient === null
+			? ''
+			: String(initial.bookingRules.maxUpcomingBookingsPerClient)
+	);
+
 	// ---- payments ----
 	let freeChangeWindowHours = $state(initial.payments.freeChangeWindowHours);
 	let partialChangeWindowHours = $state(
@@ -188,6 +197,8 @@
 			sendBookingEmails,
 			sendSessionReminderEmails,
 			sendPaymentReminderEmails,
+			requireZeroBalance,
+			maxUpcomingBookingsPerClient,
 			freeChangeWindowHours,
 			partialChangeWindowHours,
 			payBankDetails,
@@ -267,6 +278,7 @@
 	<input type="hidden" name="removePayQr" value={removePayQr ? 'on' : ''} />
 	<input type="hidden" name="sendBookingEmails" value={sendBookingEmails ? 'on' : ''} />
 	<input type="hidden" name="paymentModeAutomatic" value={paymentModeAutomatic ? 'on' : ''} />
+	<input type="hidden" name="requireZeroBalance" value={requireZeroBalance ? 'on' : ''} />
 	<input
 		type="hidden"
 		name="sendSessionReminderEmails"
@@ -504,6 +516,40 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">
+				Booking Rules<InfoTip
+					label="Booking Rules"
+					text="Limits on what clients can book themselves in their portal. Sessions you add on the Calendar are never blocked by these."
+				/>
+			</div>
+			<Switch
+				label="Block portal bookings while a client owes you money"
+				info="While a client has any unpaid invoice, they can't book a new session in their portal until it's settled. Rescheduling a session they already have still works."
+				bind:checked={requireZeroBalance}
+			/>
+			<label class="field">
+				<span class="field-label">
+					Upcoming Sessions Per Client<InfoTip
+						label="Upcoming Sessions Per Client"
+						text="The most sessions a client can have booked ahead at once. With a limit of 1, they book their next session after the current one has started. Rescheduling doesn't count as a new booking."
+					/>
+				</span>
+				<select
+					class="field-input"
+					name="maxUpcomingBookingsPerClient"
+					bind:value={maxUpcomingBookingsPerClient}
+				>
+					<option value="">No limit</option>
+					<option value="1">1 session</option>
+					<option value="2">2 sessions</option>
+					<option value="3">3 sessions</option>
+				</select>
+			</label>
+		</div>
+	</Card>
+
+	<Card>
+		<div class="section">
+			<div class="section-title">
 				Payments<InfoTip
 					label="Payments"
 					text="Every logged session becomes an invoice for the client. Clients see their unpaid invoices in their portal."
@@ -584,7 +630,10 @@
 					{/if}
 				</div>
 			{/if}
-			<div class="helper">Your QR code, bank details and "Mark paid" keep working either way.</div>
+			<div class="helper">
+				Your QR code, bank details and "Mark paid" keep working either way. Razorpay may charge its
+				own processing fee on portal payments, but we take 0% commission.
+			</div>
 
 			<label class="field">
 				<span class="field-label">
@@ -621,7 +670,8 @@
 			<div class="section-title">How Clients Pay You</div>
 			<div class="helper">
 				Shown to clients in their portal next to any unpaid invoice. Upload a UPI / payment QR code
-				image and add the account details they should transfer to.
+				image and add the account details they should transfer to. Payments made this way go
+				straight to you and never pass through us. We take 0% commission.
 			</div>
 			{#if data.manualPay.qrUrl}
 				<div class="qr-current">
