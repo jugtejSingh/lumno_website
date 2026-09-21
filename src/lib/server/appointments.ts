@@ -3,16 +3,24 @@ import { db, type DbOrTx } from '$lib/server/db';
 import { appointment, therapist, client, user } from '$lib/server/db/schema';
 import { zonedDayBounds, getZonedDateParts, zonedDateToUTC } from '$lib/server/timezone';
 import { getPaymentSettings } from '$lib/server/paymentSettings';
-import { resolvePolicyOutcome, tierFraction, feeNote, type PolicyOutcome, type ChangeTier } from '$lib/server/paymentPolicy';
+import {
+	resolvePolicyOutcome,
+	tierFraction,
+	feeNote,
+	type PolicyOutcome,
+	type ChangeTier
+} from '$lib/server/paymentPolicy';
 import { addCharge, moveFinancialLinksOnReschedule } from '$lib/server/payments';
 import { createMeetEvent, patchMeetEventTime, deleteMeetEvent } from '$lib/server/googleCalendar';
-import { getNotificationSettings, getTherapistScheduleSettings } from '$lib/server/settings';
+import { getNotificationSettings } from '$lib/server/settings';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
 
 // The hidden year/month/day fields on the booking forms come from the browser; a
 // tampered or stale value would otherwise turn into NaN and reach the timezone
 // math as garbage. Shared by the therapist calendar and the client portal actions.
-export function parseDateParts(formData: FormData): { year: number; month: number; day: number } | null {
+export function parseDateParts(
+	formData: FormData
+): { year: number; month: number; day: number } | null {
 	const year = Number(formData.get('year'));
 	const month = Number(formData.get('month'));
 	const day = Number(formData.get('day'));
@@ -22,7 +30,8 @@ export function parseDateParts(formData: FormData): { year: number; month: numbe
 	if (!Number.isInteger(month) || month < 0 || month > 11) {
 		return null;
 	}
-	if (!Number.isInteger(day) || day < 1 || day > 31) {
+	const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+	if (!Number.isInteger(day) || day < 1 || day > daysInMonth) {
 		return null;
 	}
 	return { year, month, day };
@@ -65,7 +74,12 @@ export async function attachMeetingLinkIfOnline(
 		.innerJoin(user, eq(therapist.userId, user.id))
 		.where(eq(therapist.id, appt.therapistId));
 	const clientRow = appt.clientId
-		? (await executor.select({ email: client.email, name: client.name }).from(client).where(eq(client.id, appt.clientId)))[0]
+		? (
+				await executor
+					.select({ email: client.email, name: client.name })
+					.from(client)
+					.where(eq(client.id, appt.clientId))
+			)[0]
 		: undefined;
 	if (!therapistRow) return appt;
 
@@ -86,9 +100,15 @@ export async function attachMeetingLinkIfOnline(
 }
 
 // Best-effort cleanup for the calendar event backing a cancelled appointment.
-export async function detachMeetingLink(appt: typeof appointment.$inferSelect, executor: DbOrTx = db) {
+export async function detachMeetingLink(
+	appt: typeof appointment.$inferSelect,
+	executor: DbOrTx = db
+) {
 	if (!appt.googleEventId) return;
-	const [therapistRow] = await executor.select({ userId: therapist.userId }).from(therapist).where(eq(therapist.id, appt.therapistId));
+	const [therapistRow] = await executor
+		.select({ userId: therapist.userId })
+		.from(therapist)
+		.where(eq(therapist.id, appt.therapistId));
 	if (!therapistRow) return;
 	await deleteMeetEvent(therapistRow.userId, appt.googleEventId);
 }
@@ -98,7 +118,11 @@ export async function detachMeetingLink(appt: typeof appointment.$inferSelect, e
 // moveFinancialLinksOnReschedule uses for pack/payment rows — safe to run inside the same
 // transaction as the rest of the reschedule. The Google event itself gets its time patched
 // separately, after that transaction commits (see syncMeetEventOnReschedule).
-export async function moveMeetLinkOnReschedule(oldAppointmentId: string, newAppointmentId: string, executor: DbOrTx = db) {
+export async function moveMeetLinkOnReschedule(
+	oldAppointmentId: string,
+	newAppointmentId: string,
+	executor: DbOrTx = db
+) {
 	const [oldAppt] = await executor
 		.select({ meetLink: appointment.meetLink, googleEventId: appointment.googleEventId })
 		.from(appointment)
@@ -109,7 +133,10 @@ export async function moveMeetLinkOnReschedule(oldAppointmentId: string, newAppo
 		.update(appointment)
 		.set({ meetLink: oldAppt.meetLink, googleEventId: oldAppt.googleEventId })
 		.where(eq(appointment.id, newAppointmentId));
-	await executor.update(appointment).set({ meetLink: null, googleEventId: null }).where(eq(appointment.id, oldAppointmentId));
+	await executor
+		.update(appointment)
+		.set({ meetLink: null, googleEventId: null })
+		.where(eq(appointment.id, oldAppointmentId));
 }
 
 // Reschedule keeps the same Meet link (googleEventId/meetLink are carried over onto newAppt
@@ -117,11 +144,17 @@ export async function moveMeetLinkOnReschedule(oldAppointmentId: string, newAppo
 // for pack/payment rows) — this just moves the underlying Google event's time. Falls back to
 // creating a fresh link when the old appointment never had one (e.g. therapist just connected
 // Google), and drops the event entirely when modality changed away from online.
-export async function syncMeetEventOnReschedule(newAppt: typeof appointment.$inferSelect, executor: DbOrTx = db): Promise<void> {
+export async function syncMeetEventOnReschedule(
+	newAppt: typeof appointment.$inferSelect,
+	executor: DbOrTx = db
+): Promise<void> {
 	if (newAppt.modality !== 'online') {
 		if (newAppt.googleEventId) {
 			await detachMeetingLink(newAppt, executor);
-			await executor.update(appointment).set({ meetLink: null, googleEventId: null }).where(eq(appointment.id, newAppt.id));
+			await executor
+				.update(appointment)
+				.set({ meetLink: null, googleEventId: null })
+				.where(eq(appointment.id, newAppt.id));
 		}
 		return;
 	}
@@ -131,14 +164,20 @@ export async function syncMeetEventOnReschedule(newAppt: typeof appointment.$inf
 		return;
 	}
 
-	const [therapistRow] = await executor.select({ userId: therapist.userId }).from(therapist).where(eq(therapist.id, newAppt.therapistId));
+	const [therapistRow] = await executor
+		.select({ userId: therapist.userId })
+		.from(therapist)
+		.where(eq(therapist.id, newAppt.therapistId));
 	if (!therapistRow) return;
-	await patchMeetEventTime(therapistRow.userId, newAppt.googleEventId, { startAt: newAppt.startAt, endAt: newAppt.endAt });
+	await patchMeetEventTime(therapistRow.userId, newAppt.googleEventId, {
+		startAt: newAppt.startAt,
+		endAt: newAppt.endAt
+	});
 }
 
 // Lazily flips past confirmed appointments to 'completed'. Called from the calendar reads
 // (therapist calendar + client portal) — those are the only pages that surface old rows, so
-// no cron is needed. Keeps findBufferOverlap and the appointment_no_overlap trigger's scan
+// no cron is needed. Keeps findOverlap and the appointment_no_overlap trigger's scan
 // bounded to live bookings instead of the therapist's whole history.
 // This UPDATE does NOT fire appointment_no_overlap: that trigger only runs
 // WHEN (NEW.status = 'confirmed'), and this sets status away from 'confirmed'.
@@ -155,7 +194,10 @@ export async function markPastAppointmentsCompleted(therapistId: string) {
 		);
 }
 
-export async function listUpcomingAppointmentsForClient(clientId: string, therapistTimezone: string) {
+export async function listUpcomingAppointmentsForClient(
+	clientId: string,
+	therapistTimezone: string
+) {
 	const rows = await db
 		.select({
 			id: appointment.id,
@@ -189,7 +231,11 @@ export async function listUpcomingAppointmentsForClient(clientId: string, therap
 	}));
 }
 
-export async function listPastAppointmentsForClient(therapistId: string, clientId: string, therapistTimezone: string) {
+export async function listPastAppointmentsForClient(
+	therapistId: string,
+	clientId: string,
+	therapistTimezone: string
+) {
 	const rows = await db
 		.select({ id: appointment.id, startAt: appointment.startAt })
 		.from(appointment)
@@ -281,28 +327,38 @@ export type CreateAppointmentResult = {
 	conflict?: OverlapConflict;
 };
 
-// Mirrors the appointment_no_overlap trigger's buffer-padded interval test, in JS, so a
-// clean { error: 'overlap' } can be returned before the insert (a trigger error is
-// unrecoverable once inside a transaction — see createAppointmentForTherapist). Matches the
+// Whether an insert failed on the appointment_no_overlap trigger. Drizzle wraps driver
+// errors ("Failed query: …"), so the trigger's message is on err.cause, not err.message.
+export function isOverlapError(err: unknown): boolean {
+	const marker = 'appointment_overlaps_existing_booking';
+	if (!(err instanceof Error)) {
+		return false;
+	}
+	if (err.message.includes(marker)) {
+		return true;
+	}
+	if (err.cause instanceof Error && err.cause.message.includes(marker)) {
+		return true;
+	}
+	return false;
+}
+
+// Mirrors the appointment_no_overlap trigger's interval test, in JS, so a
+// clean { error: 'overlap' } naming the clashing session can be returned before the insert. Matches the
 // trigger exactly, including that a reschedule still collides with its own original slot
 // (the old row is 'confirmed' until finishReschedule flips it, after this insert).
-async function findBufferOverlap(
+async function findOverlap(
 	therapistId: string,
 	startAt: Date,
 	endAt: Date,
 	executor: DbOrTx = db
 ): Promise<OverlapConflict | null> {
-	const { bufferMinutes } = await getTherapistScheduleSettings(therapistId);
-	const bufferMs = bufferMinutes * 60_000;
 	const confirmed = await executor
 		.select({ startAt: appointment.startAt, endAt: appointment.endAt })
 		.from(appointment)
 		.where(and(eq(appointment.therapistId, therapistId), eq(appointment.status, 'confirmed')));
 	for (const existing of confirmed) {
-		if (
-			existing.startAt.getTime() < endAt.getTime() + bufferMs &&
-			startAt.getTime() < existing.endAt.getTime() + bufferMs
-		) {
+		if (existing.startAt < endAt && startAt < existing.endAt) {
 			return { startAt: existing.startAt, endAt: existing.endAt };
 		}
 	}
@@ -337,39 +393,55 @@ export async function createAppointmentForTherapist(
 		}
 	}
 
-	const startAt = zonedDateToUTC(input.year, input.month, input.day, input.startHour, input.startMinute, timezone);
-	const endAt = zonedDateToUTC(input.year, input.month, input.day, input.endHour, input.endMinute, timezone);
+	const startAt = zonedDateToUTC(
+		input.year,
+		input.month,
+		input.day,
+		input.startHour,
+		input.startMinute,
+		timezone
+	);
+	const endAt = zonedDateToUTC(
+		input.year,
+		input.month,
+		input.day,
+		input.endHour,
+		input.endMinute,
+		timezone
+	);
 
 	if (endAt <= startAt) {
 		return { error: 'invalid_range' as const };
 	}
 
-	// The appointment_no_overlap trigger is the source of truth (and the race backstop in the
-	// catch below), but inside finishReschedule's transaction postgres-js surfaces a trigger
-	// error as an aborted-transaction throw the catch can't convert — so the clean
-	// { error: 'overlap' } has to come from a pre-check here.
-	const conflict = await findBufferOverlap(therapistId, startAt, endAt, executor);
+	// The appointment_no_overlap trigger is the source of truth; this pre-check exists to
+	// return which session clashes. The trigger still catches a race past it (see the catch).
+	const conflict = await findOverlap(therapistId, startAt, endAt, executor);
 	if (conflict) {
 		return { error: 'overlap' as const, conflict };
 	}
 
 	try {
-		const [row] = await executor
-			.insert(appointment)
-			.values({
-				therapistId,
-				clientId: input.clientId ?? null,
-				customName: input.customName ?? null,
-				startAt,
-				endAt,
-				modality: input.modality,
-				notes: input.notes || null,
-				rescheduledFromId: input.rescheduledFromId ?? null
-			})
-			.returning();
+		// savepoint: postgres-js rethrows any failed query at the end of the enclosing
+		// transaction even if it was caught, so the trigger error must be contained here
+		const [row] = await executor.transaction((savepoint) =>
+			savepoint
+				.insert(appointment)
+				.values({
+					therapistId,
+					clientId: input.clientId ?? null,
+					customName: input.customName ?? null,
+					startAt,
+					endAt,
+					modality: input.modality,
+					notes: input.notes || null,
+					rescheduledFromId: input.rescheduledFromId ?? null
+				})
+				.returning()
+		);
 		return { appointment: row };
 	} catch (err) {
-		if (err instanceof Error && err.message.includes('appointment_overlaps_existing_booking')) {
+		if (isOverlapError(err)) {
 			return { error: 'overlap' as const };
 		}
 		throw err;
@@ -379,16 +451,21 @@ export async function createAppointmentForTherapist(
 // Both cancel and reschedule below share this: the cancellation-policy tier only ever
 // depends on the ORIGINAL appointment's start time and the therapist's settings — nothing
 // else about the request changes what's owed.
-async function resolveOutcomeFor(therapistId: string, appt: typeof appointment.$inferSelect): Promise<PolicyOutcome> {
+async function resolveOutcomeFor(
+	therapistId: string,
+	appt: typeof appointment.$inferSelect
+): Promise<PolicyOutcome> {
 	// walk-in (customName) appointments have no client row, so no rate — fee always 0
 	const rate = appt.clientId
-		? ((await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId)))[0]?.rate ?? 0)
+		? ((await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId)))[0]
+				?.rate ?? 0)
 		: 0;
 	const settings = await getPaymentSettings(therapistId);
 	return resolvePolicyOutcome(appt.startAt, settings, rate);
 }
 
-export type CancelAppointmentResult = { outcome: PolicyOutcome } | { error: 'not_found' | 'charge_required' };
+export type CancelAppointmentResult =
+	{ outcome: PolicyOutcome } | { error: 'not_found' | 'charge_required' };
 
 // clientId is optional so the therapist's calendar can cancel any of their own
 // appointments, but when a client cancels their own session it must be passed —
@@ -430,7 +507,9 @@ export async function cancelAppointment(
 			return { error: 'charge_required' as const };
 		}
 		const baseAmount = appt.clientId
-			? ((await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId)))[0]?.rate ?? 0)
+			? ((
+					await db.select({ rate: client.rate }).from(client).where(eq(client.id, appt.clientId))
+				)[0]?.rate ?? 0)
 			: 0;
 		outcome = { tier: manualTier, feeAmount: Math.round(baseAmount * tierFraction(manualTier)) };
 	} else {
@@ -438,7 +517,12 @@ export async function cancelAppointment(
 	}
 
 	await db.transaction(async (tx) => {
-		await tx.update(appointment).set({ status: 'cancelled' }).where(eq(appointment.id, appointmentId));
+		// clear the Meet link too — its Google event is deleted below, so leaving it would
+		// surface a dead "Join" link on today's cancelled session
+		await tx
+			.update(appointment)
+			.set({ status: 'cancelled', meetLink: null, googleEventId: null })
+			.where(eq(appointment.id, appointmentId));
 
 		if (outcome.tier === 'free') {
 			// free-tier cancellation returns the pack credit — clearing pack_id is what
@@ -508,7 +592,10 @@ export async function finishReschedule(
 			return inserted;
 		}
 
-		await tx.update(appointment).set({ status: 'rescheduled' }).where(eq(appointment.id, oldAppt.id));
+		await tx
+			.update(appointment)
+			.set({ status: 'rescheduled' })
+			.where(eq(appointment.id, oldAppt.id));
 		await moveFinancialLinksOnReschedule(oldAppt.id, inserted.appointment.id, tx);
 		await moveMeetLinkOnReschedule(oldAppt.id, inserted.appointment.id, tx);
 
@@ -516,7 +603,9 @@ export async function finishReschedule(
 			await addCharge(
 				therapistId,
 				{
-					...(oldAppt.clientId ? { clientId: oldAppt.clientId } : { customName: oldAppt.customName! }),
+					...(oldAppt.clientId
+						? { clientId: oldAppt.clientId }
+						: { customName: oldAppt.customName! }),
 					appointmentId: inserted.appointment.id,
 					amount: outcome.feeAmount,
 					note: feeNote('reschedule', outcome.tier)
@@ -533,7 +622,10 @@ export async function finishReschedule(
 
 	// re-fetch: moveMeetLinkOnReschedule wrote meetLink/googleEventId onto this row after
 	// `result.appointment` was captured inside the transaction above
-	const [freshAppointment] = await db.select().from(appointment).where(eq(appointment.id, result.appointment.id));
+	const [freshAppointment] = await db
+		.select()
+		.from(appointment)
+		.where(eq(appointment.id, result.appointment.id));
 	await syncMeetEventOnReschedule(freshAppointment ?? result.appointment);
 	await sendAppointmentEmail(result.appointment.id, 'rescheduled', {
 		previousStartAt: oldAppt.startAt,
@@ -569,7 +661,9 @@ export async function rescheduleAppointmentForTherapist(
 			therapistId,
 			{
 				...input,
-				...(oldAppt.clientId ? { clientId: oldAppt.clientId } : { customName: oldAppt.customName! }),
+				...(oldAppt.clientId
+					? { clientId: oldAppt.clientId }
+					: { customName: oldAppt.customName! }),
 				rescheduledFromId: oldAppt.id
 			},
 			tx

@@ -7,8 +7,11 @@
 	import StatCard from '$lib/components/utils/StatCard.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import Input from '$lib/components/utils/Input.svelte';
+	import ClientProfileFields from '$lib/components/Clients/ClientProfileFields.svelte';
 	import PortalMonthGrid from '$lib/components/Calendar/PortalMonthGrid.svelte';
 	import BookSlotDialog from '$lib/components/Calendar/BookSlotDialog.svelte';
+	import ResourceAddForm from '$lib/components/Resources/ResourceAddForm.svelte';
+	import ResourceList from '$lib/components/Resources/ResourceList.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { enhance } from '$lib/enhance';
@@ -18,9 +21,12 @@
 
 	// seeded from the load data only, like every other draft in this app
 	let phone = $state(data.clientPhone);
+	let profile = $state(structuredClone(data.clientProfile));
 
 	let bookDay = $state<number | null>(null);
-	let rescheduleId = $state<string | null>(null);
+	// lives in the URL (?reschedule=) so the load can leave the session being moved out of
+	// the day's max-sessions count — see +page.server.ts
+	const rescheduleId = $derived(data.rescheduleId);
 	// ---- portal "Pay now" (Razorpay, automatic mode only) ----
 	let payingId = $state<string | null>(null);
 
@@ -84,7 +90,9 @@
 
 	function closeBookDialog() {
 		bookDay = null;
-		rescheduleId = null;
+		if (rescheduleId !== null) {
+			setReschedule(null);
+		}
 	}
 
 	const monthLabel = $derived(
@@ -94,8 +102,20 @@
 		})
 	);
 
+	function bookingUrl(year: number, month: number, reschedule: string | null): string {
+		let url = `?year=${year}&month=${month}`;
+		if (reschedule !== null) {
+			url += `&reschedule=${reschedule}`;
+		}
+		return url;
+	}
+
 	function gotoMonth(nextYear: number, nextMonth: number) {
-		goto(`?year=${nextYear}&month=${nextMonth}`, { keepFocus: true });
+		goto(bookingUrl(nextYear, nextMonth, rescheduleId), { keepFocus: true });
+	}
+
+	function setReschedule(appointmentId: string | null) {
+		goto(bookingUrl(data.year, data.month, appointmentId), { keepFocus: true, noScroll: true });
 	}
 
 	function prevMonth() {
@@ -125,6 +145,13 @@
 		<div class="subtitle">Your care with {data.therapistName}</div>
 	</div>
 
+	{#if !data.profileComplete}
+		<div class="profile-nudge">
+			{data.therapistName} needs a few details about you.
+			<a href="#details">Add your details</a>
+		</div>
+	{/if}
+
 	<div id="calendar" class="section">
 		{#if data.sessions.length > 0}
 			<div class="section-title">Your sessions</div>
@@ -144,7 +171,7 @@
 					</div>
 					<Badge tone={s.tone}>{s.status}</Badge>
 					<div class="row-actions">
-						<Button variant="secondary" size="sm" onclick={() => (rescheduleId = s.id)}
+						<Button variant="secondary" size="sm" onclick={() => setReschedule(s.id)}
 							>Reschedule</Button
 						>
 						<form
@@ -164,7 +191,7 @@
 		{#if rescheduleId}
 			<div class="reschedule-banner">
 				Pick a new time below for your session.
-				<button type="button" class="reschedule-cancel" onclick={() => (rescheduleId = null)}
+				<button type="button" class="reschedule-cancel" onclick={() => setReschedule(null)}
 					>Cancel</button
 				>
 			</div>
@@ -318,6 +345,17 @@
 		{/if}
 	</div>
 
+	<div id="resources" class="section">
+		<div class="section-title">Resources</div>
+		<div class="hint">
+			Prescriptions, reports, reading and links — shared between you and {data.therapistName.split(' ')[0]}.
+		</div>
+		<Card>
+			<ResourceAddForm onsaved={invalidateAll} />
+		</Card>
+		<ResourceList resources={data.resources} viewer="client" ondeleted={invalidateAll} />
+	</div>
+
 	<div id="details" class="section">
 		<div class="section-title">Your details</div>
 		<Card>
@@ -332,6 +370,16 @@
 				<div class="hint">
 					Optional. Give us a number and session reminders come by WhatsApp instead of email.
 				</div>
+				<Button type="submit" variant="primary" size="sm">Save</Button>
+			</form>
+		</Card>
+		<Card>
+			<form class="details-form" method="POST" action="?/saveProfile" use:enhance>
+				<div class="hint">{data.therapistName} can see these details.</div>
+				<ClientProfileFields bind:profile />
+				{#if form && 'profileMessage' in form && form.profileMessage}
+					<div class="form-error">{form.profileMessage}</div>
+				{/if}
 				<Button type="submit" variant="primary" size="sm">Save</Button>
 			</form>
 		</Card>
@@ -437,6 +485,20 @@
 	.hint {
 		font-size: 13px;
 		color: var(--text-muted);
+	}
+
+	.form-error {
+		font-size: 13px;
+		color: var(--accent-danger, #c0392b);
+	}
+
+	.profile-nudge {
+		font-size: 14px;
+		color: var(--text-primary);
+		background: var(--coral-100);
+		border: 2px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 12px 14px;
 	}
 
 	.details-form {

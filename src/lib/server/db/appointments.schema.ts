@@ -4,21 +4,24 @@ import {
 	text,
 	timestamp,
 	time,
+	date,
 	integer,
+	primaryKey,
+	foreignKey,
 	boolean,
 	index,
 	pgEnum,
 	check,
+	jsonb,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
+import type { ClientFieldHeading } from '../../types/clientFields';
 import { therapist, client } from './users.schema';
 import { paymentPack } from './payments.schema';
 
-// used for both the recurring weekly pattern and one-off exceptions —
-// 'off' doubles as "holiday" when applied to a specific date via availabilityException
 // 'hybrid' means the client picks online/in_person at booking time (see appointmentModalityEnum)
-export const scheduleKindEnum = pgEnum('schedule_kind', ['online', 'in_person', 'hybrid', 'off']);
+export const slotModalityEnum = pgEnum('slot_modality', ['online', 'in_person', 'hybrid']);
 export const appointmentModalityEnum = pgEnum('appointment_modality', ['online', 'in_person']);
 export const appointmentStatusEnum = pgEnum('appointment_status', [
 	'confirmed',
@@ -27,30 +30,17 @@ export const appointmentStatusEnum = pgEnum('appointment_status', [
 	'rescheduled'
 ]);
 
-const allOnlineWeek = [
-	'online',
-	'online',
-	'online',
-	'online',
-	'online',
-	'online',
-	'online'
-] as const;
-
 export const therapistSettings = pgTable('therapist_settings', {
 	therapistId: text('therapist_id')
 		.primaryKey()
 		.references(() => therapist.id, { onDelete: 'cascade' }),
-	// index 0 = Sunday ... index 6 = Saturday
-	weeklySchedule: scheduleKindEnum('weekly_schedule').array().notNull().default([...allOnlineWeek]),
-	earliestBookingTime: time('earliest_booking_time').notNull().default('09:00'),
-	latestBookingTime: time('latest_booking_time').notNull().default('20:00'),
-	bufferMinutes: integer('buffer_minutes').notNull().default(0),
-	// length of a client self-booked session; the therapist's manual bookings pick their own end
-	sessionMinutes: integer('session_minutes').notNull().default(60),
 	// cap on a client's upcoming (not yet started, not cancelled) self-booked sessions; null = no limit.
 	// Only portal bookings are checked — the therapist's own Calendar bookings are never capped.
 	maxUpcomingBookingsPerClient: integer('max_upcoming_bookings_per_client'),
+	// max sessions per day for each weekday of the slot template, index 0 = Sunday. A null
+	// entry (or a null column) = no limit. Once a day holds that many sessions its slots are
+	// hidden from clients; a date override carries its own cap instead (availabilityDateOverride).
+	weeklyMaxSessions: integer('weekly_max_sessions').array().$type<(number | null)[]>(),
 	// blocks portal bookings while the client has any unpaid payment row (availability.ts)
 	requireZeroBalance: boolean('require_zero_balance').notNull().default(false),
 	// whether an online appointment gets a Google Meet link generated at booking/reschedule
@@ -74,11 +64,43 @@ export const therapistSettings = pgTable('therapist_settings', {
 	// sub-toggles: only meaningful while referralVisible is true. Enforced server-side
 	// in listReferralTherapists, not just hidden in the UI.
 	referralShowYears: boolean('referral_show_years').notNull().default(true),
-	referralShowRate: boolean('referral_show_rate').notNull().default(true)
+	referralShowRate: boolean('referral_show_rate').notNull().default(true),
+	// headings the therapist wants on every client profile (max 20, see clientFields.ts).
+	// Values live in client.customFields keyed by heading id.
+	clientFieldHeadings: jsonb('client_field_headings')
+		.$type<ClientFieldHeading[]>()
+		.notNull()
+		.default([])
 });
 
-export const availabilityException = pgTable(
-	'availability_exception',
+// A date the therapist hand-edited. Its slots (availabilitySlot.overrideDate) fully replace
+// that weekday's template; an override with no slots = day off.
+export const availabilityDateOverride = pgTable(
+	'availability_date_override',
+	{
+		therapistId: text('therapist_id')
+			.notNull()
+			.references(() => therapist.id, { onDelete: 'cascade' }),
+		// the therapist's local calendar date
+		date: date('date').notNull(),
+		// this date's max sessions, replacing its weekday's cap; null = no limit
+		maxSessions: integer('max_sessions')
+	},
+	// ponytail: columns listed alphabetically on purpose. drizzle-kit reads a composite PK's
+	// columns back alphabetically, so any other order looks "changed" and push tries (and fails)
+	// to rebuild the key on every run. The name is pinned so the reorder doesn't rename it.
+	(table) => [
+		primaryKey({
+			name: 'availability_date_override_therapist_id_date_pk',
+			columns: [table.date, table.therapistId]
+		})
+	]
+);
+
+// A handcrafted bookable slot, in the therapist's local time. Belongs to either the weekly
+// template (weekday) or one overridden date (overrideDate), never both.
+export const availabilitySlot = pgTable(
+	'availability_slot',
 	{
 		id: text('id')
 			.primaryKey()
@@ -86,11 +108,30 @@ export const availabilityException = pgTable(
 		therapistId: text('therapist_id')
 			.notNull()
 			.references(() => therapist.id, { onDelete: 'cascade' }),
-		startAt: timestamp('start_at', { withTimezone: true }).notNull(),
-		endAt: timestamp('end_at', { withTimezone: true }).notNull(),
-		kind: scheduleKindEnum('kind').notNull()
+		// 0 = Sunday ... 6 = Saturday
+		weekday: integer('weekday'),
+		overrideDate: date('override_date'),
+		startTime: time('start_time').notNull(),
+		endTime: time('end_time').notNull(),
+		modality: slotModalityEnum('modality').notNull()
 	},
-	(table) => [index('availabilityException_therapistId_startAt_idx').on(table.therapistId, table.startAt)]
+	(table) => [
+		index('availabilitySlot_therapistId_idx').on(table.therapistId),
+		// removing a date override takes its slots with it. Named explicitly: the auto-generated
+		// name is over Postgres's 63-char limit, gets truncated, and drizzle-kit push then sees a
+		// "changed" key on every push and fails trying to rebuild it.
+		foreignKey({
+			name: 'availabilitySlot_override_fk',
+			columns: [table.therapistId, table.overrideDate],
+			foreignColumns: [availabilityDateOverride.therapistId, availabilityDateOverride.date]
+		}).onDelete('cascade'),
+		check(
+			'availabilitySlot_weekday_xor_overrideDate',
+			sql`(${table.weekday} is not null)::int + (${table.overrideDate} is not null)::int = 1`
+		),
+		check('availabilitySlot_weekday_range', sql`${table.weekday} between 0 and 6`),
+		check('availabilitySlot_end_after_start', sql`${table.endTime} > ${table.startTime}`)
+	]
 );
 
 export const appointment = pgTable(
@@ -150,9 +191,9 @@ export const therapistSettingsRelations = relations(therapistSettings, ({ one })
 	})
 }));
 
-export const availabilityExceptionRelations = relations(availabilityException, ({ one }) => ({
+export const availabilitySlotRelations = relations(availabilitySlot, ({ one }) => ({
 	therapist: one(therapist, {
-		fields: [availabilityException.therapistId],
+		fields: [availabilitySlot.therapistId],
 		references: [therapist.id]
 	})
 }));

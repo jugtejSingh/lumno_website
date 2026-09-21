@@ -7,8 +7,8 @@
 	import Tag from '$lib/components/utils/Tag.svelte';
 	import Switch from '$lib/components/utils/Switch.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
-	import TimeInput from '$lib/components/utils/TimeInput.svelte';
 	import InfoTip from '$lib/components/utils/InfoTip.svelte';
+	import ClientFieldsSettings from '$lib/components/Settings/ClientFieldsSettings.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import { invalidateAll } from '$app/navigation';
@@ -84,22 +84,6 @@
 	];
 	const formatLabels = FORMAT_OPTIONS.map((o) => o.label);
 
-	const weekdayLabels = [
-		'Sunday',
-		'Monday',
-		'Tuesday',
-		'Wednesday',
-		'Thursday',
-		'Friday',
-		'Saturday'
-	];
-	const scheduleKindOptions = [
-		{ value: 'online', label: 'Online' },
-		{ value: 'in_person', label: 'In Person' },
-		{ value: 'hybrid', label: 'Hybrid (client chooses)' },
-		{ value: 'off', label: 'Holiday' }
-	];
-
 	// form drafts below are deliberately seeded from the initial load data only
 	const initial = untrack(() => data);
 
@@ -118,13 +102,6 @@
 	let showRate = $state(initial.profile.referralShowRate);
 	let specialties = $state(initial.profile.tags);
 	let newTag = $state('');
-
-	// ---- schedule ----
-	let bufferMinutes = $state(initial.schedule.bufferMinutes);
-	let sessionMinutes = $state(initial.schedule.sessionMinutes);
-	let workStart = $state(initial.schedule.earliestBookingTime.slice(0, 5));
-	let workEnd = $state(initial.schedule.latestBookingTime.slice(0, 5));
-	let weeklySchedule = $state([...initial.schedule.weeklySchedule]);
 
 	// ---- notifications ----
 	let sendMeetLinks = $state(initial.notifications.sendMeetLinks);
@@ -151,6 +128,7 @@
 	let payBankDetails = $state(initial.manualPay.bankDetails);
 	let removePayQr = $state(false);
 	let paymentModeAutomatic = $state(initial.payments.paymentMode === 'automatic');
+	let clientFieldHeadings = $state(structuredClone(initial.clientFieldHeadings));
 	// the portal-pay switch is always shown, but locked until Razorpay is connected;
 	// clicking it while locked opens the connect prompt below it
 	let showConnectPrompt = $state(false);
@@ -188,11 +166,6 @@
 			showYears,
 			showRate,
 			specialties,
-			bufferMinutes,
-			sessionMinutes,
-			workStart,
-			workEnd,
-			weeklySchedule,
 			sendMeetLinks,
 			sendBookingEmails,
 			sendSessionReminderEmails,
@@ -204,6 +177,7 @@
 			payBankDetails,
 			removePayQr,
 			paymentModeAutomatic,
+			clientFieldHeadings,
 			qrFileName
 		]);
 	}
@@ -397,87 +371,6 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">
-				Schedule<InfoTip
-					label="Schedule"
-					text="Decides which times clients can book in their portal. Clients can book up to 14 days ahead, and they only see open slots, never why a time is taken."
-				/>
-			</div>
-			<div class="grid-2">
-				<label class="field">
-					<span class="field-label">
-						Session Length (Minutes)<InfoTip
-							label="Session Length"
-							text="How long a session lasts when a client books from their portal. Sessions you add yourself on the Calendar can be any length."
-						/>
-					</span>
-					<input
-						class="field-input"
-						type="number"
-						name="sessionMinutes"
-						min="15"
-						max="240"
-						step="5"
-						required
-						bind:value={sessionMinutes}
-					/>
-				</label>
-				<label class="field">
-					<span class="field-label">
-						Buffer Between Sessions (Minutes)<InfoTip
-							label="Buffer Between Sessions"
-							text="Breathing room added after every session before the next one can start. With 60-minute sessions and a 5-minute buffer, slots go 9:00, 10:05, 11:10. At 0, sessions run back to back: 9:00, 10:00, 11:00."
-						/>
-					</span>
-					<input
-						class="field-input"
-						type="number"
-						name="bufferMinutes"
-						min="0"
-						step="5"
-						bind:value={bufferMinutes}
-					/>
-				</label>
-			</div>
-			<div class="grid-2">
-				<TimeInput
-					label="Working Hours From"
-					name="earliestBookingTime"
-					info="The first slot of the day starts here. Each next slot starts one session length plus your buffer later."
-					bind:value={workStart}
-				/>
-				<TimeInput
-					label="Working Hours To"
-					name="latestBookingTime"
-					info="Sessions must end by this time. With 60-minute sessions and 18:00, the last slot clients can book starts at 17:00."
-					bind:value={workEnd}
-				/>
-			</div>
-			<div class="field">
-				<span class="field-label">
-					Weekly Pattern<InfoTip
-						label="Weekly Pattern"
-						text="Online: video sessions only.&#10;In Person: at your location only.&#10;Hybrid: the client picks one when booking.&#10;Holiday: nothing can be booked that day."
-					/>
-				</span>
-				<div class="week-list">
-					{#each weekdayLabels as label, i (label)}
-						<label class="week-row">
-							<span class="week-day">{label}</span>
-							<select class="field-input" name="weeklySchedule" bind:value={weeklySchedule[i]}>
-								{#each scheduleKindOptions as k (k.value)}
-									<option value={k.value}>{k.label}</option>
-								{/each}
-							</select>
-						</label>
-					{/each}
-				</div>
-			</div>
-		</div>
-	</Card>
-
-	<Card>
-		<div class="section">
-			<div class="section-title">
 				Notifications<InfoTip
 					label="Notifications"
 					text="Emails only go to clients who have an email address on file."
@@ -545,6 +438,10 @@
 				</select>
 			</label>
 		</div>
+	</Card>
+
+	<Card>
+		<ClientFieldsSettings bind:headings={clientFieldHeadings} />
 	</Card>
 
 	<Card>
@@ -871,28 +768,6 @@
 		background: var(--surface-canvas);
 		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
-	}
-
-	.week-list {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-	}
-
-	.week-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 10px;
-	}
-
-	.week-day {
-		font-size: 13px;
-		color: var(--text-primary);
-	}
-
-	.week-row .field-input {
-		width: 160px;
 	}
 
 	.tag-row {

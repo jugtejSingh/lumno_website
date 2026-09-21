@@ -1,0 +1,243 @@
+import { and, eq, gte, isNotNull, lte } from 'drizzle-orm';
+import { db } from '$lib/server/db';
+import { availabilitySlot, availabilityDateOverride, therapistSettings } from '$lib/server/db/schema';
+import type { DesignedDay, DesignedSlot, SlotModality } from '$lib/types/slots';
+
+export type { DesignedDay, DesignedSlot, SlotModality };
+
+const MAX_SESSIONS_LIMIT = 50;
+
+const SLOT_MODALITIES: SlotModality[] = ['online', 'in_person', 'hybrid'];
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** "YYYY-MM-DD" for a local calendar date; month is 0-indexed like the rest of the codebase. */
+export function toDateKey(year: number, month: number, day: number): string {
+	const monthText = String(month + 1).padStart(2, '0');
+	const dayText = String(day).padStart(2, '0');
+	return `${year}-${monthText}-${dayText}`;
+}
+
+// Postgres `time` comes back as "HH:MM:SS"; the designer works in "HH:MM"
+function toDesignedSlot(row: { startTime: string; endTime: string; modality: SlotModality }): DesignedSlot {
+	return {
+		startTime: row.startTime.slice(0, 5),
+		endTime: row.endTime.slice(0, 5),
+		modality: row.modality
+	};
+}
+
+function sortByStart(slots: DesignedSlot[]): DesignedSlot[] {
+	return [...slots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+/** Shapes untrusted form JSON into slots; null if it isn't an array of slot-shaped objects. */
+export function parseDesignedSlots(raw: unknown): DesignedSlot[] | null {
+	if (!Array.isArray(raw)) {
+		return null;
+	}
+	const slots: DesignedSlot[] = [];
+	for (const item of raw) {
+		if (typeof item !== 'object' || item === null) {
+			return null;
+		}
+		const { startTime, endTime, modality } = item as Record<string, unknown>;
+		if (typeof startTime !== 'string' || typeof endTime !== 'string' || typeof modality !== 'string') {
+			return null;
+		}
+		slots.push({ startTime, endTime, modality: modality as SlotModality });
+	}
+	return slots;
+}
+
+/**
+ * Shapes an untrusted max-sessions value: null/'' = no limit, a whole number 1–50 = that cap,
+ * anything else = undefined (invalid).
+ */
+export function parseMaxSessions(raw: unknown): number | null | undefined {
+	if (raw === null || raw === '') {
+		return null;
+	}
+	const value = Number(raw);
+	if (!Number.isInteger(value) || value < 1 || value > MAX_SESSIONS_LIMIT) {
+		return undefined;
+	}
+	return value;
+}
+
+/** Returns an error message for a day's slots, or null when they're valid. */
+export function validateDaySlots(slots: DesignedSlot[]): string | null {
+	for (const slot of slots) {
+		if (!TIME_PATTERN.test(slot.startTime) || !TIME_PATTERN.test(slot.endTime)) {
+			return 'Every slot needs a valid start and end time';
+		}
+		if (slot.endTime <= slot.startTime) {
+			return 'Every slot must end after it starts';
+		}
+		if (!SLOT_MODALITIES.includes(slot.modality)) {
+			return 'Every slot needs online, in person or hybrid';
+		}
+	}
+	const sorted = sortByStart(slots);
+	for (let i = 1; i < sorted.length; i++) {
+		if (sorted[i].startTime < sorted[i - 1].endTime) {
+			return 'Slots on the same day can’t overlap';
+		}
+	}
+	return null;
+}
+
+/** Weekly template (index 0 = Sunday) plus every overridden date in the month, for the designer. */
+export async function getSlotDesign(therapistId: string, year: number, month: number) {
+	const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+	const firstKey = toDateKey(year, month, 1);
+	const lastKey = toDateKey(year, month, daysInMonth);
+
+	const [settingsRows, templateRows, overrideRows, overrideSlotRows] = await Promise.all([
+		db
+			.select({ weeklyMaxSessions: therapistSettings.weeklyMaxSessions })
+			.from(therapistSettings)
+			.where(eq(therapistSettings.therapistId, therapistId)),
+		db
+			.select({
+				weekday: availabilitySlot.weekday,
+				startTime: availabilitySlot.startTime,
+				endTime: availabilitySlot.endTime,
+				modality: availabilitySlot.modality
+			})
+			.from(availabilitySlot)
+			.where(and(eq(availabilitySlot.therapistId, therapistId), isNotNull(availabilitySlot.weekday))),
+		db
+			.select({ date: availabilityDateOverride.date, maxSessions: availabilityDateOverride.maxSessions })
+			.from(availabilityDateOverride)
+			.where(
+				and(
+					eq(availabilityDateOverride.therapistId, therapistId),
+					gte(availabilityDateOverride.date, firstKey),
+					lte(availabilityDateOverride.date, lastKey)
+				)
+			),
+		db
+			.select({
+				overrideDate: availabilitySlot.overrideDate,
+				startTime: availabilitySlot.startTime,
+				endTime: availabilitySlot.endTime,
+				modality: availabilitySlot.modality
+			})
+			.from(availabilitySlot)
+			.where(
+				and(
+					eq(availabilitySlot.therapistId, therapistId),
+					gte(availabilitySlot.overrideDate, firstKey),
+					lte(availabilitySlot.overrideDate, lastKey)
+				)
+			)
+	]);
+
+	const weeklyMaxSessions = settingsRows[0]?.weeklyMaxSessions ?? [];
+	const week: DesignedDay[] = [];
+	for (let weekday = 0; weekday < 7; weekday++) {
+		// Drizzle reads a SQL NULL inside an int[] as the string "NULL" and parseInt()s it,
+		// so an uncapped day arrives as NaN — anything that isn't a whole number means no cap
+		let maxSessions: number | null = null;
+		const stored = weeklyMaxSessions[weekday];
+		if (Number.isInteger(stored)) {
+			maxSessions = stored;
+		}
+		week.push({ slots: [], maxSessions });
+	}
+	for (const row of templateRows) {
+		week[row.weekday!].slots.push(toDesignedSlot(row));
+	}
+	for (const day of week) {
+		day.slots = sortByStart(day.slots);
+	}
+
+	// every overridden date is present, even with zero slots (= day off)
+	const overrides: Record<string, DesignedDay> = {};
+	for (const row of overrideRows) {
+		overrides[row.date] = { slots: [], maxSessions: row.maxSessions };
+	}
+	for (const row of overrideSlotRows) {
+		overrides[row.overrideDate!].slots.push(toDesignedSlot(row));
+	}
+	for (const dateKey of Object.keys(overrides)) {
+		overrides[dateKey].slots = sortByStart(overrides[dateKey].slots);
+	}
+
+	return { week, overrides };
+}
+
+/** Effective design for each day of the month: the date's override if it has one, else its weekday's template. */
+export async function listDesignedDaysForMonth(therapistId: string, year: number, month: number) {
+	const { week, overrides } = await getSlotDesign(therapistId, year, month);
+	const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+
+	const designByDay: Record<number, DesignedDay> = {};
+	for (let day = 1; day <= daysInMonth; day++) {
+		const dateKey = toDateKey(year, month, day);
+		if (dateKey in overrides) {
+			designByDay[day] = overrides[dateKey];
+		} else {
+			// a calendar date's weekday doesn't depend on timezone
+			const weekday = new Date(Date.UTC(year, month, day)).getUTCDay();
+			designByDay[day] = week[weekday];
+		}
+	}
+	return designByDay;
+}
+
+/** Replaces the whole weekly template. `week` must have 7 entries, index 0 = Sunday. */
+export async function replaceWeekTemplate(therapistId: string, week: DesignedDay[]) {
+	await db.transaction(async (tx) => {
+		await tx
+			.delete(availabilitySlot)
+			.where(and(eq(availabilitySlot.therapistId, therapistId), isNotNull(availabilitySlot.weekday)));
+
+		const rows = [];
+		const weeklyMaxSessions: (number | null)[] = [];
+		for (let weekday = 0; weekday < 7; weekday++) {
+			for (const slot of week[weekday].slots) {
+				rows.push({ therapistId, weekday, ...slot });
+			}
+			weeklyMaxSessions.push(week[weekday].maxSessions);
+		}
+		if (rows.length > 0) {
+			await tx.insert(availabilitySlot).values(rows);
+		}
+
+		await tx
+			.update(therapistSettings)
+			.set({ weeklyMaxSessions })
+			.where(eq(therapistSettings.therapistId, therapistId));
+	});
+}
+
+/** Makes `dateKey` use exactly this design instead of its weekday's template. No slots = day off. */
+export async function setDateOverride(therapistId: string, dateKey: string, design: DesignedDay) {
+	await db.transaction(async (tx) => {
+		// the FK cascade removes the date's previous slots with it
+		await tx
+			.delete(availabilityDateOverride)
+			.where(
+				and(eq(availabilityDateOverride.therapistId, therapistId), eq(availabilityDateOverride.date, dateKey))
+			);
+		await tx
+			.insert(availabilityDateOverride)
+			.values({ therapistId, date: dateKey, maxSessions: design.maxSessions });
+
+		const rows = [];
+		for (const slot of design.slots) {
+			rows.push({ therapistId, overrideDate: dateKey, ...slot });
+		}
+		if (rows.length > 0) {
+			await tx.insert(availabilitySlot).values(rows);
+		}
+	});
+}
+
+/** Puts `dateKey` back on its weekday's template. */
+export async function clearDateOverride(therapistId: string, dateKey: string) {
+	await db
+		.delete(availabilityDateOverride)
+		.where(and(eq(availabilityDateOverride.therapistId, therapistId), eq(availabilityDateOverride.date, dateKey)));
+}

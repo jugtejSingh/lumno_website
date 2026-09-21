@@ -7,9 +7,11 @@ import {
 	timestamp,
 	index,
 	pgEnum,
+	jsonb,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
+import type { ClientFieldValues } from '../../types/clientFields';
 import { user } from './auth.schema';
 import { organization } from './organizations.schema';
 
@@ -73,8 +75,18 @@ export const client = pgTable(
 		// ponytail: stored as typed, no canonical E.164 normalising until WhatsApp
 		// actually needs one.
 		phone: text('phone'),
-		age: integer('age'),
-		bio: text('bio'),
+		// client-supplied during invite acceptance (or later from the portal); the
+		// therapist only sees these. Nullable because clients who onboarded before
+		// these existed have none — the invite form is what makes them required.
+		dateOfBirth: date('date_of_birth'),
+		gender: text('gender'),
+		city: text('city'),
+		state: text('state'),
+		// ISO 3166-1 alpha-2 code, e.g. 'IN' (see $lib/countries)
+		country: text('country'),
+		// therapist-written notes keyed by heading id (therapistSettings.clientFieldHeadings).
+		// Values for a deleted heading are left here, just no longer shown.
+		customFields: jsonb('custom_fields').$type<ClientFieldValues>().notNull().default({}),
 		tags: text('tags').array().notNull().default([]),
 		// per-session rate in whole units of the therapist's currency (see therapist.currency)
 		rate: integer('rate'),

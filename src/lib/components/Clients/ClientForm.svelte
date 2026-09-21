@@ -1,17 +1,18 @@
 <script lang="ts">
 	import Input from '$lib/components/utils/Input.svelte';
-	import Textarea from '$lib/components/utils/Textarea.svelte';
 	import Select from '$lib/components/utils/Select.svelte';
 	import Tag from '$lib/components/utils/Tag.svelte';
+	import ClientCustomFields from '$lib/components/Clients/ClientCustomFields.svelte';
+	import type { ClientFieldHeading, ClientFieldValues } from '$lib/types/clientFields';
 
 	let {
 		name = $bindable(''),
 		email = $bindable(''),
-		age = $bindable(''),
 		rate = $bindable(''),
-		bio = $bindable(''),
 		tags = $bindable([]),
 		status = $bindable(''),
+		customFields = $bindable({}),
+		fieldHeadings = [],
 		showEmail = true,
 		showDetails = true,
 		statusOptions,
@@ -19,11 +20,11 @@
 	}: {
 		name?: string;
 		email?: string;
-		age?: string;
 		rate?: string;
-		bio?: string;
 		tags?: string[];
 		status?: string;
+		customFields?: ClientFieldValues;
+		fieldHeadings?: ClientFieldHeading[];
 		showEmail?: boolean;
 		showDetails?: boolean;
 		statusOptions?: string[];
@@ -61,20 +62,9 @@
 	{#if statusOptions}
 		<Select label="Status" name="status" options={statusOptions} bind:value={status} />
 	{/if}
-	<div class="row">
-		{#if showDetails}
-			<Input label="Age" name="age" placeholder="34" bind:value={age} />
-		{/if}
-		<Input label="Rate per session" name="rate" placeholder="150" bind:value={rate} />
-	</div>
+	<Input label="Rate per session" name="rate" placeholder="150" bind:value={rate} />
+	<ClientCustomFields headings={fieldHeadings} bind:values={customFields} />
 	{#if showDetails}
-		<Textarea
-			label="Bio"
-			name="bio"
-			placeholder="A short blurb on who this client is"
-			bind:value={bio}
-			rows={3}
-		/>
 		<div>
 			<div class="field-label">Tags</div>
 			<div class="tag-row">
@@ -93,16 +83,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-	}
-
-	.row {
-		display: flex;
-		gap: 10px;
-		flex-wrap: wrap;
-	}
-
-	.row > :global(*) {
-		flex: 1 1 140px;
 	}
 
 	.field-label {

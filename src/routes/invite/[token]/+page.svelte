@@ -3,6 +3,9 @@
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
+	import ClientProfileFields from '$lib/components/Clients/ClientProfileFields.svelte';
+	import ClientProfileHiddenInputs from '$lib/components/Clients/ClientProfileHiddenInputs.svelte';
+	import type { ClientProfile } from '$lib/clientProfile';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
@@ -11,6 +14,8 @@
 	// optional, unverified — used for WhatsApp reminders instead of email when given.
 	// Shared by the Google and password forms below via hidden inputs.
 	let phone = $state('');
+	// required; mirrored into whichever form gets submitted
+	let profile = $state<ClientProfile>({ dateOfBirth: '', gender: '', city: '', state: '', country: '' });
 </script>
 
 <svelte:head>
@@ -47,7 +52,11 @@
 				{#if form?.message}
 					<div class="form-error">{form.message}</div>
 				{/if}
-				<form method="POST" action="?/acceptAsSelf" use:enhance>
+				<form class="form-fields" method="POST" action="?/acceptAsSelf" use:enhance>
+					{#if data.needsProfile}
+						<div class="form-hint-block">Your therapist will see these details.</div>
+						<ClientProfileFields bind:profile />
+					{/if}
 					<Button type="submit" variant="primary">Accept invite</Button>
 				</form>
 			{:else}
@@ -62,6 +71,8 @@
 				{/if}
 
 				<div class="form-fields">
+					<div class="form-hint-block">About you — your therapist will see these details.</div>
+					<ClientProfileFields bind:profile named={false} />
 					<Input
 						label="Phone (optional)"
 						type="tel"
@@ -73,12 +84,14 @@
 
 				<form method="POST" action="?/google" use:enhance>
 					<input type="hidden" name="phone" value={phone} />
+					<ClientProfileHiddenInputs {profile} />
 					<Button type="submit" variant="secondary">Continue with Google</Button>
 				</form>
 				<div class="divider"><span>or</span></div>
 
 				<form class="form-fields" method="POST" action="?/password" use:enhance>
 					<input type="hidden" name="phone" value={phone} />
+					<ClientProfileHiddenInputs {profile} />
 					<Input label="Password" name="password" type="password" placeholder="••••••••" />
 					{#if form?.message}
 						<div class="form-error">{form.message}</div>
@@ -159,6 +172,11 @@
 		font-size: 12px;
 		color: var(--text-muted);
 		margin-top: -8px;
+	}
+
+	.form-hint-block {
+		font-size: 13px;
+		color: var(--text-muted);
 	}
 
 	.divider {

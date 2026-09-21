@@ -14,8 +14,26 @@ export const load: LayoutServerLoad = async (event) => {
 		return redirect(302, '/dashboard');
 	}
 
+	// Layout data is serialized to the client's browser. Allow-list only what the client
+	// owns or the portal needs to route — never select() the whole row, which would ship
+	// the therapist's private notes (customFields), tags, rate, invite/billing state, etc.
+	// A new client column stays out of the portal until it's added here on purpose.
 	const [clientRow, clients] = await Promise.all([
-		db.select().from(client).where(eq(client.id, event.locals.clientId)).then(([row]) => row),
+		db
+			.select({
+				id: client.id,
+				therapistId: client.therapistId,
+				name: client.name,
+				phone: client.phone,
+				dateOfBirth: client.dateOfBirth,
+				gender: client.gender,
+				city: client.city,
+				state: client.state,
+				country: client.country
+			})
+			.from(client)
+			.where(eq(client.id, event.locals.clientId))
+			.then(([row]) => row),
 		listClientsForUser(event.locals.user.id)
 	]);
 

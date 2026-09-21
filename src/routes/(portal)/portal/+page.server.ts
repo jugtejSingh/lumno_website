@@ -3,8 +3,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { therapist, user, client as clientTable } from '$lib/server/db/schema';
-import { listClientsForUser, setClientPhone } from '$lib/server/clients';
+import { listClientsForUser, setClientPhone, setClientProfile } from '$lib/server/clients';
 import { parsePhone } from '$lib/phone';
+import { hasClientProfile, parseClientProfile } from '$lib/clientProfile';
 import { setActiveClientCookie } from '$lib/server/activeClient';
 import {
 	listUpcomingAppointmentsForClient,
@@ -26,6 +27,9 @@ import { connectionHealth } from '$lib/server/razorpayConnection';
 import { startInvoiceCheckout } from '$lib/server/sessionPayments';
 import { formatCancellationPolicy } from '$lib/server/paymentPolicy';
 import { formatCurrency } from '$lib/format';
+import { resourceActions } from '$lib/server/resourceActions';
+import { clientScope, listResources } from '$lib/server/resources';
+import type { ResourceRow } from '$lib/types/resources';
 
 const modalityLabel: Record<string, string> = {
 	online: 'Online session',
@@ -65,6 +69,27 @@ export const load: PageServerLoad = async (event) => {
 			connectionHealth(client.therapistId),
 			getManualPayDetails(client.therapistId)
 		]);
+
+	// Reschedule picker: leave the session being moved out of the daily max-sessions count,
+	// so the client can move it to another time on its own full day. Only honoured for this
+	// client's own upcoming session — any other id would reveal how full a day is.
+	let rescheduleId: string | null = null;
+	const rescheduleParam = event.url.searchParams.get('reschedule');
+	for (const appt of upcoming) {
+		if (appt.id === rescheduleParam) {
+			rescheduleId = appt.id;
+		}
+	}
+	let resources: ResourceRow[] = [];
+	const resourceScope = await clientScope(client.id);
+	if (resourceScope) {
+		resources = await listResources(resourceScope);
+	}
+
+	let openSlotsByDay = slotsByDay;
+	if (rescheduleId !== null) {
+		openSlotsByDay = await listAvailabilityForMonth(client.therapistId, year, month, rescheduleId);
+	}
 
 	// ponytail: gate on 'connected' per design §12.9. 'expiring' also has live
 	// tokens but refreshExpiresAt is pushed 180d out on every refresh, so it
@@ -114,10 +139,20 @@ export const load: PageServerLoad = async (event) => {
 	return {
 		clientName,
 		clientPhone: client.phone ?? '',
+		clientProfile: {
+			dateOfBirth: client.dateOfBirth ?? '',
+			gender: client.gender ?? '',
+			city: client.city ?? '',
+			state: client.state ?? '',
+			country: client.country ?? ''
+		},
+		// clients who joined before these were collected get nudged to fill them in
+		profileComplete: hasClientProfile(client),
 		therapistName,
 		year,
 		month,
-		slotsByDay,
+		slotsByDay: openSlotsByDay,
+		rescheduleId,
 		sessions,
 		invoices,
 		paymentsPage,
@@ -129,7 +164,8 @@ export const load: PageServerLoad = async (event) => {
 		balanceDue: formatCurrency(balanceDue, currency),
 		hasBalanceDue: balanceDue > 0,
 		manualPay,
-		cancellationPolicy: formatCancellationPolicy(paymentSettings)
+		cancellationPolicy: formatCancellationPolicy(paymentSettings),
+		resources
 	};
 };
 
@@ -158,6 +194,14 @@ const rescheduleErrorMessages = {
 } as const;
 
 export const actions: Actions = {
+	// scope comes from the session's active client, never from the posted form
+	...resourceActions(async (event) => {
+		if (!event.locals.clientId) {
+			return null;
+		}
+		return clientScope(event.locals.clientId);
+	}),
+
 	switchClient: async (event) => {
 		if (!event.locals.user) {
 			return fail(401);
@@ -189,6 +233,19 @@ export const actions: Actions = {
 		}
 
 		await setClientPhone(event.locals.clientId, parsedPhone.phone);
+	},
+
+	// the client's own date of birth / gender / location, all required. The therapist
+	// sees these read-only.
+	saveProfile: async (event) => {
+		if (!event.locals.clientId) {
+			return fail(403, { message: 'Not a client' });
+		}
+		const parsedProfile = parseClientProfile(await event.request.formData());
+		if ('error' in parsedProfile) {
+			return fail(400, { profileMessage: parsedProfile.error });
+		}
+		await setClientProfile(event.locals.clientId, parsedProfile.profile);
 	},
 
 	bookSession: async (event) => {

@@ -10,7 +10,8 @@
 		name,
 		value = $bindable(''),
 		onkeydown,
-		error
+		error,
+		list
 	}: {
 		label?: string;
 		// explanation behind an "i" button next to the label
@@ -21,6 +22,8 @@
 		value?: string;
 		onkeydown?: (e: KeyboardEvent) => void;
 		error?: string;
+		// id of a <datalist> offering suggestions
+		list?: string;
 	} = $props();
 </script>
 
@@ -28,7 +31,7 @@
 	{#if label}
 		<span class="field-label">{label}{#if info}<InfoTip text={info} {label} />{/if}</span>
 	{/if}
-	<input class="field-input" {type} {name} {placeholder} bind:value {onkeydown} />
+	<input class="field-input" {type} {name} {placeholder} {list} bind:value {onkeydown} />
 	{#if error}
 		<span class="field-error">{error}</span>
 	{/if}

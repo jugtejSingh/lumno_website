@@ -5,13 +5,10 @@ import { auth } from '$lib/server/auth';
 import { getOrCreateSubscription } from '$lib/server/billing';
 import { getReferralProfile, updateReferralProfile } from '$lib/server/referrals';
 import {
-	getTherapistScheduleSettings,
-	updateTherapistScheduleSettings,
 	getNotificationSettings,
 	updateNotificationSettings,
 	getBookingRules,
-	updateBookingRules,
-	type ScheduleKind
+	updateBookingRules
 } from '$lib/server/settings';
 import {
 	getPaymentSettings,
@@ -27,9 +24,13 @@ import { isGoogleCalendarConnected } from '$lib/server/googleCalendar';
 import { CHANGE_WINDOW_HOURS_OPTIONS, formatHours } from '$lib/server/paymentPolicy';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { logError } from '$lib/server/log';
+import {
+	getClientFieldHeadings,
+	parseClientFieldHeadings,
+	updateClientFieldHeadings
+} from '$lib/server/clientFields';
 
 const FORMATS = ['remote', 'in_person', 'hybrid'] as const;
-const SCHEDULE_KINDS: ScheduleKind[] = ['online', 'in_person', 'hybrid', 'off'];
 const MAX_QR_BYTES = 5 * 1024 * 1024;
 const QR_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 // choices in the "Upcoming Sessions Per Client" dropdown; no limit is posted as ''
@@ -41,17 +42,16 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 
 	const [
 		profile,
-		schedule,
 		notifications,
 		payments,
 		subscription,
 		googleConnected,
 		razorpayHealth,
 		manualPayRow,
-		bookingRules
+		bookingRules,
+		clientFieldHeadings
 	] = await Promise.all([
 		getReferralProfile(therapistId),
-		getTherapistScheduleSettings(therapistId),
 		getNotificationSettings(therapistId),
 		getPaymentSettings(therapistId),
 		// Raw plan/status, not getEffectivePlan — a past_due row intentionally keeps
@@ -61,7 +61,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		isGoogleCalendarConnected(therapist.userId),
 		connectionHealth(therapistId),
 		getManualPayDetails(therapistId),
-		getBookingRules(therapistId)
+		getBookingRules(therapistId),
+		getClientFieldHeadings(therapistId)
 	]);
 
 	let qrUrl: string | null = null;
@@ -99,11 +100,11 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 
 	return {
 		profile,
-		schedule,
 		notifications,
 		payments,
 		manualPay,
 		bookingRules,
+		clientFieldHeadings,
 		billing,
 		googleConnected,
 		hourOptions,
@@ -161,38 +162,6 @@ export const actions: Actions = {
 			referralShowRate: form.get('referralShowRate') === 'on'
 		};
 
-		// ---- schedule ----
-		const bufferMinutes = Number(form.get('bufferMinutes'));
-		const earliestBookingTime = form.get('earliestBookingTime')?.toString() ?? '';
-		const latestBookingTime = form.get('latestBookingTime')?.toString() ?? '';
-		const weeklySchedule = form.getAll('weeklySchedule').map((v) => v.toString());
-		if (!earliestBookingTime || !latestBookingTime) {
-			return fail(400, { message: 'Pick both working hours' });
-		}
-		if (latestBookingTime <= earliestBookingTime) {
-			return fail(400, { message: 'Working hours must end after they start' });
-		}
-		if (!Number.isFinite(bufferMinutes) || bufferMinutes < 0) {
-			return fail(400, { message: 'Buffer must be a non-negative number of minutes' });
-		}
-		const sessionMinutes = Number(form.get('sessionMinutes'));
-		if (!Number.isInteger(sessionMinutes) || sessionMinutes < 15 || sessionMinutes > 240) {
-			return fail(400, { message: 'Session length must be between 15 and 240 minutes' });
-		}
-		if (
-			weeklySchedule.length !== 7 ||
-			!weeklySchedule.every((k) => SCHEDULE_KINDS.includes(k as ScheduleKind))
-		) {
-			return fail(400, { message: 'Pick a valid type for every day of the week' });
-		}
-		const schedule = {
-			bufferMinutes,
-			sessionMinutes,
-			earliestBookingTime,
-			latestBookingTime,
-			weeklySchedule: weeklySchedule as ScheduleKind[]
-		};
-
 		// ---- notifications ----
 		const notifications = {
 			sendMeetLinks: form.get('sendMeetLinks') === 'on',
@@ -238,6 +207,15 @@ export const actions: Actions = {
 			maxUpcomingBookingsPerClient
 		};
 
+		// ---- client field headings ----
+		const parsedHeadings = parseClientFieldHeadings(
+			form.getAll('clientFieldHeadingId').map((v) => v.toString()),
+			form.getAll('clientFieldHeadingLabel').map((v) => v.toString())
+		);
+		if ('error' in parsedHeadings) {
+			return fail(400, { message: parsedHeadings.error });
+		}
+
 		// ---- portal "Pay now" (Razorpay) ----
 		// Only honoured while Razorpay is connected. The switch isn't rendered
 		// otherwise, so skipping the write keeps the saved choice through a lapsed
@@ -281,10 +259,10 @@ export const actions: Actions = {
 
 		await db.transaction(async (tx) => {
 			await updateReferralProfile(therapistId, referral, tx);
-			await updateTherapistScheduleSettings(therapistId, schedule, tx);
 			await updateNotificationSettings(therapistId, notifications, tx);
 			await updatePaymentSettings(therapistId, payments, tx);
 			await updateBookingRules(therapistId, bookingRules, tx);
+			await updateClientFieldHeadings(therapistId, parsedHeadings.headings, tx);
 			if (paymentMode !== null) {
 				await updatePaymentMode(therapistId, paymentMode, tx);
 			}

@@ -8,7 +8,7 @@
 	{id}
 	{number}
 	title="Calendar & scheduling"
-	intro="Clients book themselves into the open slots your schedule creates, and you can add, move or cancel any session yourself from the Calendar."
+	intro="Clients book themselves into the open slots you build, and you can add, move or cancel any session yourself from the Calendar."
 >
 	<h3>Adding a session yourself</h3>
 	<p>
@@ -34,24 +34,23 @@
 		</li>
 	</ul>
 
-	<h3>How your schedule becomes bookable slots</h3>
-	<p>Everything in <a href="/settings">Settings → Schedule</a> shapes what clients can book:</p>
+	<h3>Building your bookable slots</h3>
+	<p>Clients can only book the slots you build on the <a href="/calendar">Calendar</a>:</p>
 	<ul>
-		<li><strong>Session length</strong>: how long a session booked through the portal lasts.</li>
 		<li>
-			<strong>Buffer between sessions</strong>: breathing room after each session. With 60-minute
-			sessions and a 5-minute buffer, slots start at 9:00, 10:05, 11:10.
+			<strong>Weekly slots</strong>: set the slots for each day of the week. Each slot has its own
+			start and end time and is Online, In person, or Client picks (the client chooses when booking).
+			Use <strong>Copy to…</strong> to repeat a day across the week. A day with no slots is a day off.
 		</li>
 		<li>
-			<strong>Working hours</strong>: the first slot starts at your "from" time and the last one must
-			finish by your "to" time.
+			<strong>One date</strong>: click a day to give just that date its own slots, make it a day off,
+			or go back to your weekly slots.
 		</li>
 		<li>
-			<strong>Weekly pattern</strong>: each weekday is Online, In Person, Hybrid (the client picks
-			when booking) or Holiday (nothing can be booked).
+			<strong>Breaks</strong>: leave a gap between slots, for example 1:00–2:00 then 2:30–3:30.
 		</li>
 	</ul>
-	<p>Clients can book up to <strong>14 days</strong> ahead.</p>
+	<p>Clients can book up to <strong>14 days</strong> ahead and only see slots that are still open.</p>
 
 	<h3>Google Meet links</h3>
 	<p>

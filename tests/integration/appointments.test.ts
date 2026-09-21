@@ -1,12 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
+import { deleteMeetEvent, patchMeetEventTime } from '$lib/server/googleCalendar';
 import { appointment, payment } from '$lib/server/db/schema';
 import {
 	cancelAppointment,
 	rescheduleAppointmentForTherapist,
 	markPastAppointmentsCompleted,
-	listUpcomingAppointmentsForClient
+	listUpcomingAppointmentsForClient,
+	parseDateParts,
+	parseTimeParts
 } from '$lib/server/appointments';
 import { addCharge } from '$lib/server/payments';
 import { resetDb, mkTherapist, mkClient, mkPack, mkAppointment } from './helpers';
@@ -74,6 +77,16 @@ describe('cancelAppointment', () => {
 		const [row] = await db.select().from(appointment).where(eq(appointment.id, a.id));
 		expect(row.status).toBe('cancelled');
 		expect(await feeRows(a.id)).toHaveLength(0);
+	});
+
+	it('clears the Meet link and deletes its Google event', async () => {
+		const a = await appt(hoursFromNow(48), { meetLink: 'https://meet.google.com/abc', googleEventId: 'evt-1' });
+		await cancelAppointment(therapistId, a.id);
+
+		const [row] = await db.select().from(appointment).where(eq(appointment.id, a.id));
+		expect(row.meetLink).toBeNull();
+		expect(row.googleEventId).toBeNull();
+		expect(vi.mocked(deleteMeetEvent)).toHaveBeenCalledWith(expect.any(String), 'evt-1');
 	});
 
 	it('free-tier cancel returns the pack credit by clearing pack_id', async () => {
@@ -221,6 +234,23 @@ describe('rescheduleAppointmentForTherapist', () => {
 		expect(res.appointment.packId).toBe(pack.id);
 	});
 
+	it('moves the Meet link onto the new appointment and patches the Google event time', async () => {
+		const old = await appt(hoursFromNow(72), { meetLink: 'https://meet.google.com/abc', googleEventId: 'evt-1' });
+		const newStart = new Date(Date.UTC(2026, 11, 6, 9, 0, 0));
+		const res = await rescheduleAppointmentForTherapist(therapistId, old.id, inputAt(newStart));
+		if (!('appointment' in res)) throw new Error('expected success');
+
+		expect(res.appointment.meetLink).toBe('https://meet.google.com/abc');
+		expect(res.appointment.googleEventId).toBe('evt-1');
+		const [oldRow] = await db.select().from(appointment).where(eq(appointment.id, old.id));
+		expect(oldRow.meetLink).toBeNull();
+		expect(oldRow.googleEventId).toBeNull();
+		expect(vi.mocked(patchMeetEventTime)).toHaveBeenCalledWith(expect.any(String), 'evt-1', {
+			startAt: newStart,
+			endAt: new Date(newStart.getTime() + 3_600_000)
+		});
+	});
+
 	it('free tier reschedule charges no fee', async () => {
 		const old = await appt(hoursFromNow(72));
 		const res = await rescheduleAppointmentForTherapist(
@@ -262,4 +292,56 @@ describe('rescheduleAppointmentForTherapist', () => {
 		expect(all).toHaveLength(2);
 	});
 
+});
+
+describe('parseDateParts', () => {
+	function form(year: string, month: string, day: string) {
+		const data = new FormData();
+		data.set('year', year);
+		data.set('month', month);
+		data.set('day', day);
+		return data;
+	}
+
+	it('accepts a real date, month 0-indexed', () => {
+		expect(parseDateParts(form('2027', '0', '31'))).toEqual({ year: 2027, month: 0, day: 31 });
+		expect(parseDateParts(form('2027', '11', '31'))).toEqual({ year: 2027, month: 11, day: 31 });
+	});
+
+	it('rejects days that do not exist in that month', () => {
+		expect(parseDateParts(form('2027', '1', '30'))).toBeNull();
+		expect(parseDateParts(form('2027', '1', '29'))).toBeNull();
+		expect(parseDateParts(form('2027', '3', '31'))).toBeNull();
+		expect(parseDateParts(form('2027', '0', '0'))).toBeNull();
+	});
+
+	it('accepts Feb 29 only in a leap year', () => {
+		expect(parseDateParts(form('2028', '1', '29'))).toEqual({ year: 2028, month: 1, day: 29 });
+		expect(parseDateParts(form('2100', '1', '29'))).toBeNull();
+	});
+
+	it('rejects out-of-range and non-numeric parts', () => {
+		expect(parseDateParts(form('2027', '12', '1'))).toBeNull();
+		expect(parseDateParts(form('2027', '-1', '1'))).toBeNull();
+		expect(parseDateParts(form('1969', '0', '1'))).toBeNull();
+		expect(parseDateParts(form('2101', '0', '1'))).toBeNull();
+		expect(parseDateParts(form('abc', '0', '1'))).toBeNull();
+		expect(parseDateParts(form('2027', '0', '1.5'))).toBeNull();
+		expect(parseDateParts(new FormData())).toBeNull();
+	});
+});
+
+describe('parseTimeParts', () => {
+	it('accepts real clock times', () => {
+		expect(parseTimeParts('00:00')).toEqual({ hour: 0, minute: 0 });
+		expect(parseTimeParts('23:59')).toEqual({ hour: 23, minute: 59 });
+	});
+
+	it('rejects anything that is not a clock time', () => {
+		expect(parseTimeParts('24:00')).toBeNull();
+		expect(parseTimeParts('12:60')).toBeNull();
+		expect(parseTimeParts('12')).toBeNull();
+		expect(parseTimeParts('')).toBeNull();
+		expect(parseTimeParts('ab:cd')).toBeNull();
+	});
 });

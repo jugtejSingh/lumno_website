@@ -6,7 +6,8 @@ import dotenv from 'dotenv';
 // what's under test, not the network calls.
 vi.mock('$lib/server/email', () => ({
 	sendEmail: vi.fn(async () => {}),
-	wrapEmail: vi.fn(() => '<html></html>')
+	wrapEmail: vi.fn(() => '<html></html>'),
+	escapeHtml: (value: string) => value
 }));
 vi.mock('$lib/server/googleCalendar', () => ({
 	createMeetEvent: vi.fn(async () => null),

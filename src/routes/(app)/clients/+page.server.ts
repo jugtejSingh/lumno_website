@@ -3,11 +3,15 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	addClient,
 	deleteClient,
+	getClientCustomFields,
 	listClients,
 	resendInvite,
 	updateClient,
 	type ClientStatus
 } from '$lib/server/clients';
+import { getClientFieldHeadings, mergeClientFieldValues } from '$lib/server/clientFields';
+import { resourceActions } from '$lib/server/resourceActions';
+import { therapistScope } from '$lib/server/resources';
 
 const addErrorMessages = {
 	duplicate: 'You already have a client with that email',
@@ -30,11 +34,19 @@ const validStatuses: ClientStatus[] = ['active', 'paused', 'left'];
 
 export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
-	const clients = await listClients(therapist.id);
-	return { clients };
+	const [clients, fieldHeadings] = await Promise.all([
+		listClients(therapist.id),
+		getClientFieldHeadings(therapist.id)
+	]);
+	return { clients, fieldHeadings };
 };
 
 export const actions: Actions = {
+	// posted clientId is only trusted after therapistScope checks this therapist owns it
+	...resourceActions((event, formData) => {
+		return therapistScope(event.locals.therapistId!, formData.get('clientId')?.toString() ?? '');
+	}),
+
 	add: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
@@ -53,15 +65,15 @@ export const actions: Actions = {
 			return fail(400, { fieldErrors });
 		}
 
+		const headings = await getClientFieldHeadings(therapistId);
 		const result = await addClient(
 			therapistId,
 			{
 				name,
 				email,
-				// age/bio/tags are filled in later via Edit client — inviting only needs name + email
-				age: null,
 				rate: rateRaw ? Number(rateRaw) : null,
-				bio: null,
+				customFields: mergeClientFieldValues({}, headings, formData),
+				// tags are filled in later via Edit client
 				tags: []
 			},
 			event.url.origin
@@ -95,9 +107,7 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const clientId = formData.get('clientId')?.toString() ?? '';
 		const name = formData.get('name')?.toString().trim() ?? '';
-		const ageRaw = formData.get('age')?.toString().trim() || '';
 		const rateRaw = formData.get('rate')?.toString().trim() || '';
-		const bio = formData.get('bio')?.toString().trim() || null;
 		const status = formData.get('status')?.toString() ?? '';
 		const tags = (formData.get('tags')?.toString() ?? '')
 			.split(',')
@@ -111,11 +121,18 @@ export const actions: Actions = {
 			return fail(400, { message: 'Invalid status' });
 		}
 
+		const [headings, existingFields] = await Promise.all([
+			getClientFieldHeadings(therapistId),
+			getClientCustomFields(therapistId, clientId)
+		]);
+		if (existingFields === null) {
+			return fail(400, { message: updateErrorMessages.not_found });
+		}
+
 		const result = await updateClient(therapistId, clientId, {
 			name,
-			age: ageRaw ? Number(ageRaw) : null,
 			rate: rateRaw ? Number(rateRaw) : null,
-			bio,
+			customFields: mergeClientFieldValues(existingFields, headings, formData),
 			tags,
 			status: status as ClientStatus
 		});

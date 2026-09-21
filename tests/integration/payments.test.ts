@@ -41,7 +41,7 @@ describe('charges and balance', () => {
 		await mkPack(therapistId, clientId, { amount: 5000, status: 'pending_payment' });
 
 		const rows = await listOutstandingBalancesByClient(therapistId);
-		expect(rows).toEqual([{ clientId, name: 'Test Client', owed: 6000 }]);
+		expect(rows).toEqual([{ key: clientId, clientId, name: 'Test Client', owed: 6000 }]);
 	});
 
 	it('getClientPaymentTotals splits owed vs paid', async () => {

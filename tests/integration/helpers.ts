@@ -25,7 +25,8 @@ const TABLES = [
 	'payment_pack',
 	'payment_settings',
 	'appointment',
-	'availability_exception',
+	'availability_slot',
+	'availability_date_override',
 	'therapist_settings',
 	'subscription',
 	'client',
@@ -167,4 +168,44 @@ export async function mkNote(
 		.values({ therapistId, clientId, body: 'note body', ...overrides })
 		.returning();
 	return row;
+}
+
+// A minimal SvelteKit RequestEvent for calling a route's load/actions directly. `fields`
+// become a urlencoded form body; repeat a key by passing an array. Cast at the call site
+// (`as never`) — route handlers only read the parts given here.
+export function mkEvent(
+	options: {
+		locals?: Record<string, unknown>;
+		fields?: Record<string, string | string[]>;
+		url?: string;
+		params?: Record<string, string>;
+		parent?: () => Promise<unknown>;
+	} = {}
+) {
+	const url = new URL(options.url ?? 'http://localhost/');
+	const body = new URLSearchParams();
+	const fields = options.fields ?? {};
+	for (const key of Object.keys(fields)) {
+		const value = fields[key];
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				body.append(key, item);
+			}
+		} else {
+			body.append(key, value);
+		}
+	}
+	const request = new Request(url, {
+		method: 'POST',
+		headers: { 'content-type': 'application/x-www-form-urlencoded' },
+		body
+	});
+	return {
+		locals: options.locals ?? {},
+		url,
+		params: options.params ?? {},
+		request,
+		parent: options.parent ?? (async () => ({})),
+		cookies: { get: () => undefined, set: () => {}, delete: () => {} }
+	};
 }

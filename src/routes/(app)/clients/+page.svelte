@@ -7,7 +7,10 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import ClientForm from '$lib/components/Clients/ClientForm.svelte';
+	import ClientProfileDetails from '$lib/components/Clients/ClientProfileDetails.svelte';
+	import type { ClientFieldValues } from '$lib/types/clientFields';
 	import PaymentHistoryList from '$lib/components/Payments/PaymentHistoryList.svelte';
+	import ClientResources from '$lib/components/Resources/ClientResources.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
@@ -21,6 +24,10 @@
 	let addOpen = $state(false);
 	let historyClientId = $state<string | null>(null);
 	const historyClientName = $derived(data.clients.find((c) => c.id === historyClientId)?.name ?? '');
+	let resourcesClientId = $state<string | null>(null);
+	const resourcesClientName = $derived(
+		data.clients.find((c) => c.id === resourcesClientId)?.name ?? ''
+	);
 
 	const CLIENTS_PER_PAGE = 15;
 	let page = $state(1);
@@ -51,29 +58,30 @@
 	let newName = $state('');
 	let newEmail = $state('');
 	let newRate = $state('');
+	let newCustomFields = $state<ClientFieldValues>({});
 
 	function openAdd() {
 		newName = '';
 		newEmail = '';
 		newRate = '';
+		newCustomFields = {};
 		addOpen = true;
 	}
 
 	// Edit client draft
 	let editClientId = $state<string | null>(null);
 	let editName = $state('');
-	let editAge = $state('');
 	let editRate = $state('');
-	let editBio = $state('');
+	let editCustomFields = $state<ClientFieldValues>({});
 	let editTags = $state<string[]>([]);
 	let editStatus = $state('');
+	const editClient = $derived(data.clients.find((c) => c.id === editClientId));
 
 	function openEdit(c: (typeof data.clients)[number]) {
 		editClientId = c.id;
 		editName = c.name;
-		editAge = c.age?.toString() ?? '';
 		editRate = c.rate?.toString() ?? '';
-		editBio = c.bio ?? '';
+		editCustomFields = { ...c.customFields };
 		editTags = [...c.tags];
 		editStatus = c.status;
 	}
@@ -130,7 +138,10 @@
 						<Button variant="secondary" size="sm" onclick={() => (historyClientId = c.id)}>
 							View payments
 						</Button>
-						<Button variant="secondary" size="sm" onclick={() => openEdit(c)}>Edit</Button>
+						<Button variant="secondary" size="sm" onclick={() => (resourcesClientId = c.id)}>
+								Resources
+							</Button>
+							<Button variant="secondary" size="sm" onclick={() => openEdit(c)}>Edit</Button>
 						{#if !c.userId}
 							<form method="POST" action="?/resendInvite" use:enhance>
 								<input type="hidden" name="clientId" value={c.id} />
@@ -199,6 +210,8 @@
 			bind:name={newName}
 			bind:email={newEmail}
 			bind:rate={newRate}
+			bind:customFields={newCustomFields}
+			fieldHeadings={data.fieldHeadings}
 			showDetails={false}
 			errors={form?.fieldErrors ?? {}}
 		/>
@@ -222,11 +235,21 @@
 		}}
 	>
 		<input type="hidden" name="clientId" value={editClientId} />
+		{#if editClient}
+			<ClientProfileDetails
+				phone={editClient.phone}
+				dateOfBirth={editClient.dateOfBirth}
+				gender={editClient.gender}
+				city={editClient.city}
+				state={editClient.state}
+				country={editClient.country}
+			/>
+		{/if}
 		<ClientForm
 			bind:name={editName}
-			bind:age={editAge}
 			bind:rate={editRate}
-			bind:bio={editBio}
+			bind:customFields={editCustomFields}
+			fieldHeadings={data.fieldHeadings}
 			bind:tags={editTags}
 			bind:status={editStatus}
 			showEmail={false}
@@ -247,6 +270,16 @@
 >
 	{#if historyClientId}
 		<PaymentHistoryList clientId={historyClientId} {currency} />
+	{/if}
+</Dialog>
+
+<Dialog
+	open={!!resourcesClientId}
+	title={resourcesClientId ? `${resourcesClientName} — resources` : ''}
+	onclose={() => (resourcesClientId = null)}
+>
+	{#if resourcesClientId}
+		<ClientResources clientId={resourcesClientId} />
 	{/if}
 </Dialog>
 

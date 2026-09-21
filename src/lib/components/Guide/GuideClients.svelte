@@ -36,7 +36,15 @@
 		Press <strong>Edit</strong> on a client's card to add everything the invite didn't need:
 	</p>
 	<ul>
-		<li><strong>Age</strong> and a short <strong>bio</strong>, for your own reference.</li>
+		<li>
+			<strong>Your own headings</strong>: set up to 20 in Settings → Client Profile Fields (for example
+			"Presenting concerns" or "Medication"), and each one becomes an optional notes box here and when
+			adding a client. Only you see them.
+		</li>
+		<li>
+			<strong>From the client</strong>: their date of birth, gender and location, which they give when
+			accepting the invite. You can see these but only the client can change them, from their portal.
+		</li>
 		<li>
 			<strong>Rate</strong>: what one session costs this client. Every session booked for them is
 			invoiced at this rate, and late-cancellation fees are worked out from it. Different clients

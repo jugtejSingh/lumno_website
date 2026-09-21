@@ -4,9 +4,15 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
-import { getInviteByToken, linkClientToUser, setClientPhone } from '$lib/server/clients';
+import {
+	getInviteByToken,
+	linkClientToUser,
+	setClientPhone,
+	setClientProfile
+} from '$lib/server/clients';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { parsePhone } from '$lib/phone';
+import { hasClientProfile, parseClientProfile } from '$lib/clientProfile';
 import { logError } from '$lib/server/log';
 
 // A client row can be created without an email (the invite is then never sent);
@@ -61,6 +67,8 @@ export const load: PageServerLoad = async (event) => {
 		invalid: null,
 		oauthError,
 		hasAccount: Boolean(existingUser),
+		// false once the Google action has saved it before the OAuth round trip
+		needsProfile: !hasClientProfile(invite),
 		loggedInAsMatch: loggedInUser ? loggedInUser.email === invite.email : false,
 		loggedInAsOther: loggedInUser ? loggedInUser.email !== invite.email : false
 	};
@@ -83,6 +91,10 @@ export const actions: Actions = {
 		const parsedPhone = parsePhone(formData.get('phone')?.toString());
 		if ('error' in parsedPhone) {
 			return fail(400, { message: parsedPhone.error });
+		}
+		const parsedProfile = parseClientProfile(formData);
+		if ('error' in parsedProfile) {
+			return fail(400, { message: parsedProfile.error });
 		}
 
 		const [existingUser] = await db.select().from(user).where(eq(user.email, invite.email));
@@ -126,6 +138,7 @@ export const actions: Actions = {
 		if (parsedPhone.phone) {
 			await setClientPhone(invite.id, parsedPhone.phone);
 		}
+		await setClientProfile(invite.id, parsedProfile.profile);
 		return redirect(302, '/portal');
 	},
 
@@ -135,15 +148,21 @@ export const actions: Actions = {
 			return fail(400, { message: 'This invite is no longer valid.' });
 		}
 
-		const parsedPhone = parsePhone((await event.request.formData()).get('phone')?.toString());
+		const formData = await event.request.formData();
+		const parsedPhone = parsePhone(formData.get('phone')?.toString());
 		if ('error' in parsedPhone) {
 			return fail(400, { message: parsedPhone.error });
+		}
+		const parsedProfile = parseClientProfile(formData);
+		if ('error' in parsedProfile) {
+			return fail(400, { message: parsedProfile.error });
 		}
 		// saved before we hand off to Google — the invite token already identifies this
 		// client row, so nothing needs stashing across the OAuth round trip
 		if (parsedPhone.phone) {
 			await setClientPhone(invite.id, parsedPhone.phone);
 		}
+		await setClientProfile(invite.id, parsedProfile.profile);
 
 		let url: string;
 		try {
@@ -182,6 +201,16 @@ export const actions: Actions = {
 		}
 		if (!event.locals.user || event.locals.user.email !== invite.email) {
 			return fail(403, { message: 'Log in with the invited email to accept.' });
+		}
+
+		// back from Google: the profile was saved by the google action already. Otherwise
+		// (already signed in, never went through that action) it's collected here.
+		if (!hasClientProfile(invite)) {
+			const parsedProfile = parseClientProfile(await event.request.formData());
+			if ('error' in parsedProfile) {
+				return fail(400, { message: parsedProfile.error });
+			}
+			await setClientProfile(invite.id, parsedProfile.profile);
 		}
 
 		try {

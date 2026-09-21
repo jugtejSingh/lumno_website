@@ -16,6 +16,17 @@ import { db } from '$lib/server/db';
 import { client } from '$lib/server/db/schema';
 import { addCharge } from '$lib/server/payments';
 import { listDayKindsForMonth } from '$lib/server/schedule';
+import {
+	getSlotDesign,
+	parseDesignedSlots,
+	validateDaySlots,
+	parseMaxSessions,
+	replaceWeekTemplate,
+	setDateOverride,
+	clearDateOverride,
+	toDateKey,
+	type DesignedDay
+} from '$lib/server/availabilitySlots';
 import { logError } from '$lib/server/log';
 import { parseDateParts, parseTimeParts, type OverlapConflict } from '$lib/server/appointments';
 
@@ -43,7 +54,7 @@ function overlapMessage(conflict: OverlapConflict | undefined, timezone: string)
 		hour: 'numeric',
 		minute: '2-digit'
 	});
-	return `That overlaps your confirmed session on ${format.format(conflict.startAt)} – ${timeOnly.format(conflict.endAt)} (including your buffer time)`;
+	return `That overlaps your confirmed session on ${format.format(conflict.startAt)} – ${timeOnly.format(conflict.endAt)}`;
 }
 
 const cancelErrorMessages = {
@@ -88,10 +99,11 @@ export const load: PageServerLoad = async (event) => {
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
 	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
 
-	const [appointments, clients, dayKinds] = await Promise.all([
+	const [appointments, clients, dayKinds, slotDesign] = await Promise.all([
 		listAppointmentsForMonth(therapist.id, therapist.timezone, year, month),
 		listClients(therapist.id),
-		listDayKindsForMonth(therapist.id, year, month)
+		listDayKindsForMonth(therapist.id, year, month),
+		getSlotDesign(therapist.id, year, month)
 	]);
 	appointments.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
 
@@ -124,10 +136,86 @@ export const load: PageServerLoad = async (event) => {
 		});
 	}
 
-	return { year, month, sessionsByDay, clients, dayKinds };
+	return { year, month, sessionsByDay, clients, dayKinds, slotDesign };
 };
 
+const MAX_SESSIONS_MESSAGE = 'Max sessions must be a whole number from 1 to 50, or blank for no limit';
+
+function readJson(formData: FormData, field: string): unknown {
+	try {
+		return JSON.parse(formData.get(field)?.toString() ?? '');
+	} catch {
+		return null;
+	}
+}
+
 export const actions: Actions = {
+	saveWeekTemplate: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const raw = readJson(formData, 'week');
+		if (!Array.isArray(raw) || raw.length !== 7) {
+			return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
+		}
+
+		const week: DesignedDay[] = [];
+		for (const rawDay of raw) {
+			if (typeof rawDay !== 'object' || rawDay === null) {
+				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
+			}
+			const { slots: rawSlots, maxSessions: rawMax } = rawDay as Record<string, unknown>;
+			const daySlots = parseDesignedSlots(rawSlots);
+			if (!daySlots) {
+				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
+			}
+			const error = validateDaySlots(daySlots);
+			if (error) {
+				return fail(400, { message: error });
+			}
+			const maxSessions = parseMaxSessions(rawMax);
+			if (maxSessions === undefined) {
+				return fail(400, { message: MAX_SESSIONS_MESSAGE });
+			}
+			week.push({ slots: daySlots, maxSessions });
+		}
+
+		await replaceWeekTemplate(therapistId, week);
+	},
+
+	saveDateOverride: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const date = parseDateParts(formData);
+		if (!date) {
+			return fail(400, { message: 'Pick a valid date' });
+		}
+		const slots = parseDesignedSlots(readJson(formData, 'slots'));
+		if (!slots) {
+			return fail(400, { message: 'Could not read that day’s slots — reload and try again' });
+		}
+		const error = validateDaySlots(slots);
+		if (error) {
+			return fail(400, { message: error });
+		}
+		const maxSessions = parseMaxSessions(formData.get('maxSessions')?.toString() ?? '');
+		if (maxSessions === undefined) {
+			return fail(400, { message: MAX_SESSIONS_MESSAGE });
+		}
+
+		await setDateOverride(therapistId, toDateKey(date.year, date.month, date.day), { slots, maxSessions });
+	},
+
+	clearDateOverride: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const date = parseDateParts(formData);
+		if (!date) {
+			return fail(400, { message: 'Pick a valid date' });
+		}
+
+		await clearDateOverride(therapistId, toDateKey(date.year, date.month, date.day));
+	},
+
 	addAppointment: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const timezone = event.locals.therapist!.timezone;

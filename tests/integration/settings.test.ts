@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-	getTherapistScheduleSettings,
-	updateTherapistScheduleSettings,
-	getNotificationSettings,
-	updateNotificationSettings
-} from '$lib/server/settings';
+import { getNotificationSettings, updateNotificationSettings } from '$lib/server/settings';
 import {
 	getPaymentSettings,
 	updatePaymentSettings,
@@ -18,30 +13,6 @@ let therapistId: string;
 beforeEach(async () => {
 	await resetDb();
 	therapistId = (await mkTherapist()).id;
-});
-
-describe('schedule settings', () => {
-	it('returns the seeded defaults, then round-trips an update', async () => {
-		expect(await getTherapistScheduleSettings(therapistId)).toMatchObject({
-			bufferMinutes: 0,
-			sessionMinutes: 60,
-			earliestBookingTime: '09:00:00'
-		});
-
-		await updateTherapistScheduleSettings(therapistId, {
-			bufferMinutes: 15,
-			sessionMinutes: 50,
-			earliestBookingTime: '08:00',
-			latestBookingTime: '18:00',
-			weeklySchedule: ['off', 'online', 'online', 'online', 'online', 'online', 'off']
-		});
-
-		const saved = await getTherapistScheduleSettings(therapistId);
-		expect(saved.bufferMinutes).toBe(15);
-		expect(saved.sessionMinutes).toBe(50);
-		expect(saved.earliestBookingTime).toBe('08:00:00');
-		expect(saved.weeklySchedule[0]).toBe('off');
-	});
 });
 
 describe('notification settings', () => {

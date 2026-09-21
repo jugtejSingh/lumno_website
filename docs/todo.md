@@ -21,13 +21,6 @@ we take in client number for whatsapp notifications in the future, we also need 
 
 Chatbot for client notes
 
-Slot templating allowing extreme flexibility of slots
-
-Bio templates kwargs for more flexibility people can add once in the settings, then taken per person
-
 resource uploading, some mental health stuff, their reports etc
 
-allowing only booking of 3-4 slots, before the day is considered over
-
-
-
+automate public note makign using AI

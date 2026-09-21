@@ -7,7 +7,9 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import AddAppointmentForm from './AddAppointmentForm.svelte';
 	import RescheduleAppointmentForm from './RescheduleAppointmentForm.svelte';
+	import DateSlotsPanel from '$lib/components/SlotDesigner/DateSlotsPanel.svelte';
 	import type { CalendarSession } from '$lib/types/calendar';
+	import type { DesignedDay } from '$lib/types/slots';
 
 	let {
 		day,
@@ -15,6 +17,8 @@
 		month,
 		sessions,
 		clients,
+		templateDay,
+		overrideDay,
 		formMessage,
 		onclose
 	}: {
@@ -23,6 +27,8 @@
 		month: number;
 		sessions: CalendarSession[];
 		clients: { id: string; name: string }[];
+		templateDay: DesignedDay;
+		overrideDay: DesignedDay | undefined;
 		formMessage?: string;
 		onclose: () => void;
 	} = $props();
@@ -153,6 +159,10 @@
 			/>
 		{:else}
 			<Button variant="secondary" onclick={() => (addApptOpen = true)}>+ Add appointment</Button>
+		{/if}
+
+		{#if day !== null}
+			<DateSlotsPanel {year} {month} {day} {templateDay} {overrideDay} message={formMessage} />
 		{/if}
 	</div>
 </Dialog>

@@ -3,6 +3,7 @@
 	import MonthGrid from '$lib/components/Calendar/MonthGrid.svelte';
 	import DayDialog from '$lib/components/Calendar/DayDialog.svelte';
 	import TodayDialog from '$lib/components/Calendar/TodayDialog.svelte';
+	import WeekTemplateDialog from '$lib/components/SlotDesigner/WeekTemplateDialog.svelte';
 	import { goto } from '$app/navigation';
 	import type { ActionData, PageData } from './$types';
 	import type { CalendarDay, CalendarWeek } from '$lib/types/calendar';
@@ -87,6 +88,23 @@
 	);
 
 	const dayDialogSessions = $derived(dayDialogDay !== null ? (data.sessionsByDay[dayDialogDay] ?? []) : []);
+
+	let weekTemplateOpen = $state(false);
+
+	// the open day's weekday template, and its own override if it has one
+	const dayDialogTemplateDay = $derived.by(() => {
+		if (dayDialogDay === null) {
+			return { slots: [], maxSessions: null };
+		}
+		return data.slotDesign.week[new Date(year, month, dayDialogDay).getDay()];
+	});
+	const dayDialogOverrideDay = $derived.by(() => {
+		if (dayDialogDay === null) {
+			return undefined;
+		}
+		const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayDialogDay).padStart(2, '0')}`;
+		return data.slotDesign.overrides[dateKey];
+	});
 	const todaySessions = $derived(data.sessionsByDay[today.getDate()] ?? []);
 
 	function gotoMonth(nextYear: number, nextMonth: number) {
@@ -123,6 +141,7 @@
 			<button class="arrow-btn" onclick={() => stepDay(1)} aria-label="Next day">&#8250;</button>
 		</div>
 		<div class="toolbar-actions">
+			<Button variant="secondary" onclick={() => (weekTemplateOpen = true)}>Weekly slots</Button>
 			<Button variant="secondary" onclick={goToday}>Today</Button>
 		</div>
 	</div>
@@ -182,9 +201,19 @@
 	{month}
 	sessions={dayDialogSessions}
 	clients={data.clients}
+	templateDay={dayDialogTemplateDay}
+	overrideDay={dayDialogOverrideDay}
 	formMessage={form?.message}
 	onclose={() => (dayDialogDay = null)}
 />
+
+{#if weekTemplateOpen}
+	<WeekTemplateDialog
+		week={data.slotDesign.week}
+		message={form?.message}
+		onclose={() => (weekTemplateOpen = false)}
+	/>
+{/if}
 
 <TodayDialog open={todayDialogOpen} sessions={todaySessions} onclose={() => (todayDialogOpen = false)} />
 

@@ -11,6 +11,8 @@ import {
 	deleteClient,
 	listClients,
 	listClientsForUser,
+	setClientProfile,
+	getClientCustomFields,
 	type NewClientInput
 } from '$lib/server/clients';
 import { sendEmail } from '$lib/server/email';
@@ -19,8 +21,7 @@ import { resetDb, mkTherapist, mkClient, mkUser } from './helpers';
 const newClientInput = (over: Partial<NewClientInput> = {}): NewClientInput => ({
 	name: 'Sam Client',
 	email: 'sam@example.com',
-	age: 30,
-	bio: null,
+	customFields: {},
 	tags: [],
 	rate: 1200,
 	...over
@@ -158,5 +159,60 @@ describe('status, delete, and per-user listing', () => {
 		const rows = await listClientsForUser(u.id);
 		expect(rows).toHaveLength(2);
 		expect(rows.map((r) => r.therapistId).sort()).toEqual([therapistId, t2.id].sort());
+	});
+});
+
+describe('setClientProfile', () => {
+	it('writes all five profile fields and nothing else', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { customFields: { note: 'private' }, rate: 1500 });
+		await setClientProfile(c.id, {
+			dateOfBirth: '1990-04-12',
+			gender: 'Woman',
+			city: 'Pune',
+			state: 'Maharashtra',
+			country: 'IN'
+		});
+
+		const [row] = await db.select().from(client).where(eq(client.id, c.id));
+		expect(row).toMatchObject({
+			dateOfBirth: '1990-04-12',
+			gender: 'Woman',
+			city: 'Pune',
+			state: 'Maharashtra',
+			country: 'IN',
+			customFields: { note: 'private' },
+			rate: 1500
+		});
+	});
+
+	it('only touches the given client', async () => {
+		const t = await mkTherapist();
+		const target = await mkClient(t.id);
+		const bystander = await mkClient(t.id, { name: 'Other Client' });
+		await setClientProfile(target.id, { dateOfBirth: '1990-04-12', gender: 'Man', city: 'X', state: 'Y', country: 'GB' });
+
+		const [row] = await db.select().from(client).where(eq(client.id, bystander.id));
+		expect(row.city).toBeNull();
+	});
+});
+
+describe('getClientCustomFields', () => {
+	it('returns the client’s custom fields for their own therapist', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { customFields: { h1: 'anxious about exams' } });
+		expect(await getClientCustomFields(t.id, c.id)).toEqual({ h1: 'anxious about exams' });
+	});
+
+	it('returns null for another therapist’s client', async () => {
+		const mine = await mkTherapist();
+		const theirs = await mkTherapist();
+		const c = await mkClient(theirs.id, { customFields: { h1: 'secret' } });
+		expect(await getClientCustomFields(mine.id, c.id)).toBeNull();
+	});
+
+	it('returns null for a client that does not exist', async () => {
+		const t = await mkTherapist();
+		expect(await getClientCustomFields(t.id, 'no-such-client')).toBeNull();
 	});
 });

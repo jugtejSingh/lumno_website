@@ -28,7 +28,7 @@ function expectedOverlapMessage(startAt: Date, endAt: Date) {
 		hour: 'numeric',
 		minute: '2-digit'
 	});
-	return `That overlaps your confirmed session on ${format.format(startAt)} – ${timeOnly.format(endAt)} (including your buffer time)`;
+	return `That overlaps your confirmed session on ${format.format(startAt)} – ${timeOnly.format(endAt)}`;
 }
 
 function nextMonth() {

@@ -5,6 +5,8 @@ import { client, therapist, user } from '$lib/server/db/schema';
 import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
 import { usageLimit } from '$lib/server/billing';
 import { logError } from '$lib/server/log';
+import type { ClientFieldValues } from '$lib/types/clientFields';
+import type { ClientProfile } from '$lib/clientProfile';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -13,8 +15,7 @@ export type ClientStatus = 'active' | 'paused' | 'left';
 export type NewClientInput = {
 	name: string;
 	email: string;
-	age: number | null;
-	bio: string | null;
+	customFields: ClientFieldValues;
 	tags: string[];
 	rate: number | null;
 };
@@ -175,8 +176,7 @@ export async function setClientStatus(therapistId: string, clientId: string, sta
 
 export type ClientUpdateInput = {
 	name: string;
-	age: number | null;
-	bio: string | null;
+	customFields: ClientFieldValues;
 	tags: string[];
 	rate: number | null;
 	status: ClientStatus;
@@ -204,8 +204,7 @@ export async function updateClient(therapistId: string, clientId: string, input:
 		.update(client)
 		.set({
 			name: input.name,
-			age: input.age,
-			bio: input.bio,
+			customFields: input.customFields,
 			tags: input.tags,
 			rate: input.rate,
 			status: input.status,
@@ -244,6 +243,24 @@ export async function linkClientToUser(clientId: string, userId: string) {
 // belongs to the caller (invite token or locals.clientId).
 export async function setClientPhone(clientId: string, phone: string | null) {
 	await db.update(client).set({ phone }).where(eq(client.id, clientId));
+}
+
+// Same trust model as setClientPhone: the client's own answers, already validated by
+// parseClientProfile. Callers must have established that clientId belongs to the caller.
+export async function setClientProfile(clientId: string, profile: ClientProfile) {
+	await db.update(client).set(profile).where(eq(client.id, clientId));
+}
+
+// A client's current custom-field values, so an edit can be merged on top of them.
+export async function getClientCustomFields(therapistId: string, clientId: string) {
+	const [row] = await db
+		.select({ customFields: client.customFields })
+		.from(client)
+		.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
+	if (!row) {
+		return null;
+	}
+	return row.customFields;
 }
 
 export async function listClientsForUser(userId: string) {

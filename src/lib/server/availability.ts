@@ -1,20 +1,32 @@
 import { and, eq, gte, lt, ne, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
-import { appointment, therapist, client, availabilityException } from '$lib/server/db/schema';
-import { zonedDayBounds, zonedDateToUTC, getZonedWeekday, parseTimeOfDay } from '$lib/server/timezone';
+import { appointment, therapist, client } from '$lib/server/db/schema';
+import { zonedDayBounds, zonedDateToUTC, parseTimeOfDay } from '$lib/server/timezone';
+import { listDesignedDaysForMonth } from '$lib/server/availabilitySlots';
 import { getPaymentSettings } from '$lib/server/paymentSettings';
-import { getTherapistScheduleSettings, getBookingRules } from '$lib/server/settings';
-import { getActivePackForClient, hasOutstandingBalance, addCharge, completePackIfExhausted } from '$lib/server/payments';
-import { attachMeetingLinkIfOnline, finishReschedule, type RescheduleAppointmentResult } from '$lib/server/appointments';
+import { getBookingRules } from '$lib/server/settings';
+import {
+	getActivePackForClient,
+	hasOutstandingBalance,
+	addCharge,
+	completePackIfExhausted
+} from '$lib/server/payments';
+import {
+	attachMeetingLinkIfOnline,
+	finishReschedule,
+	isOverlapError,
+	type RescheduleAppointmentResult
+} from '$lib/server/appointments';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
 
 // clients can only book within the next 2 weeks
 const BOOKING_WINDOW_DAYS = 14;
 
 export type AvailableSlot = {
-	startTime: string;
+	startTime: string; // "HH:MM", therapist's local time
+	endTime: string;
 	label: string;
-	// 'hybrid' means the day itself is hybrid — the client must choose online/in_person at booking time
+	// 'hybrid' means the slot itself is hybrid — the client must choose online/in_person at booking time
 	modality: 'online' | 'in_person' | 'hybrid';
 };
 
@@ -24,42 +36,30 @@ export type AvailableSlot = {
  * outside working hours, already booked, in the past) — every excluded slot
  * just doesn't appear, so a client can't infer another client's schedule.
  */
-export async function listAvailabilityForMonth(therapistId: string, year: number, month: number) {
+export async function listAvailabilityForMonth(
+	therapistId: string,
+	year: number,
+	month: number,
+	// a session being rescheduled: left out of the daily cap count, so a client can move it
+	// to another time on the same full day
+	ignoreAppointmentId: string | null = null
+) {
 	const [therapistRow] = await db
 		.select({ timezone: therapist.timezone })
 		.from(therapist)
 		.where(eq(therapist.id, therapistId));
 	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
 
-	// sessionMinutes is the client self-booking length; the therapist's own manual
-	// bookings (createAppointmentForTherapist) can still use any start/end.
-	const { weeklySchedule, bufferMinutes, sessionMinutes, earliestBookingTime, latestBookingTime } =
-		await getTherapistScheduleSettings(therapistId);
-	const [earliestHour, earliestMinute] = parseTimeOfDay(earliestBookingTime);
-	const [latestHour, latestMinute] = parseTimeOfDay(latestBookingTime);
-	const latestTotalMinutes = latestHour * 60 + latestMinute;
-
+	// Slots are handcrafted by the therapist (availabilitySlots.ts); the therapist's own
+	// manual bookings (createAppointmentForTherapist) can still use any start/end.
 	const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 	const { start: monthStart } = zonedDayBounds(year, month, 1, timezone);
 	const { end: monthEnd } = zonedDayBounds(year, month, daysInMonth, timezone);
 
-	const [exceptions, appointments] = await Promise.all([
+	const [designByDay, appointments] = await Promise.all([
+		listDesignedDaysForMonth(therapistId, year, month),
 		db
-			.select({
-				startAt: availabilityException.startAt,
-				endAt: availabilityException.endAt,
-				kind: availabilityException.kind
-			})
-			.from(availabilityException)
-			.where(
-				and(
-					eq(availabilityException.therapistId, therapistId),
-					lt(availabilityException.startAt, monthEnd),
-					gte(availabilityException.endAt, monthStart)
-				)
-			),
-		db
-			.select({ startAt: appointment.startAt, endAt: appointment.endAt })
+			.select({ id: appointment.id, startAt: appointment.startAt, endAt: appointment.endAt })
 			.from(appointment)
 			.where(
 				and(
@@ -77,29 +77,41 @@ export async function listAvailabilityForMonth(therapistId: string, year: number
 	const slotsByDay: Record<number, AvailableSlot[]> = {};
 
 	for (let day = 1; day <= daysInMonth; day++) {
-		const { start: dayStart, end: dayEnd } = zonedDayBounds(year, month, day, timezone);
-		const exception = exceptions.find((ex) => ex.startAt < dayEnd && ex.endAt > dayStart);
-		const kind = exception ? exception.kind : weeklySchedule[getZonedWeekday(dayStart, timezone)];
-		if (kind === 'off') continue;
+		const design = designByDay[day];
+		if (design.slots.length === 0) continue;
 
+		const { start: dayStart, end: dayEnd } = zonedDayBounds(year, month, day, timezone);
 		const dayAppointments = appointments.filter((a) => a.startAt < dayEnd && a.endAt > dayStart);
+
+		// Daily cap: counts every confirmed/completed session starting that day, the therapist's
+		// own bookings included. A full day shows no slots at all — cancelling or moving a
+		// session away drops the count and reopens it.
+		// ponytail: counted outside the insert transaction, so two clients booking the last
+		// place at the same moment can both get in; take a per-therapist lock if that matters
+		if (design.maxSessions !== null) {
+			let sessionsThatDay = 0;
+			for (const a of dayAppointments) {
+				if (a.startAt >= dayStart && a.id !== ignoreAppointmentId) {
+					sessionsThatDay++;
+				}
+			}
+			if (sessionsThatDay >= design.maxSessions) {
+				continue;
+			}
+		}
+
 		const slots: AvailableSlot[] = [];
 
-		let minutesFromMidnight = earliestHour * 60 + earliestMinute;
-		while (minutesFromMidnight + sessionMinutes <= latestTotalMinutes) {
-			const hour = Math.floor(minutesFromMidnight / 60);
-			const minute = minutesFromMidnight % 60;
+		for (const designed of design.slots) {
+			const [hour, minute] = parseTimeOfDay(designed.startTime);
+			const [endHour, endMinute] = parseTimeOfDay(designed.endTime);
 			const slotStart = zonedDateToUTC(year, month, day, hour, minute, timezone);
-			const slotEnd = new Date(slotStart.getTime() + sessionMinutes * 60_000);
+			const slotEnd = zonedDateToUTC(year, month, day, endHour, endMinute, timezone);
 
 			const blocked =
 				slotStart <= now ||
 				slotStart > windowEnd ||
-				dayAppointments.some(
-					(a) =>
-						slotStart.getTime() < a.endAt.getTime() + bufferMinutes * 60_000 &&
-						slotEnd.getTime() > a.startAt.getTime() - bufferMinutes * 60_000
-				);
+				dayAppointments.some((a) => slotStart < a.endAt && slotEnd > a.startAt);
 
 			if (!blocked) {
 				const label = new Intl.DateTimeFormat('en-US', {
@@ -108,17 +120,12 @@ export async function listAvailabilityForMonth(therapistId: string, year: number
 					minute: '2-digit'
 				}).format(slotStart);
 				slots.push({
-					startTime: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+					startTime: designed.startTime,
+					endTime: designed.endTime,
 					label,
-					modality: kind
+					modality: designed.modality
 				});
 			}
-
-			// buffer spaces the grid (9:00, 10:05, 11:10 for a 5-min buffer); the overlap check
-			// above keeps the same gap around off-grid sessions the therapist booked by hand.
-			// ponytail: grid stays anchored at earliestBookingTime, so an off-grid session hides
-			// neighbouring slots instead of shifting them; re-anchor after bookings if that bites.
-			minutesFromMidnight += sessionMinutes + bufferMinutes;
 		}
 
 		if (slots.length > 0) slotsByDay[day] = slots;
@@ -145,13 +152,25 @@ export type BookSlotResult = {
 async function insertAppointmentForClient(
 	therapistId: string,
 	clientId: string,
-	input: { year: number; month: number; day: number; startTime: string; modality?: 'online' | 'in_person' },
+	input: {
+		year: number;
+		month: number;
+		day: number;
+		startTime: string;
+		modality?: 'online' | 'in_person';
+	},
 	extra: { packId?: string | null; rescheduledFromId?: string | null } = {},
 	executor: DbOrTx = db
 ): Promise<
-	{ appointment: typeof appointment.$inferSelect } | { error: 'unavailable' | 'overlap' | 'modality_required' }
+	| { appointment: typeof appointment.$inferSelect }
+	| { error: 'unavailable' | 'overlap' | 'modality_required' }
 > {
-	const slotsByDay = await listAvailabilityForMonth(therapistId, input.year, input.month);
+	const slotsByDay = await listAvailabilityForMonth(
+		therapistId,
+		input.year,
+		input.month,
+		extra.rescheduledFromId ?? null
+	);
 	const slot = slotsByDay[input.day]?.find((s) => s.startTime === input.startTime);
 	if (!slot) {
 		return { error: 'unavailable' as const };
@@ -169,28 +188,32 @@ async function insertAppointmentForClient(
 		.where(eq(therapist.id, therapistId));
 	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
 
-	const [hourRaw, minuteRaw] = input.startTime.split(':');
-	const startAt = zonedDateToUTC(input.year, input.month, input.day, Number(hourRaw), Number(minuteRaw), timezone);
-	const { sessionMinutes } = await getTherapistScheduleSettings(therapistId);
-	const endAt = new Date(startAt.getTime() + sessionMinutes * 60_000);
+	const [hour, minute] = parseTimeOfDay(slot.startTime);
+	const [endHour, endMinute] = parseTimeOfDay(slot.endTime);
+	const startAt = zonedDateToUTC(input.year, input.month, input.day, hour, minute, timezone);
+	const endAt = zonedDateToUTC(input.year, input.month, input.day, endHour, endMinute, timezone);
 
 	try {
-		const [row] = await executor
-			.insert(appointment)
-			.values({
-				therapistId,
-				clientId,
-				startAt,
-				endAt,
-				modality,
-				notes: null,
-				packId: extra.packId ?? null,
-				rescheduledFromId: extra.rescheduledFromId ?? null
-			})
-			.returning();
+		// savepoint: postgres-js rethrows any failed query at the end of the enclosing
+		// transaction even if it was caught, so the trigger error must be contained here
+		const [row] = await executor.transaction((savepoint) =>
+			savepoint
+				.insert(appointment)
+				.values({
+					therapistId,
+					clientId,
+					startAt,
+					endAt,
+					modality,
+					notes: null,
+					packId: extra.packId ?? null,
+					rescheduledFromId: extra.rescheduledFromId ?? null
+				})
+				.returning()
+		);
 		return { appointment: row };
 	} catch (err) {
-		if (err instanceof Error && err.message.includes('appointment_overlaps_existing_booking')) {
+		if (isOverlapError(err)) {
 			return { error: 'overlap' as const };
 		}
 		throw err;
@@ -200,7 +223,13 @@ async function insertAppointmentForClient(
 export async function createAppointmentForClient(
 	therapistId: string,
 	clientId: string,
-	input: { year: number; month: number; day: number; startTime: string; modality?: 'online' | 'in_person' }
+	input: {
+		year: number;
+		month: number;
+		day: number;
+		startTime: string;
+		modality?: 'online' | 'in_person';
+	}
 ): Promise<BookSlotResult> {
 	const [clientRow] = await db
 		.select({ rate: client.rate, deactivatedAt: client.deactivatedAt })
@@ -257,7 +286,11 @@ export async function createAppointmentForClient(
 		if (packHasCredit) {
 			await completePackIfExhausted(activePack!.id, tx);
 		} else {
-			await addCharge(therapistId, { clientId, appointmentId: inserted.appointment.id, amount: clientRow?.rate ?? 0 }, tx);
+			await addCharge(
+				therapistId,
+				{ clientId, appointmentId: inserted.appointment.id, amount: clientRow?.rate ?? 0 },
+				tx
+			);
 		}
 
 		return inserted;
@@ -279,7 +312,13 @@ export async function rescheduleAppointmentForClient(
 	therapistId: string,
 	clientId: string,
 	oldAppointmentId: string,
-	input: { year: number; month: number; day: number; startTime: string; modality?: 'online' | 'in_person' }
+	input: {
+		year: number;
+		month: number;
+		day: number;
+		startTime: string;
+		modality?: 'online' | 'in_person';
+	}
 ): Promise<RescheduleAppointmentResult> {
 	const [oldAppt] = await db
 		.select()
