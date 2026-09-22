@@ -94,7 +94,7 @@
 	// the open day's weekday template, and its own override if it has one
 	const dayDialogTemplateDay = $derived.by(() => {
 		if (dayDialogDay === null) {
-			return { slots: [], maxSessions: null };
+			return { slots: [], maxSessions: null, holiday: false };
 		}
 		return data.slotDesign.week[new Date(year, month, dayDialogDay).getDay()];
 	});

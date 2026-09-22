@@ -25,7 +25,7 @@ import {
 	setDateOverride,
 	clearDateOverride,
 	toDateKey,
-	type DesignedDay
+	type WeeklyDay
 } from '$lib/server/availabilitySlots';
 import { logError } from '$lib/server/log';
 import { parseDateParts, parseTimeParts, type OverlapConflict } from '$lib/server/appointments';
@@ -158,12 +158,12 @@ export const actions: Actions = {
 			return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
 		}
 
-		const week: DesignedDay[] = [];
+		const week: WeeklyDay[] = [];
 		for (const rawDay of raw) {
 			if (typeof rawDay !== 'object' || rawDay === null) {
 				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
 			}
-			const { slots: rawSlots, maxSessions: rawMax } = rawDay as Record<string, unknown>;
+			const { slots: rawSlots, maxSessions: rawMax, holiday } = rawDay as Record<string, unknown>;
 			const daySlots = parseDesignedSlots(rawSlots);
 			if (!daySlots) {
 				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
@@ -176,7 +176,10 @@ export const actions: Actions = {
 			if (maxSessions === undefined) {
 				return fail(400, { message: MAX_SESSIONS_MESSAGE });
 			}
-			week.push({ slots: daySlots, maxSessions });
+			if (typeof holiday !== 'boolean') {
+				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
+			}
+			week.push({ slots: daySlots, maxSessions, holiday });
 		}
 
 		await replaceWeekTemplate(therapistId, week);

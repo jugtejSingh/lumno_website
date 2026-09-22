@@ -41,6 +41,9 @@ export const therapistSettings = pgTable('therapist_settings', {
 	// entry (or a null column) = no limit. Once a day holds that many sessions its slots are
 	// hidden from clients; a date override carries its own cap instead (availabilityDateOverride).
 	weeklyMaxSessions: integer('weekly_max_sessions').array().$type<(number | null)[]>(),
+	// holiday flag for each weekday of the slot template, index 0 = Sunday. A holiday weekday
+	// keeps its slots but can't be booked; a date override still wins. Null/missing = not a holiday.
+	weeklyHolidays: boolean('weekly_holidays').array().$type<boolean[]>(),
 	// blocks portal bookings while the client has any unpaid payment row (availability.ts)
 	requireZeroBalance: boolean('require_zero_balance').notNull().default(false),
 	// whether an online appointment gets a Google Meet link generated at booking/reschedule
@@ -86,13 +89,13 @@ export const availabilityDateOverride = pgTable(
 		// this date's max sessions, replacing its weekday's cap; null = no limit
 		maxSessions: integer('max_sessions')
 	},
-	// ponytail: columns listed alphabetically on purpose. drizzle-kit reads a composite PK's
-	// columns back alphabetically, so any other order looks "changed" and push tries (and fails)
-	// to rebuild the key on every run. The name is pinned so the reorder doesn't rename it.
+	// column order must match the database's (therapist_id, date). Any other order looks
+	// "changed" to drizzle-kit push, which then tries to rebuild the key and fails, because
+	// availabilitySlot_override_fk depends on it. The name is pinned for the same reason.
 	(table) => [
 		primaryKey({
 			name: 'availability_date_override_therapist_id_date_pk',
-			columns: [table.date, table.therapistId]
+			columns: [table.therapistId, table.date]
 		})
 	]
 );

@@ -1,9 +1,15 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { listClientsWithNotes, createNote, updateNote, type NoteVisibility } from '$lib/server/notes';
+import {
+	listClientsWithNotes,
+	createNote,
+	updateNote,
+	privateNotesContext,
+	type NoteVisibility
+} from '$lib/server/notes';
 import { listPastAppointmentsForClient } from '$lib/server/appointments';
 import { listClients } from '$lib/server/clients';
-import { fixNoteText, summarizeNoteText, isOverAiBudget } from '$lib/server/ai';
+import { fixNoteText, summarizeNoteText, summarizeNoteForClient, chatAboutClient, isOverAiBudget } from '$lib/server/ai';
 
 const AI_LIMIT_MESSAGE = 'Monthly AI limit reached for this account. It resets next month.';
 
@@ -96,5 +102,62 @@ export const actions: Actions = {
 			return fail(502, { message: 'Could not describe the note right now. Please try again.' });
 		}
 		return { description };
+	},
+
+	// Drafts a client-safe version of a private note. Saves nothing — the
+	// therapist reviews it in the editor and saves it as a shared note.
+	shareNote: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const body = formData.get('body')?.toString().trim() ?? '';
+		if (!body) {
+			return fail(400, { message: 'Write something before sending it' });
+		}
+		if (await isOverAiBudget(therapistId)) {
+			return fail(429, { message: AI_LIMIT_MESSAGE });
+		}
+
+		const shared = await summarizeNoteForClient(therapistId, body);
+		if (!shared) {
+			return fail(502, { message: 'Could not draft that for the client right now. Please try again.' });
+		}
+		return { shared };
+	},
+
+	// history is the prior turns of this chat, posted back each time — nothing is
+	// stored server-side, so a page refresh starts the conversation over.
+	chat: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const clientId = formData.get('clientId')?.toString() ?? '';
+		const question = formData.get('question')?.toString().trim() ?? '';
+		const historyRaw = formData.get('history')?.toString() ?? '[]';
+
+		if (!clientId || !question) {
+			return fail(400, { message: 'Ask something first' });
+		}
+		if (await isOverAiBudget(therapistId)) {
+			return fail(429, { message: AI_LIMIT_MESSAGE });
+		}
+
+		let history: { role: 'user' | 'assistant'; content: string }[] = [];
+		try {
+			const parsed = JSON.parse(historyRaw);
+			if (Array.isArray(parsed)) {
+				history = parsed.filter(
+					(m): m is { role: 'user' | 'assistant'; content: string } =>
+						(m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'
+				);
+			}
+		} catch {
+			// malformed history from the client just starts the chat over
+		}
+
+		const notesContext = await privateNotesContext(therapistId, clientId);
+		const answer = await chatAboutClient(therapistId, notesContext, history, question);
+		if (!answer) {
+			return fail(502, { message: 'Could not get an answer right now. Please try again.' });
+		}
+		return { answer };
 	}
 };

@@ -13,3 +13,8 @@ export type DesignedDay = {
 	slots: DesignedSlot[];
 	maxSessions: number | null;
 };
+
+// A weekday of the weekly template. On holiday it keeps its slots but nothing can be booked.
+export type WeeklyDay = DesignedDay & {
+	holiday: boolean;
+};

@@ -54,19 +54,21 @@
 
 	.empty {
 		font-size: 13px;
+		font-style: italic;
 		color: var(--text-muted);
 	}
 
 	.add-btn {
 		align-self: flex-start;
-		padding: 6px 12px;
-		border-radius: var(--radius-sm);
-		border: 2px dashed var(--border-subtle);
-		background: transparent;
-		color: var(--text-secondary);
-		font-family: var(--font-body);
-		font-size: 13px;
+		padding: 5px 12px;
+		border-radius: var(--radius-pill);
+		border: 2px dashed var(--outline);
+		background: var(--surface-card);
+		color: var(--text-muted);
+		font-family: var(--font-mono);
+		font-size: 11.5px;
 		font-weight: 700;
+		text-transform: uppercase;
 		cursor: pointer;
 	}
 

@@ -9,7 +9,7 @@
 	import RescheduleAppointmentForm from './RescheduleAppointmentForm.svelte';
 	import DateSlotsPanel from '$lib/components/SlotDesigner/DateSlotsPanel.svelte';
 	import type { CalendarSession } from '$lib/types/calendar';
-	import type { DesignedDay } from '$lib/types/slots';
+	import type { DesignedDay, WeeklyDay } from '$lib/types/slots';
 
 	let {
 		day,
@@ -27,7 +27,7 @@
 		month: number;
 		sessions: CalendarSession[];
 		clients: { id: string; name: string }[];
-		templateDay: DesignedDay;
+		templateDay: WeeklyDay;
 		overrideDay: DesignedDay | undefined;
 		formMessage?: string;
 		onclose: () => void;

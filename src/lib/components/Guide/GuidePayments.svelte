@@ -34,7 +34,7 @@
 
 	<h3>Showing clients how to pay you: QR code and bank details</h3>
 	<p>
-		In <a href="/settings">Settings → How Clients Pay You</a>, upload a photo of your UPI / payment QR
+		In <a href="/settings">Settings → Manual Payment Methods</a>, upload a photo of your UPI / payment QR
 		code (PNG, JPEG or WebP, under 5 MB) and type in your bank or UPI details. Whenever a client has
 		something to pay, both are shown in their portal under <strong>How to pay</strong>.
 	</p>
@@ -49,7 +49,7 @@
 	<h3>Letting clients pay online with Razorpay</h3>
 	<p>
 		If your practice charges in INR, connect your own Razorpay account in
-		<a href="/settings">Settings → Payments</a> and turn on
+		<a href="/settings">Settings → Online Payments (Razorpay)</a> and turn on
 		<strong>Let clients pay invoices in the portal with Razorpay</strong>. Clients then get a
 		<strong>Pay now</strong> button (card or UPI) on each invoice. The money goes to your Razorpay
 		account, and the invoice is marked paid for you. We take 0% commission. Razorpay may charge its
@@ -61,7 +61,7 @@
 	</p>
 
 	<h3>Cancellation and reschedule fees</h3>
-	<p>Two settings in <a href="/settings">Settings → Payments</a> make up your policy:</p>
+	<p>Two settings in <a href="/settings">Settings → Payment Setup</a> make up your policy:</p>
 	<ul>
 		<li><strong>Free window</strong>: with at least this much notice, cancelling or moving is free.</li>
 		<li>

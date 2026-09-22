@@ -18,8 +18,8 @@
 		</li>
 		<li>
 			<strong>Tell clients how to pay you.</strong> In
-			<a href="/settings">Settings → How Clients Pay You</a>, upload your UPI / payment QR code and add
-			your bank details. Clients see these next to anything they owe.
+			<a href="/settings">Settings → Manual Payment Methods</a>, upload your UPI / payment QR code and
+			add your bank details. Clients see these next to anything they owe.
 		</li>
 		<li>
 			<strong>Pick your booking rules.</strong> In <a href="/settings">Settings → Booking Rules</a>,
@@ -27,8 +27,9 @@
 			client can hold at a time.
 		</li>
 		<li>
-			<strong>Set your cancellation policy.</strong> In <a href="/settings">Settings → Payments</a>,
-			choose how much notice a client must give to cancel or reschedule for free.
+			<strong>Set your cancellation policy.</strong> In
+			<a href="/settings">Settings → Payment Setup</a>, choose how much notice a client must give to
+			cancel or reschedule for free.
 		</li>
 		<li>
 			<strong>Connect Google Calendar</strong> (optional) at the bottom of

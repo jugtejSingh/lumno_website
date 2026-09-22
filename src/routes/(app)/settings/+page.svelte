@@ -447,8 +447,8 @@
 	<Card>
 		<div class="section">
 			<div class="section-title">
-				Payments<InfoTip
-					label="Payments"
+				Payment Setup<InfoTip
+					label="Payment Setup"
 					text="Every logged session becomes an invoice for the client. Clients see their unpaid invoices in their portal."
 				/>
 			</div>
@@ -464,6 +464,7 @@
 				session rate; with less notice than that they owe the full rate.
 			</div>
 
+			<div class="section-title">Online Payments (Razorpay)</div>
 			{#if rzpNotice}
 				<div class="rzp-notice" class:rzp-notice-bad={rzp.notice === 'state_error'}>
 					{rzpNotice}
@@ -534,8 +535,8 @@
 
 			<label class="field">
 				<span class="field-label">
-					Free Cancellation / Reschedule Window<InfoTip
-						label="Free Cancellation / Reschedule Window"
+					Free Cancellation Window<InfoTip
+						label="Free Cancellation Window"
 						text="If a client cancels or reschedules with at least this much notice, there's no charge. With less notice, a fee invoice is created automatically; you can change the amount or delete it from Payments. Clients see this policy in their portal."
 					/>
 				</span>
@@ -547,8 +548,8 @@
 			</label>
 			<label class="field">
 				<span class="field-label">
-					50% Fee Window<InfoTip
-						label="50% Fee Window"
+					Partial Fee Window (50%)<InfoTip
+						label="Partial Fee Window (50%)"
 						text="Example: free window 24h, 50% window 2h. More than 24h notice costs nothing, 2–24h costs half the rate, and under 2h costs the full rate. Pick &quot;No partial tier&quot; to go straight from free to full."
 					/>
 				</span>
@@ -564,7 +565,7 @@
 				</select>
 			</label>
 
-			<div class="section-title">How Clients Pay You</div>
+			<div class="section-title">Manual Payment Methods</div>
 			<div class="helper">
 				Shown to clients in their portal next to any unpaid invoice. Upload a UPI / payment QR code
 				image and add the account details they should transfer to. Payments made this way go
@@ -578,8 +579,8 @@
 			{/if}
 			<label class="field">
 				<span class="field-label">
-					{data.manualPay.qrUrl ? 'Replace QR Code Image' : 'QR Code Image'}<InfoTip
-						label="QR Code Image"
+					{data.manualPay.qrUrl ? 'Replace Payment QR Code' : 'Payment QR Code'}<InfoTip
+						label="Payment QR Code"
 						text="Shown in the client's portal next to unpaid invoices. You can't see these payments in the app, so mark the invoice paid yourself on the Payments page."
 					/>
 				</span>

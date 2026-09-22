@@ -1,9 +1,9 @@
 import { and, eq, gte, isNotNull, lte } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { availabilitySlot, availabilityDateOverride, therapistSettings } from '$lib/server/db/schema';
-import type { DesignedDay, DesignedSlot, SlotModality } from '$lib/types/slots';
+import type { DesignedDay, DesignedSlot, SlotModality, WeeklyDay } from '$lib/types/slots';
 
-export type { DesignedDay, DesignedSlot, SlotModality };
+export type { DesignedDay, DesignedSlot, SlotModality, WeeklyDay };
 
 const MAX_SESSIONS_LIMIT = 50;
 
@@ -94,7 +94,10 @@ export async function getSlotDesign(therapistId: string, year: number, month: nu
 
 	const [settingsRows, templateRows, overrideRows, overrideSlotRows] = await Promise.all([
 		db
-			.select({ weeklyMaxSessions: therapistSettings.weeklyMaxSessions })
+			.select({
+				weeklyMaxSessions: therapistSettings.weeklyMaxSessions,
+				weeklyHolidays: therapistSettings.weeklyHolidays
+			})
 			.from(therapistSettings)
 			.where(eq(therapistSettings.therapistId, therapistId)),
 		db
@@ -134,7 +137,8 @@ export async function getSlotDesign(therapistId: string, year: number, month: nu
 	]);
 
 	const weeklyMaxSessions = settingsRows[0]?.weeklyMaxSessions ?? [];
-	const week: DesignedDay[] = [];
+	const weeklyHolidays = settingsRows[0]?.weeklyHolidays ?? [];
+	const week: WeeklyDay[] = [];
 	for (let weekday = 0; weekday < 7; weekday++) {
 		// Drizzle reads a SQL NULL inside an int[] as the string "NULL" and parseInt()s it,
 		// so an uncapped day arrives as NaN — anything that isn't a whole number means no cap
@@ -143,7 +147,8 @@ export async function getSlotDesign(therapistId: string, year: number, month: nu
 		if (Number.isInteger(stored)) {
 			maxSessions = stored;
 		}
-		week.push({ slots: [], maxSessions });
+		const holiday = weeklyHolidays[weekday] === true;
+		week.push({ slots: [], maxSessions, holiday });
 	}
 	for (const row of templateRows) {
 		week[row.weekday!].slots.push(toDesignedSlot(row));
@@ -180,14 +185,19 @@ export async function listDesignedDaysForMonth(therapistId: string, year: number
 		} else {
 			// a calendar date's weekday doesn't depend on timezone
 			const weekday = new Date(Date.UTC(year, month, day)).getUTCDay();
-			designByDay[day] = week[weekday];
+			// a holiday weekday keeps its slots in the template but offers none
+			if (week[weekday].holiday) {
+				designByDay[day] = { slots: [], maxSessions: week[weekday].maxSessions };
+			} else {
+				designByDay[day] = { slots: week[weekday].slots, maxSessions: week[weekday].maxSessions };
+			}
 		}
 	}
 	return designByDay;
 }
 
 /** Replaces the whole weekly template. `week` must have 7 entries, index 0 = Sunday. */
-export async function replaceWeekTemplate(therapistId: string, week: DesignedDay[]) {
+export async function replaceWeekTemplate(therapistId: string, week: WeeklyDay[]) {
 	await db.transaction(async (tx) => {
 		await tx
 			.delete(availabilitySlot)
@@ -195,11 +205,13 @@ export async function replaceWeekTemplate(therapistId: string, week: DesignedDay
 
 		const rows = [];
 		const weeklyMaxSessions: (number | null)[] = [];
+		const weeklyHolidays: boolean[] = [];
 		for (let weekday = 0; weekday < 7; weekday++) {
 			for (const slot of week[weekday].slots) {
 				rows.push({ therapistId, weekday, ...slot });
 			}
 			weeklyMaxSessions.push(week[weekday].maxSessions);
+			weeklyHolidays.push(week[weekday].holiday);
 		}
 		if (rows.length > 0) {
 			await tx.insert(availabilitySlot).values(rows);
@@ -207,7 +219,7 @@ export async function replaceWeekTemplate(therapistId: string, week: DesignedDay
 
 		await tx
 			.update(therapistSettings)
-			.set({ weeklyMaxSessions })
+			.set({ weeklyMaxSessions, weeklyHolidays })
 			.where(eq(therapistSettings.therapistId, therapistId));
 	});
 }

@@ -9,7 +9,6 @@
 	import ClientForm from '$lib/components/Clients/ClientForm.svelte';
 	import ClientProfileDetails from '$lib/components/Clients/ClientProfileDetails.svelte';
 	import type { ClientFieldValues } from '$lib/types/clientFields';
-	import PaymentHistoryList from '$lib/components/Payments/PaymentHistoryList.svelte';
 	import ClientResources from '$lib/components/Resources/ClientResources.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { enhance } from '$lib/enhance';
@@ -22,8 +21,6 @@
 
 	let query = $state('');
 	let addOpen = $state(false);
-	let historyClientId = $state<string | null>(null);
-	const historyClientName = $derived(data.clients.find((c) => c.id === historyClientId)?.name ?? '');
 	let resourcesClientId = $state<string | null>(null);
 	const resourcesClientName = $derived(
 		data.clients.find((c) => c.id === resourcesClientId)?.name ?? ''
@@ -124,10 +121,12 @@
 								<span class="pending">Invite pending</span>
 							{/if}
 						</div>
-						<div class="email">{c.email}</div>
-						{#if c.rate}
-							<div class="rate">{formatCurrency(c.rate, currency)} / session</div>
-						{/if}
+						<div class="detail-row">
+							<div class="email">{c.email}</div>
+							{#if c.rate}
+								<div class="rate">{formatCurrency(c.rate, currency)} / session</div>
+							{/if}
+						</div>
 						<div class="tag-row">
 							{#each c.tags as t (t)}
 								<Tag>{t}</Tag>
@@ -136,9 +135,6 @@
 					</div>
 					<div class="actions">
 						{#if c.userId}
-							<Button variant="secondary" size="sm" onclick={() => (historyClientId = c.id)}>
-								View payments
-							</Button>
 							<Button variant="secondary" size="sm" onclick={() => (resourcesClientId = c.id)}>
 								Resources
 							</Button>
@@ -265,16 +261,6 @@
 </Dialog>
 
 <Dialog
-	open={!!historyClientId}
-	title={historyClientId ? `${historyClientName} — payment history` : ''}
-	onclose={() => (historyClientId = null)}
->
-	{#if historyClientId}
-		<PaymentHistoryList clientId={historyClientId} {currency} />
-	{/if}
-</Dialog>
-
-<Dialog
 	open={!!resourcesClientId}
 	title={resourcesClientId ? `${resourcesClientName} — resources` : ''}
 	onclose={() => (resourcesClientId = null)}
@@ -368,6 +354,13 @@
 		color: var(--text-muted);
 	}
 
+	.detail-row {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+
 	.email {
 		font-size: 13px;
 		color: var(--text-muted);
@@ -376,6 +369,11 @@
 	.rate {
 		font-size: 13px;
 		color: var(--text-muted);
+	}
+
+	.rate::before {
+		content: '·';
+		margin-right: 8px;
 	}
 
 	.tag-row {
@@ -391,12 +389,13 @@
 		flex-wrap: wrap;
 	}
 
-	/* On phones the button cluster gets its own full-width row, laid out as an even grid */
+	/* On phones the button cluster gets its own full-width row, all 3 buttons across it */
 	@media (max-width: 640px) {
 		.actions {
 			width: 100%;
 			display: grid;
-			grid-template-columns: 1fr 1fr;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 6px;
 		}
 
 		.actions form {

@@ -8,6 +8,7 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import ClientList from '$lib/components/Notes/ClientList.svelte';
 	import NoteEditor from '$lib/components/Notes/NoteEditor.svelte';
+	import ClientNotesChat from '$lib/components/Notes/ClientNotesChat.svelte';
 	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
 
@@ -28,6 +29,7 @@
 	let saveForm: HTMLFormElement;
 	let saveRetries = 0;
 	let expandedNoteIds = $state(new Set<string>());
+	let chatOpen = $state(false);
 
 	const selected = $derived(data.clients.find((c) => c.id === selectedId) ?? data.clients[0]);
 	const sessions = $derived(data.sessionsByClient[selectedId] ?? []);
@@ -94,6 +96,29 @@
 			year: 'numeric'
 		});
 		writingType = n.visibility;
+	}
+
+	// Opens the shared editor prefilled with the AI's client-safe draft, so the
+	// therapist reads it before anything reaches the client.
+	let sharingNoteId = $state('');
+	function shareNoteSubmit(n: (typeof data.clients)[number]['notes'][number]) {
+		return async ({ result }: { result: import('@sveltejs/kit').ActionResult }) => {
+			sharingNoteId = '';
+			if (result.type === 'success' && result.data?.shared) {
+				draftBody = result.data.shared.body;
+				draftDescription = result.data.shared.description;
+				draftAppointmentId = n.appointmentId ?? '';
+				editingNoteId = '';
+				writingType = 'shared';
+				toast.message('Draft ready — check it before sending.');
+				return;
+			}
+			if (result.type === 'failure') {
+				toast.error(result.data?.message ?? 'Could not draft that for the client.');
+				return;
+			}
+			toast.error('Could not draft that for the client.');
+		};
 	}
 
 	function cancelWriting() {
@@ -224,7 +249,10 @@
 						<div class="section">
 							<div class="section-head">
 								<div class="section-title">Private notes</div>
-								<Button size="sm" variant="secondary" onclick={startPrivate}>New note</Button>
+								<div class="section-head-actions">
+									<Button size="sm" variant="secondary" onclick={() => (chatOpen = true)}>Chat</Button>
+									<Button size="sm" variant="secondary" onclick={startPrivate}>New note</Button>
+								</div>
 							</div>
 							<div class="section-hint">Only you can see these.</div>
 							<div class="notes-list">
@@ -250,6 +278,19 @@
 											<div class="note-body">{@html renderMarkdown(n.body)}</div>
 											<div class="note-actions">
 												<Button size="sm" variant="secondary" onclick={() => startEdit(n)}>Edit</Button>
+												<form
+													method="POST"
+													action="?/shareNote"
+													use:enhance={() => {
+														sharingNoteId = n.id;
+														return shareNoteSubmit(n);
+													}}
+												>
+													<input type="hidden" name="body" value={n.body} />
+													<Button size="sm" variant="pop" type="submit" disabled={sharingNoteId === n.id}>
+														{sharingNoteId === n.id ? 'Drafting…' : 'Send to client'}
+													</Button>
+												</form>
 											</div>
 										{/if}
 									</Card>
@@ -346,6 +387,17 @@
 	</div>
 </div>
 
+{#if selected}
+	{#key selected.id}
+		<ClientNotesChat
+			open={chatOpen}
+			clientId={selected.id}
+			clientName={selected.name}
+			onclose={() => (chatOpen = false)}
+		/>
+	{/key}
+{/if}
+
 <style>
 	.notes-shell {
 		display: flex;
@@ -424,6 +476,11 @@
 		color: var(--text-primary);
 	}
 
+	.section-head-actions {
+		display: flex;
+		gap: 8px;
+	}
+
 	.section-hint {
 		font-size: 12px;
 		color: var(--text-muted);
@@ -489,6 +546,7 @@
 	.note-actions {
 		display: flex;
 		justify-content: flex-end;
+		gap: 8px;
 		margin-top: 10px;
 	}
 
@@ -502,6 +560,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: 12px;
+		margin-top: 12px;
 	}
 
 	.pager-label {

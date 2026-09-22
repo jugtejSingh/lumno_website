@@ -5,11 +5,20 @@
 		label,
 		value,
 		accent = 'plum',
-		delta
-	}: { label: string; value: string; accent?: Accent; delta?: string } = $props();
+		delta,
+		onclick
+	}: { label: string; value: string; accent?: Accent; delta?: string; onclick?: () => void } =
+		$props();
 </script>
 
-<div class="stat-card stat-{accent}">
+<div
+	class="stat-card stat-{accent}"
+	class:stat-clickable={!!onclick}
+	role={onclick ? 'button' : undefined}
+	tabindex={onclick ? 0 : undefined}
+	onclick={onclick}
+	onkeydown={onclick ? (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onclick()) : undefined}
+>
 	<div class="stat-label">{label}</div>
 	<div class="stat-value">{value}</div>
 	{#if delta}
@@ -60,5 +69,9 @@
 	.stat-delta {
 		font-size: 12px;
 		color: var(--text-muted);
+	}
+
+	.stat-clickable {
+		cursor: pointer;
 	}
 </style>

@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { isActionFailure, isRedirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { appointment, client } from '$lib/server/db/schema';
-import { replaceWeekTemplate, type DesignedDay, type DesignedSlot } from '$lib/server/availabilitySlots';
+import { replaceWeekTemplate, type WeeklyDay, type DesignedSlot } from '$lib/server/availabilitySlots';
 import { load as layoutLoad } from '../../src/routes/(portal)/+layout.server';
 import { load as pageLoad, actions } from '../../src/routes/(portal)/portal/+page.server';
 import { resetDb, mkTherapist, mkClient, mkUser, mkAppointment, mkEvent } from './helpers';
@@ -26,9 +26,9 @@ function at(hour: number) {
 }
 
 async function everyDay(slots: DesignedSlot[], maxSessions: number | null) {
-	const week: DesignedDay[] = [];
+	const week: WeeklyDay[] = [];
 	for (let weekday = 0; weekday < 7; weekday++) {
-		week.push({ slots, maxSessions });
+		week.push({ slots, maxSessions, holiday: false });
 	}
 	await replaceWeekTemplate(therapistId, week);
 }

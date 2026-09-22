@@ -56,21 +56,28 @@ async function countAppointmentsInRange(therapistId: string, start: Date, end: D
 	return row?.count ?? 0;
 }
 
-// ponytail: sessions older than `since` are treated as write-offs, not nags — they drop off the count.
-async function countNotesOverdue(therapistId: string, since: Date): Promise<number> {
-	const [row] = await db
-		.select({ count: sql<number>`count(*)::int` })
+async function listNotesOverdueThisWeek(
+	therapistId: string,
+	start: Date,
+	end: Date,
+	timezone: string
+): Promise<{ name: string; when: string }[]> {
+	const rows = await db
+		.select({ name: sql<string>`coalesce(${client.name}, ${appointment.customName})`, startAt: appointment.startAt })
 		.from(appointment)
 		.leftJoin(clientNote, eq(clientNote.appointmentId, appointment.id))
+		.leftJoin(client, eq(appointment.clientId, client.id))
 		.where(
 			and(
 				eq(appointment.therapistId, therapistId),
 				eq(appointment.status, 'completed'),
 				isNull(clientNote.id),
-				gte(appointment.startAt, since)
+				gte(appointment.startAt, start),
+				lt(appointment.startAt, end)
 			)
-		);
-	return row?.count ?? 0;
+		)
+		.orderBy(appointment.startAt);
+	return rows.map((row) => ({ name: row.name, when: formatUpcoming(row.startAt, timezone) }));
 }
 
 export const load: PageServerLoad = async (event) => {
@@ -91,13 +98,13 @@ export const load: PageServerLoad = async (event) => {
 	const [
 		sessionsThisWeek,
 		sessionsLastWeek,
-		notesOverdue,
+		notesOverdueThisWeek,
 		outstandingBalances,
 		upcomingRows
 	] = await Promise.all([
 		countAppointmentsInRange(therapistId, thisWeekStart, nextWeekStart),
 		countAppointmentsInRange(therapistId, lastWeekStart, thisWeekStart),
-		countNotesOverdue(therapistId, lastWeekStart),
+		listNotesOverdueThisWeek(therapistId, thisWeekStart, nextWeekStart, timezone),
 		listOutstandingBalancesByClient(therapistId),
 		db
 			.select({ name: sql<string>`coalesce(${client.name}, ${appointment.customName})`, startAt: appointment.startAt })
@@ -120,7 +127,7 @@ export const load: PageServerLoad = async (event) => {
 			accent: 'plum',
 			delta: sessionsDelta === 0 ? undefined : `${sessionsDelta > 0 ? '+' : ''}${sessionsDelta} vs last week`
 		},
-		{ label: 'Notes overdue', value: String(notesOverdue), accent: 'citrus' },
+		{ label: 'Notes overdue', value: String(notesOverdueThisWeek.length), accent: 'citrus' },
 		{ label: 'Outstanding balance', value: formatCurrency(outstandingTotal, therapist.currency), accent: 'sage' }
 	];
 
@@ -136,6 +143,7 @@ export const load: PageServerLoad = async (event) => {
 		therapistName: user.name,
 		todayCount: upcoming.filter((s) => s.next.startsWith('Today')).length,
 		stats,
+		notesOverdueThisWeek,
 		upcoming
 	};
 };

@@ -1,12 +1,19 @@
 <script lang="ts">
-	let { sections }: { sections: { id: string; title: string }[] } = $props();
+	let {
+		sections,
+		activeId
+	}: { sections: { id: string; title: string }[]; activeId: string } = $props();
 </script>
 
 <nav class="toc" aria-label="Guide contents">
 	<div class="toc-title">Contents</div>
 	<ol>
 		{#each sections as s (s.id)}
-			<li><a href="#{s.id}">{s.title}</a></li>
+			<li>
+				<a href="#{s.id}" class:active={s.id === activeId} aria-current={s.id === activeId ? 'step' : undefined}>
+					{s.title}
+				</a>
+			</li>
 		{/each}
 	</ol>
 </nav>
@@ -45,6 +52,11 @@
 	a:hover {
 		color: var(--text-primary);
 		text-decoration: underline;
+	}
+
+	a.active {
+		color: var(--text-primary);
+		font-weight: 700;
 	}
 
 </style>

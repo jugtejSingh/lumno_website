@@ -3,7 +3,7 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import DaySlotsEditor from './DaySlotsEditor.svelte';
 	import MaxSessionsInput from './MaxSessionsInput.svelte';
-	import type { DesignedDay } from '$lib/types/slots';
+	import type { DesignedDay, WeeklyDay } from '$lib/types/slots';
 	import type { SubmitFunction } from '@sveltejs/kit';
 
 	// One date's bookable slots inside the calendar's day dialog. The date either follows its
@@ -19,7 +19,7 @@
 		year: number;
 		month: number;
 		day: number;
-		templateDay: DesignedDay;
+		templateDay: WeeklyDay;
 		overrideDay: DesignedDay | undefined; // undefined = follows the template
 		message?: string;
 	} = $props();
@@ -32,6 +32,10 @@
 	const effectiveDay = $derived.by(() => {
 		if (overrideDay !== undefined) {
 			return overrideDay;
+		}
+		// a holiday weekday keeps its slots but offers none
+		if (templateDay.holiday) {
+			return { slots: [], maxSessions: templateDay.maxSessions };
 		}
 		return templateDay;
 	});
@@ -47,8 +51,13 @@
 		return new Date(2000, 0, 1, hour, minute).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 	}
 
+	// on a holiday weekday, start from the weekday's usual slots so opening one date is quick
 	function startEditing() {
-		draft = $state.snapshot(effectiveDay);
+		if (overrideDay === undefined) {
+			draft = { slots: $state.snapshot(templateDay.slots), maxSessions: templateDay.maxSessions };
+		} else {
+			draft = $state.snapshot(overrideDay);
+		}
 		editing = true;
 	}
 
@@ -67,7 +76,9 @@
 	<div class="header">
 		<span class="title">Bookable slots</span>
 		<span class="source">
-			{#if overrideDay === undefined}
+			{#if overrideDay === undefined && templateDay.holiday}
+				{weekdayName}s are a holiday
+			{:else if overrideDay === undefined}
 				from your weekly {weekdayName}
 			{:else if overrideDay.slots.length === 0}
 				day off

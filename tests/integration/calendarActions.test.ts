@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { isActionFailure } from '@sveltejs/kit';
 import { getSlotDesign, setDateOverride, toDateKey } from '$lib/server/availabilitySlots';
-import type { DesignedDay } from '$lib/types/slots';
+import type { WeeklyDay } from '$lib/types/slots';
 import { actions } from '../../src/routes/(app)/calendar/+page.server';
 import { resetDb, mkTherapist, mkEvent } from './helpers';
 
@@ -12,10 +12,10 @@ let therapistId: string;
 const MAX_MESSAGE = 'Max sessions must be a whole number from 1 to 50, or blank for no limit';
 const UNREADABLE_WEEK = 'Could not read your weekly slots — reload and try again';
 
-function emptyWeek(): DesignedDay[] {
-	const week: DesignedDay[] = [];
+function emptyWeek(): WeeklyDay[] {
+	const week: WeeklyDay[] = [];
 	for (let weekday = 0; weekday < 7; weekday++) {
-		week.push({ slots: [], maxSessions: null });
+		week.push({ slots: [], maxSessions: null, holiday: false });
 	}
 	return week;
 }
@@ -40,7 +40,7 @@ beforeEach(async () => {
 describe('saveWeekTemplate', () => {
 	it('saves a valid week', async () => {
 		const week = emptyWeek();
-		week[1] = { slots: [{ startTime: '09:00', endTime: '10:00', modality: 'online' }], maxSessions: 3 };
+		week[1] = { slots: [{ startTime: '09:00', endTime: '10:00', modality: 'online' }], maxSessions: 3, holiday: false };
 		const result = await post('saveWeekTemplate', { week: JSON.stringify(week) });
 		expect(isActionFailure(result)).toBe(false);
 
@@ -49,8 +49,8 @@ describe('saveWeekTemplate', () => {
 	});
 
 	it('accepts a blank-string cap as no limit', async () => {
-		const week = emptyWeek() as unknown as { slots: unknown[]; maxSessions: unknown }[];
-		week[2] = { slots: [{ startTime: '09:00', endTime: '10:00', modality: 'online' }], maxSessions: '' };
+		const week = emptyWeek() as unknown as { slots: unknown[]; maxSessions: unknown; holiday: boolean }[];
+		week[2] = { slots: [{ startTime: '09:00', endTime: '10:00', modality: 'online' }], maxSessions: '', holiday: false };
 		expect(isActionFailure(await post('saveWeekTemplate', { week: JSON.stringify(week) }))).toBe(false);
 	});
 
@@ -63,8 +63,11 @@ describe('saveWeekTemplate', () => {
 		const withNull: unknown[] = emptyWeek();
 		withNull[3] = null;
 		expect(failure(await post('saveWeekTemplate', { week: JSON.stringify(withNull) })).message).toBe(UNREADABLE_WEEK);
+		const badHoliday: unknown[] = emptyWeek();
+		badHoliday[3] = { slots: [], maxSessions: null, holiday: 'yes' };
+		expect(failure(await post('saveWeekTemplate', { week: JSON.stringify(badHoliday) })).message).toBe(UNREADABLE_WEEK);
 		const badSlots: unknown[] = emptyWeek();
-		badSlots[3] = { slots: 'nope', maxSessions: null };
+		badSlots[3] = { slots: 'nope', maxSessions: null, holiday: false };
 		expect(failure(await post('saveWeekTemplate', { week: JSON.stringify(badSlots) })).message).toBe(UNREADABLE_WEEK);
 	});
 
@@ -94,7 +97,7 @@ describe('saveWeekTemplate', () => {
 	it('rejects caps outside 1–50', async () => {
 		const bad = [0, 51, 2.5, 'abc', -1];
 		for (const value of bad) {
-			const week = emptyWeek() as unknown as { slots: unknown[]; maxSessions: unknown }[];
+			const week = emptyWeek() as unknown as { slots: unknown[]; maxSessions: unknown; holiday: boolean }[];
 			week[0].maxSessions = value;
 			expect(failure(await post('saveWeekTemplate', { week: JSON.stringify(week) })).message).toBe(MAX_MESSAGE);
 		}
@@ -102,12 +105,12 @@ describe('saveWeekTemplate', () => {
 
 	it('writes nothing when any day is invalid', async () => {
 		const first = emptyWeek();
-		first[1] = { slots: [{ startTime: '09:00', endTime: '10:00', modality: 'online' }], maxSessions: null };
+		first[1] = { slots: [{ startTime: '09:00', endTime: '10:00', modality: 'online' }], maxSessions: null, holiday: false };
 		await post('saveWeekTemplate', { week: JSON.stringify(first) });
 
 		const bad = emptyWeek();
-		bad[0] = { slots: [{ startTime: '11:00', endTime: '12:00', modality: 'online' }], maxSessions: null };
-		bad[6] = { slots: [{ startTime: '12:00', endTime: '11:00', modality: 'online' }], maxSessions: null };
+		bad[0] = { slots: [{ startTime: '11:00', endTime: '12:00', modality: 'online' }], maxSessions: null, holiday: false };
+		bad[6] = { slots: [{ startTime: '12:00', endTime: '11:00', modality: 'online' }], maxSessions: null, holiday: false };
 		await post('saveWeekTemplate', { week: JSON.stringify(bad) });
 
 		const design = await getSlotDesign(therapistId, 2027, 0);

@@ -17,12 +17,18 @@
 	];
 </script>
 
-<div class="slot-row" data-modality={slot.modality}>
-	<TimeInput label="From" bind:value={slot.startTime} />
-	<TimeInput label="To" bind:value={slot.endTime} />
-	<label class="field">
-		<span class="field-label">Type</span>
-		<select class="field-input" bind:value={slot.modality}>
+<!-- one line: from → to, type chip, remove. Labels stay for screen readers only. -->
+<div class="slot-row">
+	<div class="time" role="group" aria-label="From">
+		<TimeInput bind:value={slot.startTime} />
+	</div>
+	<span class="arrow" aria-hidden="true">→</span>
+	<div class="time" role="group" aria-label="To">
+		<TimeInput bind:value={slot.endTime} />
+	</div>
+	<label class="type-chip" data-modality={slot.modality}>
+		<span class="sr-only">Type</span>
+		<select bind:value={slot.modality}>
 			{#each modalityOptions as option (option.value)}
 				<option value={option.value}>{option.label}</option>
 			{/each}
@@ -34,65 +40,86 @@
 <style>
 	.slot-row {
 		display: flex;
-		align-items: flex-end;
+		align-items: center;
 		flex-wrap: wrap;
-		gap: 10px;
-		padding: 10px 12px;
-		border: 2px solid var(--border-subtle);
-		border-left-width: 6px;
-		border-radius: var(--radius-sm);
-		background: var(--surface-card);
+		gap: 7px;
 	}
 
-	/* left edge carries the same colours as the calendar's session chips */
-	.slot-row[data-modality='online'] {
-		border-left-color: var(--citrus-400);
-	}
-
-	.slot-row[data-modality='in_person'] {
-		border-left-color: var(--plum-400);
-	}
-
-	.slot-row[data-modality='hybrid'] {
-		border-left-color: var(--coral-100);
-	}
-
-	.field {
+	.time {
 		display: flex;
-		flex-direction: column;
-		gap: 6px;
 	}
 
-	.field-label {
+	/* TimeInput's own fields, slimmed down to fit on one line */
+	.slot-row :global(.field-input) {
+		padding: 5px 7px;
 		font-size: 13px;
-		font-weight: 600;
-		color: var(--text-secondary);
+		font-weight: 700;
+		border-color: var(--outline);
 	}
 
-	.field-input {
-		font-family: var(--font-body);
-		font-size: 14px;
+	.slot-row :global(.minute) {
+		width: 48px;
+	}
+
+	.arrow {
+		color: var(--text-muted);
+		font-size: 13px;
+	}
+
+	.type-chip select {
+		appearance: none;
+		padding: 5px 12px;
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-pill);
+		box-shadow: var(--shadow-xs);
+		font-family: var(--font-mono);
+		font-size: 11.5px;
+		font-weight: 700;
+		text-transform: uppercase;
 		color: var(--text-primary);
-		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
-		border-radius: var(--radius-sm);
-		padding: 10px 12px;
+		cursor: pointer;
+	}
+
+	/* same colours as the calendar's session chips */
+	.type-chip[data-modality='online'] select {
+		background: var(--citrus-400);
+	}
+
+	.type-chip[data-modality='in_person'] select {
+		background: var(--plum-300);
+	}
+
+	.type-chip[data-modality='hybrid'] select {
+		background: var(--coral-100);
+	}
+
+	.type-chip select:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
 	}
 
 	.remove-btn {
 		margin-left: auto;
-		width: 36px;
-		height: 36px;
-		border-radius: var(--radius-sm);
-		border: 2px solid var(--border-subtle);
-		background: var(--surface-card);
+		padding: 0 4px;
+		border: none;
+		background: transparent;
 		color: var(--text-muted);
 		font-size: 20px;
+		font-weight: 700;
 		line-height: 1;
 		cursor: pointer;
 	}
 
 	.remove-btn:hover {
-		color: var(--danger, #b3261e);
+		color: var(--danger);
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 </style>

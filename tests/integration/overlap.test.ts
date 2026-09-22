@@ -9,7 +9,7 @@ import {
 } from '$lib/server/appointments';
 import { createAppointmentForClient } from '$lib/server/availability';
 import { replaceWeekTemplate } from '$lib/server/availabilitySlots';
-import type { DesignedDay } from '$lib/types/slots';
+import type { WeeklyDay } from '$lib/types/slots';
 import { resetDb, mkTherapist, mkClient, mkAppointment } from './helpers';
 
 // Double-booking now that the buffer is gone: the JS pre-check (findOverlap) and the
@@ -143,9 +143,9 @@ describe('appointment_no_overlap trigger (the race backstop)', () => {
 	});
 
 	it('two clients racing for one slot: one books, the other gets a clean error, never a throw', async () => {
-		const week: DesignedDay[] = [];
+		const week: WeeklyDay[] = [];
 		for (let weekday = 0; weekday < 7; weekday++) {
-			week.push({ slots: [{ startTime: '15:00', endTime: '16:00', modality: 'online' }], maxSessions: null });
+			week.push({ slots: [{ startTime: '15:00', endTime: '16:00', modality: 'online' }], maxSessions: null, holiday: false });
 		}
 		await replaceWeekTemplate(therapistId, week);
 		const rival = await mkClient(therapistId, { name: 'Rival Client' });

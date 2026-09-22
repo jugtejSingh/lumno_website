@@ -49,6 +49,11 @@
 		<li>
 			<strong>Breaks</strong>: leave a gap between slots, for example 1:00–2:00 then 2:30–3:30.
 		</li>
+		<li>
+			<strong>Holidays</strong>: mark a weekday a holiday in <strong>Your weekly slots</strong> and
+			clients can't book that weekday, though its slots stay saved for when you switch it back. A
+			specific date you've edited on the calendar keeps its own slots regardless.
+		</li>
 	</ul>
 	<p>Clients can book up to <strong>14 days</strong> ahead and only see slots that are still open.</p>
 
@@ -63,6 +68,7 @@
 	<p>
 		The <a href="/dashboard">Dashboard</a> shows your sessions this week, how many notes are overdue,
 		your total outstanding balance and your upcoming sessions. Each session has a
-		<strong>Notes</strong> button that takes you straight to that client's notes.
+		<strong>Notes</strong> button that takes you straight to that client's notes. Click the
+		<strong>Notes overdue</strong> card to see who's missing a note from a session this week.
 	</p>
 </GuideSection>

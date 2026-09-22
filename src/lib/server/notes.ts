@@ -114,6 +114,34 @@ export async function updateNote(
 	return { note: row };
 }
 
+const NOTES_CONTEXT_WORD_LIMIT = 5000;
+
+// Newest-first private notes for one client, concatenated and capped at ~5000 words
+// so the chat prompt stays a fixed size regardless of how much history a client has.
+export async function privateNotesContext(therapistId: string, clientId: string): Promise<string> {
+	const rows = await db
+		.select({ body: clientNote.body, createdAt: clientNote.createdAt })
+		.from(clientNote)
+		.where(
+			and(eq(clientNote.therapistId, therapistId), eq(clientNote.clientId, clientId), eq(clientNote.visibility, 'private'))
+		)
+		.orderBy(desc(clientNote.createdAt));
+
+	const parts: string[] = [];
+	let wordCount = 0;
+	for (const row of rows) {
+		const dateLabel = row.createdAt.toISOString().slice(0, 10);
+		const entry = `[${dateLabel}]\n${row.body}`;
+		const entryWords = entry.split(/\s+/).filter(Boolean).length;
+		if (wordCount + entryWords > NOTES_CONTEXT_WORD_LIMIT) {
+			break;
+		}
+		parts.push(entry);
+		wordCount += entryWords;
+	}
+	return parts.join('\n\n');
+}
+
 // Read-only for the portal: shared notes only, oldest last (matches the therapist-side ordering).
 export async function listSharedNotesForClient(
 	clientId: string,

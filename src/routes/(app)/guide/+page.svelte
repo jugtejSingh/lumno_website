@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import GuideToc from '$lib/components/Guide/GuideToc.svelte';
+	import Button from '$lib/components/utils/Button.svelte';
 	import GuideGettingStarted from '$lib/components/Guide/GuideGettingStarted.svelte';
 	import GuideClients from '$lib/components/Guide/GuideClients.svelte';
 	import GuidePortal from '$lib/components/Guide/GuidePortal.svelte';
@@ -24,6 +27,19 @@
 		{ id: 'community', title: 'Community', component: GuideCommunity },
 		{ id: 'plans', title: 'Plans', component: GuidePlans }
 	];
+
+	// the hash picks the step, so links, refresh and back/forward all land on the right one
+	const activeIndex = $derived.by(() => {
+		const hash = page.url.hash.slice(1);
+		const index = sections.findIndex((s) => s.id === hash);
+		return index === -1 ? 0 : index;
+	});
+
+	const active = $derived(sections[activeIndex]);
+
+	function goToStep(index: number) {
+		goto(`#${sections[index].id}`);
+	}
 </script>
 
 <svelte:head>
@@ -38,12 +54,28 @@
 
 	<div class="layout">
 		<aside class="toc-col">
-			<GuideToc {sections} />
+			<GuideToc {sections} activeId={active.id} />
 		</aside>
 		<div class="sections">
-			{#each sections as s, i (s.id)}
-				<s.component id={s.id} number={i + 1} />
-			{/each}
+			<active.component id={active.id} number={activeIndex + 1} />
+
+			<div class="step-nav">
+				<Button
+					variant="secondary"
+					onclick={() => goToStep(activeIndex - 1)}
+					disabled={activeIndex === 0}
+				>
+					← Previous
+				</Button>
+				<span class="step-count">{activeIndex + 1} / {sections.length}</span>
+				<Button
+					variant="primary"
+					onclick={() => goToStep(activeIndex + 1)}
+					disabled={activeIndex === sections.length - 1}
+				>
+					Next →
+				</Button>
+			</div>
 		</div>
 	</div>
 </div>
@@ -86,6 +118,19 @@
 		flex-direction: column;
 		gap: 16px;
 		max-width: 760px;
+	}
+
+	.step-nav {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.step-count {
+		font-family: var(--font-mono);
+		font-size: 12px;
+		color: var(--text-muted);
 	}
 
 	@media (max-width: 960px) {

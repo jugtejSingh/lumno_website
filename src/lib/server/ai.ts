@@ -33,7 +33,8 @@ async function callOpenRouter(
 	label: string,
 	systemPrompt: string,
 	therapistId: string,
-	body: string
+	messages: { role: 'user' | 'assistant'; content: string }[],
+	jsonMode = false
 ): Promise<string | null> {
 	const apiKey = env.OPENROUTER_API_KEY;
 	if (!apiKey) {
@@ -52,19 +53,18 @@ async function callOpenRouter(
 				model: env.OPENROUTER_MODEL || 'deepseek/deepseek-v4.1-flash',
 				// Session notes are health data: zdr keeps routing to Zero Data Retention endpoints
 				// only, and data_collection 'deny' rules out any provider that trains on or stores
-				// prompts. DeepSeek's own endpoint isn't ZDR, so it's out; Novita and Baseten are
-				// (checked against openrouter.ai/api/v1/endpoints/zdr, 2026-09). If both are down
-				// the request fails rather than falling back to a non-ZDR provider.
+				// prompts. DeepSeek's own endpoint isn't ZDR, so it's out; Wafer, Novita and Baseten
+				// are (Wafer confirmed directly, Novita/Baseten checked against
+				// openrouter.ai/api/v1/endpoints/zdr, 2026-09). If all three are down the request
+				// fails rather than falling back to a non-ZDR provider.
 				provider: {
-					order: ['Novita', 'Baseten'],
+					order: ['Wafer', 'Novita', 'Baseten'],
 					allow_fallbacks: true,
 					zdr: true,
 					data_collection: 'deny'
 				},
-				messages: [
-					{ role: 'system', content: systemPrompt },
-					{ role: 'user', content: body }
-				]
+				messages: [{ role: 'system', content: systemPrompt }, ...messages],
+				...(jsonMode ? { response_format: { type: 'json_object' } } : {})
 			}),
 			// don't hold the request open forever if the provider hangs
 			signal: AbortSignal.timeout(30_000)
@@ -93,9 +93,73 @@ const DESCRIBE_SYSTEM_PROMPT =
 	"Summarize a therapist's session note in one short plain-text sentence (under 15 words) so it can label a collapsed card in a list. Never invent facts not already in the note. Reply with only the sentence, no preamble or commentary.";
 
 export async function fixNoteText(therapistId: string, body: string): Promise<string | null> {
-	return callOpenRouter('ai.fixNote', FIX_SYSTEM_PROMPT, therapistId, body);
+	return callOpenRouter('ai.fixNote', FIX_SYSTEM_PROMPT, therapistId, [{ role: 'user', content: body }]);
 }
 
 export async function summarizeNoteText(therapistId: string, body: string): Promise<string | null> {
-	return callOpenRouter('ai.describeNote', DESCRIBE_SYSTEM_PROMPT, therapistId, body);
+	return callOpenRouter('ai.describeNote', DESCRIBE_SYSTEM_PROMPT, therapistId, [
+		{ role: 'user', content: body }
+	]);
+}
+
+// The private note is clinical data. What goes back to the client is only the
+// overarching topics and any homework — no observations about them, no
+// diagnostic language, no quotes, nothing the therapist wrote *about* them.
+const SHARE_SYSTEM_PROMPT = `You turn a therapist's private session note into a short message the CLIENT will read in their portal.
+
+Include only:
+- the main topics the session covered, named warmly and at a high level
+- any homework, exercises, or practices to do before next time
+
+Never include: clinical observations, assessments, diagnoses, risk notes, the therapist's impressions of the client, direct quotes, or any sensitive personal detail from the note. When in doubt, leave it out. Never invent anything that is not in the note. Write to the client as "you", in plain, warm language. Markdown is allowed for a short homework list.
+
+Reply with only a JSON object, no preamble:
+{"description": "one plain-text sentence under 15 words labelling the message", "body": "the message to the client"}`;
+
+export async function summarizeNoteForClient(
+	therapistId: string,
+	body: string
+): Promise<{ description: string; body: string } | null> {
+	const raw = await callOpenRouter(
+		'ai.shareNote',
+		SHARE_SYSTEM_PROMPT,
+		therapistId,
+		[{ role: 'user', content: body }],
+		true
+	);
+	if (!raw) {
+		return null;
+	}
+	try {
+		const parsed = JSON.parse(raw);
+		if (typeof parsed.body !== 'string' || !parsed.body.trim()) {
+			return null;
+		}
+		let description = '';
+		if (typeof parsed.description === 'string') {
+			description = parsed.description.trim();
+		}
+		return { description, body: parsed.body.trim() };
+	} catch (err) {
+		logError('ai.shareNote', err);
+		return null;
+	}
+}
+
+const CHAT_SYSTEM_PROMPT_PREFIX = `You help a therapist think through a specific client's case using only their private session notes, given below. Answer the therapist's questions about this client based on the notes. Never invent facts not in the notes — say so if the notes don't cover something asked. Markdown is allowed in your replies (lists, bold, headings).
+
+--- PRIVATE NOTES ---
+`;
+
+export async function chatAboutClient(
+	therapistId: string,
+	notesContext: string,
+	history: { role: 'user' | 'assistant'; content: string }[],
+	question: string
+): Promise<string | null> {
+	const systemPrompt = CHAT_SYSTEM_PROMPT_PREFIX + notesContext;
+	return callOpenRouter('ai.chatAboutClient', systemPrompt, therapistId, [
+		...history,
+		{ role: 'user', content: question }
+	]);
 }

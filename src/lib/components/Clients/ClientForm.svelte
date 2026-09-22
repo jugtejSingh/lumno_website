@@ -65,7 +65,7 @@
 	<Input label="Rate per session" name="rate" placeholder="150" bind:value={rate} />
 	<ClientCustomFields headings={fieldHeadings} bind:values={customFields} />
 	{#if showDetails}
-		<div>
+		<div class="field">
 			<div class="field-label">Tags</div>
 			<div class="tag-row">
 				{#each tags as t (t)}
@@ -81,8 +81,14 @@
 <style>
 	.form {
 		display: flex;
-		flex-direction: column;
+		flex-wrap: wrap;
 		gap: 14px;
+	}
+
+	/* two fields per row; an odd one out grows to fill the row instead of leaving a gap */
+	.form :global(.field) {
+		flex: 1 1 calc(50% - 7px);
+		min-width: 200px;
 	}
 
 	.field-label {

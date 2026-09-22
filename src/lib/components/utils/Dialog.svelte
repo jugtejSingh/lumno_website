@@ -7,12 +7,15 @@
 		onclose,
 		// any CSS width; the default suits a normal form
 		width = 'clamp(300px, 42vw, 560px)',
+		// no body padding, for content that lays out its own edges
+		flush = false,
 		children
 	}: {
 		open: boolean;
 		title?: string;
 		onclose: () => void;
 		width?: string;
+		flush?: boolean;
 		children: Snippet;
 	} = $props();
 </script>
@@ -27,6 +30,7 @@
 	>
 		<div
 			class="dialog"
+			class:flush
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
@@ -34,9 +38,11 @@
 		>
 			<div class="dialog-header">
 				<div class="dialog-title">{title}</div>
-				<button type="button" class="dialog-close" onclick={onclose} aria-label="Close">&times;</button>
+				<button type="button" class="dialog-close" onclick={onclose} aria-label="Close"
+					>&times;</button
+				>
 			</div>
-			<div class="dialog-body">
+			<div class="dialog-body" class:flush>
 				{@render children()}
 			</div>
 		</div>
@@ -69,6 +75,13 @@
 		width: var(--dialog-width);
 		max-width: 100%;
 		overflow-y: auto;
+	}
+
+	/* flush: title bar on top, the body fills the rest and its content decides what scrolls */
+	.dialog.flush {
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 	}
 
 	/* on a phone there's no room to be picky: every dialog fills the gutter */
@@ -131,6 +144,14 @@
 	.dialog-close:active {
 		transform: translate(2px, 2px);
 		box-shadow: none;
+	}
+
+	.dialog-body.flush {
+		padding: 0;
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
 	/* the only padding any dialog gets */

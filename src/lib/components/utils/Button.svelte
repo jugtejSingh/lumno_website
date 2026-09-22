@@ -11,6 +11,7 @@
 		size = 'md',
 		type = 'button',
 		formaction,
+		disabled = false,
 		onclick,
 		children
 	}: {
@@ -20,6 +21,7 @@
 		type?: ButtonType;
 		// lets a submit button inside a form post to a different action (SvelteKit ?/name)
 		formaction?: string;
+		disabled?: boolean;
 		onclick?: () => void;
 		children: Snippet;
 	} = $props();
@@ -28,7 +30,9 @@
 {#if href}
 	<a {href} class="btn btn-{variant} btn-{size}">{@render children()}</a>
 {:else}
-	<button {type} {formaction} class="btn btn-{variant} btn-{size}" {onclick}>{@render children()}</button>
+	<button {type} {formaction} {disabled} class="btn btn-{variant} btn-{size}" {onclick}
+		>{@render children()}</button
+	>
 {/if}
 
 <style>
@@ -59,6 +63,13 @@
 	.btn:active {
 		transform: translate(2px, 2px);
 		box-shadow: 1px 1px 0 var(--outline);
+	}
+
+	.btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		transform: none;
+		box-shadow: var(--shadow-sm);
 	}
 
 	.btn-sm {

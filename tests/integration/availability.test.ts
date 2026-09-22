@@ -17,7 +17,7 @@ import {
 	validateDaySlots,
 	parseMaxSessions,
 	type DesignedSlot,
-	type DesignedDay
+	type WeeklyDay
 } from '$lib/server/availabilitySlots';
 import { addCharge } from '$lib/server/payments';
 import { resetDb, mkTherapist, mkClient, mkSettings, mkAppointment } from './helpers';
@@ -44,9 +44,9 @@ function slot(startTime: string, endTime: string, modality: DesignedSlot['modali
 
 // the same slots on every day of the week
 async function everyDay(slots: DesignedSlot[], maxSessions: number | null = null) {
-	const week: DesignedDay[] = [];
+	const week: WeeklyDay[] = [];
 	for (let weekday = 0; weekday < 7; weekday++) {
-		week.push({ slots, maxSessions });
+		week.push({ slots, maxSessions, holiday: false });
 	}
 	await replaceWeekTemplate(therapistId, week);
 }
@@ -76,11 +76,11 @@ describe('listAvailabilityForMonth', () => {
 	});
 
 	it('a weekday with no slots is off', async () => {
-		const week: DesignedDay[] = [];
+		const week: WeeklyDay[] = [];
 		for (let weekday = 0; weekday < 7; weekday++) {
-			week.push({ slots: threeHourly, maxSessions: null });
+			week.push({ slots: threeHourly, maxSessions: null, holiday: false });
 		}
-		week[targetWeekday] = { slots: [], maxSessions: null };
+		week[targetWeekday] = { slots: [], maxSessions: null, holiday: false };
 		await replaceWeekTemplate(therapistId, week);
 		const byDay = await listAvailabilityForMonth(therapistId, y, m);
 		expect(byDay[d]).toBeUndefined();

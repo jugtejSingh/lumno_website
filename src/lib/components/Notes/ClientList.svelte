@@ -52,32 +52,6 @@
 		overflow-y: auto;
 	}
 
-	/* ponytail: stacked layout below 720px — rail becomes a horizontal strip */
-	@media (max-width: 720px) {
-		.list-panel {
-			width: auto;
-			border-right: none;
-			border-bottom: 2px dotted var(--beige-400);
-			overflow-y: visible;
-		}
-
-		.rows {
-			flex-direction: row;
-			flex-wrap: nowrap;
-			overflow-x: auto;
-			gap: 8px;
-		}
-
-		.row {
-			flex: 0 0 auto;
-		}
-
-		.row-info {
-			min-width: 0;
-			white-space: nowrap;
-		}
-	}
-
 	.rows {
 		display: flex;
 		flex-direction: column;
@@ -116,5 +90,33 @@
 	.row-summary {
 		font-size: 12px;
 		color: var(--text-muted);
+	}
+
+	/* ponytail: stacked layout below 720px — rail becomes a horizontal strip.
+	   Must stay last: media queries add no specificity, so the base .rows/.row
+	   rules above would otherwise win. */
+	@media (max-width: 720px) {
+		.list-panel {
+			width: auto;
+			border-right: none;
+			border-bottom: 2px dotted var(--beige-400);
+			overflow-y: visible;
+		}
+
+		.rows {
+			flex-direction: row;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			gap: 8px;
+		}
+
+		.row {
+			flex: 0 0 auto;
+		}
+
+		.row-info {
+			min-width: 0;
+			white-space: nowrap;
+		}
 	}
 </style>
