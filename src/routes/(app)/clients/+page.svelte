@@ -135,14 +135,15 @@
 						</div>
 					</div>
 					<div class="actions">
-						<Button variant="secondary" size="sm" onclick={() => (historyClientId = c.id)}>
-							View payments
-						</Button>
-						<Button variant="secondary" size="sm" onclick={() => (resourcesClientId = c.id)}>
+						{#if c.userId}
+							<Button variant="secondary" size="sm" onclick={() => (historyClientId = c.id)}>
+								View payments
+							</Button>
+							<Button variant="secondary" size="sm" onclick={() => (resourcesClientId = c.id)}>
 								Resources
 							</Button>
 							<Button variant="secondary" size="sm" onclick={() => openEdit(c)}>Edit</Button>
-						{#if !c.userId}
+						{:else}
 							<form method="POST" action="?/resendInvite" use:enhance>
 								<input type="hidden" name="clientId" value={c.id} />
 								<Button type="submit" variant="secondary" size="sm">

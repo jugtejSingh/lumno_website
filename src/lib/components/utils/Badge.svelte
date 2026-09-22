@@ -16,6 +16,7 @@
 		font-weight: 800;
 		display: inline-block;
 		border: 2px solid currentColor;
+		text-transform: capitalize;
 	}
 
 	.badge-success {
