@@ -26,5 +26,3 @@ resource uploading, some mental health stuff, their reports etc
 automate public note makign using AI
 
 Add in a vacation announcer
-
-add in dompurify
