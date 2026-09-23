@@ -132,12 +132,17 @@ export async function privateNotesContext(therapistId: string, clientId: string)
 	for (const row of rows) {
 		const dateLabel = row.createdAt.toISOString().slice(0, 10);
 		const entry = `[${dateLabel}]\n${row.body}`;
-		const entryWords = entry.split(/\s+/).filter(Boolean).length;
-		if (wordCount + entryWords > NOTES_CONTEXT_WORD_LIMIT) {
+		const entryWords = entry.split(/\s+/).filter(Boolean);
+		const remaining = NOTES_CONTEXT_WORD_LIMIT - wordCount;
+		if (remaining <= 0) {
+			break;
+		}
+		if (entryWords.length > remaining) {
+			parts.push(entryWords.slice(0, remaining).join(' '));
 			break;
 		}
 		parts.push(entry);
-		wordCount += entryWords;
+		wordCount += entryWords.length;
 	}
 	return parts.join('\n\n');
 }

@@ -12,6 +12,35 @@ import { listClients } from '$lib/server/clients';
 import { fixNoteText, summarizeNoteText, summarizeNoteForClient, chatAboutClient, isOverAiBudget } from '$lib/server/ai';
 
 const AI_LIMIT_MESSAGE = 'Monthly AI limit reached for this account. It resets next month.';
+const CHAT_WORD_LIMIT = 1000;
+
+function countWords(text: string): number {
+	return text.split(/\s+/).filter(Boolean).length;
+}
+
+function capWords(text: string, limit: number): string {
+	const words = text.split(/\s+/).filter(Boolean);
+	return words.length > limit ? words.slice(0, limit).join(' ') : text;
+}
+
+// Drops oldest turns first, keeping the most recent context, until the
+// remaining history fits the given word budget.
+function capHistoryWords(
+	history: { role: 'user' | 'assistant'; content: string }[],
+	limit: number
+): { role: 'user' | 'assistant'; content: string }[] {
+	const kept: { role: 'user' | 'assistant'; content: string }[] = [];
+	let total = 0;
+	for (let i = history.length - 1; i >= 0; i--) {
+		const words = countWords(history[i].content);
+		if (total + words > limit) {
+			break;
+		}
+		kept.unshift(history[i]);
+		total += words;
+	}
+	return kept;
+}
 
 export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
@@ -153,8 +182,11 @@ export const actions: Actions = {
 			// malformed history from the client just starts the chat over
 		}
 
+		const cappedQuestion = capWords(question, CHAT_WORD_LIMIT);
+		history = capHistoryWords(history, CHAT_WORD_LIMIT - countWords(cappedQuestion));
+
 		const notesContext = await privateNotesContext(therapistId, clientId);
-		const answer = await chatAboutClient(therapistId, notesContext, history, question);
+		const answer = await chatAboutClient(therapistId, notesContext, history, cappedQuestion);
 		if (!answer) {
 			return fail(502, { message: 'Could not get an answer right now. Please try again.' });
 		}

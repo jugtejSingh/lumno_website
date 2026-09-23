@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { tick } from 'svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import { renderMarkdown } from '$lib/markdown';
 
@@ -21,9 +22,12 @@
 	let messages = $state<Message[]>([]);
 	let question = $state('');
 	let asking = $state(false);
+	let currentQuestion = $state('');
+	let queue = $state<string[]>([]);
 	let errorMessage = $state('');
 	let historyJson = $state('[]');
 	let scrollEl: HTMLDivElement;
+	let formEl: HTMLFormElement;
 
 	function scrollToBottom() {
 		queueMicrotask(() => {
@@ -31,11 +35,26 @@
 		});
 	}
 
-	function askSubmit() {
-		historyJson = JSON.stringify(messages);
-		const asked = question;
-		messages = [...messages, { role: 'user', content: asked }];
+	// The submit function for use:enhance — runs on every real form submission,
+	// whether from the user (Send/Enter) or triggered programmatically below to
+	// send the next queued question. formData is already snapshotted from the
+	// DOM at this point, so it's safe to clear `question` right after reading it.
+	function askSubmit({ cancel }: { cancel: () => void }) {
+		const asked = question.trim();
 		question = '';
+		if (!asked) {
+			cancel();
+			return;
+		}
+		if (asking) {
+			// a request is already in flight — queue this one instead of sending it now
+			cancel();
+			queue = [...queue, asked];
+			return;
+		}
+
+		historyJson = JSON.stringify(messages);
+		currentQuestion = asked;
 		asking = true;
 		errorMessage = '';
 		scrollToBottom();
@@ -43,15 +62,25 @@
 		return async ({ result }: { result: import('@sveltejs/kit').ActionResult }) => {
 			asking = false;
 			if (result.type === 'success' && result.data?.answer) {
-				messages = [...messages, { role: 'assistant', content: result.data.answer as string }];
-				scrollToBottom();
-				return;
-			}
-			if (result.type === 'failure') {
+				messages = [
+					...messages,
+					{ role: 'user', content: currentQuestion },
+					{ role: 'assistant', content: result.data.answer as string }
+				];
+			} else if (result.type === 'failure') {
 				errorMessage = (result.data?.message as string) ?? 'Could not get an answer.';
-				return;
+			} else {
+				errorMessage = 'Could not get an answer.';
 			}
-			errorMessage = 'Could not get an answer.';
+			scrollToBottom();
+
+			if (queue.length > 0) {
+				const [next, ...rest] = queue;
+				queue = rest;
+				question = next;
+				await tick();
+				formEl.requestSubmit();
+			}
 		};
 	}
 </script>
@@ -77,25 +106,23 @@
 				{/if}
 			{/each}
 			{#if asking}
+				<div class="bubble bubble-user">{currentQuestion}</div>
 				<div class="bubble bubble-assistant">Thinking…</div>
 			{/if}
+			{#each queue as q, i (i)}
+				<div class="bubble bubble-user queued">{q}</div>
+			{/each}
 		</div>
 
 		{#if errorMessage}
 			<div class="error">{errorMessage}</div>
 		{/if}
 
-		<form method="POST" action="?/chat" use:enhance={askSubmit} class="ask-form">
+		<form method="POST" action="?/chat" use:enhance={askSubmit} bind:this={formEl} class="ask-form">
 			<input type="hidden" name="clientId" value={clientId} />
 			<input type="hidden" name="history" value={historyJson} />
-			<input
-				type="text"
-				name="question"
-				bind:value={question}
-				placeholder="Ask a question…"
-				disabled={asking}
-			/>
-			<Button type="submit" size="sm" disabled={asking || !question.trim()}>Send</Button>
+			<input type="text" name="question" bind:value={question} placeholder="Ask a question…" />
+			<Button type="submit" size="sm" disabled={!question.trim()}>Send</Button>
 		</form>
 	</div>
 {/if}
@@ -191,6 +218,10 @@
 		background: var(--accent-primary);
 		color: var(--text-on-accent);
 		white-space: pre-wrap;
+	}
+
+	.bubble-user.queued {
+		opacity: 0.6;
 	}
 
 	.bubble-assistant {

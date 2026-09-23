@@ -6,12 +6,6 @@ First pass covered the pending git diff (uncommitted changes). Second pass swept
 
 ## Real bugs
 
-1. **The AI chat has no size limit on the history the browser sends back.** `src/routes/(app)/notes/+page.server.ts`, `chat` action.
-   The history filter checks each message's type but not how many there are or how long they are. A long chat, or a crafted request, can push a huge prompt to OpenRouter. The monthly AI budget is only checked before the call, so one request can go well past it.
-
-2. **One long note can leave the chat with no notes at all.** `src/lib/server/notes.ts`, `privateNotesContext`.
-   If the newest private note is over 5000 words, the loop stops straight away and returns an empty string. The AI then answers as if the client has no notes, with no warning. Either cut that note short or skip it and carry on.
-
 3. **A failed chat question stays in the history.** `src/lib/components/Notes/ClientNotesChat.svelte`, `askSubmit`.
    The question is added to the chat before the reply comes back and isn't removed if the request fails. The next request then carries two questions in a row with no answer between them, and the failed question is sent to the AI again as context.
 
