@@ -21,13 +21,15 @@ describe('notification settings', () => {
 			sendMeetLinks: false,
 			sendBookingEmails: false,
 			sendSessionReminderEmails: false,
-			sendPaymentReminderEmails: false
+			sendPaymentReminderEmails: false,
+			sendRebookReminderEmails: false
 		});
 		expect(await getNotificationSettings(therapistId)).toEqual({
 			sendMeetLinks: false,
 			sendBookingEmails: false,
 			sendSessionReminderEmails: false,
-			sendPaymentReminderEmails: false
+			sendPaymentReminderEmails: false,
+			sendRebookReminderEmails: false
 		});
 	});
 });
@@ -39,7 +41,10 @@ describe('payment settings', () => {
 			paymentMode: 'manual',
 			packExhaustedAction: 'require_single_payment',
 			freeChangeWindowHours: 24,
-			partialChangeWindowHours: 8
+			partialChangeWindowHours: 8,
+			rescheduleChargesEnabled: true,
+			rescheduleFreeChangeWindowHours: 24,
+			reschedulePartialChangeWindowHours: 8
 		});
 	});
 
@@ -47,7 +52,22 @@ describe('payment settings', () => {
 		await expect(
 			updatePaymentSettings(therapistId, {
 				freeChangeWindowHours: 12,
-				partialChangeWindowHours: 24
+				partialChangeWindowHours: 24,
+				rescheduleChargesEnabled: true,
+				rescheduleFreeChangeWindowHours: 24,
+				reschedulePartialChangeWindowHours: 8
+			})
+		).rejects.toThrow();
+	});
+
+	it('rejects a reschedule partial window that is not shorter than the reschedule free window', async () => {
+		await expect(
+			updatePaymentSettings(therapistId, {
+				freeChangeWindowHours: 24,
+				partialChangeWindowHours: 8,
+				rescheduleChargesEnabled: true,
+				rescheduleFreeChangeWindowHours: 12,
+				reschedulePartialChangeWindowHours: 24
 			})
 		).rejects.toThrow();
 	});
@@ -55,11 +75,17 @@ describe('payment settings', () => {
 	it('saves a valid update', async () => {
 		await updatePaymentSettings(therapistId, {
 			freeChangeWindowHours: 48,
-			partialChangeWindowHours: 12
+			partialChangeWindowHours: 12,
+			rescheduleChargesEnabled: false,
+			rescheduleFreeChangeWindowHours: 48,
+			reschedulePartialChangeWindowHours: 12
 		});
 		expect(await getPaymentSettings(therapistId)).toMatchObject({
 			freeChangeWindowHours: 48,
-			partialChangeWindowHours: 12
+			partialChangeWindowHours: 12,
+			rescheduleChargesEnabled: false,
+			rescheduleFreeChangeWindowHours: 48,
+			reschedulePartialChangeWindowHours: 12
 		});
 	});
 });

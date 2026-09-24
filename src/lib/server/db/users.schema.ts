@@ -84,6 +84,9 @@ export const client = pgTable(
 		state: text('state'),
 		// ISO 3166-1 alpha-2 code, e.g. 'IN' (see $lib/countries)
 		country: text('country'),
+		// IANA zone, e.g. 'America/New_York'. Null means "use the therapist's
+		// timezone" — only display formatting reads this, never booking/availability.
+		timezone: text('timezone'),
 		// therapist-written notes keyed by heading id (therapistSettings.clientFieldHeadings).
 		// Values for a deleted heading are left here, just no longer shown.
 		customFields: jsonb('custom_fields').$type<ClientFieldValues>().notNull().default({}),
@@ -100,11 +103,16 @@ export const client = pgTable(
 		// last time a payment-due nag went out to this client; null means never sent.
 		// throttles the weekly reminder cron to at most one send per 7 days per client
 		lastPaymentReminderAt: timestamp('last_payment_reminder_at', { withTimezone: true }),
-	// ladder position for the "come back and rebook" nag: 0 none, 1 sent the 4-day nudge,
-	// 2 sent the 2-week nudge, 3 sent the 1-month nudge (and every 30d after).
-	// See docs/rebook-reminders-plan.md for how this will be used.
-	rebookReminderStage: integer('rebook_reminder_stage').notNull().default(0),
-	lastRebookReminderAt: timestamp('last_rebook_reminder_at', { withTimezone: true }),
+		// the most recent (by startAt, not by when it was booked) appointment this client has —
+		// set from createAppointmentForTherapist on every booking/reschedule, taking the later
+		// of the existing value and the new startAt. In the future = they already have an
+		// upcoming session; in the past = how long since their last one. Drives the rebook
+		// reminder ladder below without a per-tick query over the appointment table.
+		lastSessionAt: timestamp('last_session_at', { withTimezone: true }),
+		// ladder position for the "come back and rebook" nag: 0 none, 1 sent the 4-day nudge,
+		// 2 sent the 11-day nudge (and repeats every 14d after, still at stage 2).
+		rebookReminderStage: integer('rebook_reminder_stage').notNull().default(0),
+		lastRebookReminderAt: timestamp('last_rebook_reminder_at', { withTimezone: true }),
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')
 			.defaultNow()

@@ -5,6 +5,7 @@ import { zonedDayBounds, getZonedDateParts, zonedDateToUTC } from '$lib/server/t
 import { getPaymentSettings } from '$lib/server/paymentSettings';
 import {
 	resolvePolicyOutcome,
+	resolveReschedulePolicyOutcome,
 	tierFraction,
 	feeNote,
 	type PolicyOutcome,
@@ -424,8 +425,8 @@ export async function createAppointmentForTherapist(
 	try {
 		// savepoint: postgres-js rethrows any failed query at the end of the enclosing
 		// transaction even if it was caught, so the trigger error must be contained here
-		const [row] = await executor.transaction((savepoint) =>
-			savepoint
+		const row = await executor.transaction(async (savepoint) => {
+			const [inserted] = await savepoint
 				.insert(appointment)
 				.values({
 					therapistId,
@@ -437,8 +438,21 @@ export async function createAppointmentForTherapist(
 					notes: input.notes || null,
 					rescheduledFromId: input.rescheduledFromId ?? null
 				})
-				.returning()
-		);
+				.returning();
+
+			if (input.clientId) {
+				// keep the later of the existing value and this booking's startAt — a
+				// reschedule to an earlier date must not clobber a later known session.
+				await savepoint
+					.update(client)
+					.set({
+					lastSessionAt: sql`greatest(${client.lastSessionAt}, ${startAt.toISOString()}::timestamptz)`
+				})
+					.where(eq(client.id, input.clientId));
+			}
+
+			return inserted;
+		});
 		return { appointment: row };
 	} catch (err) {
 		if (isOverlapError(err)) {
@@ -453,7 +467,8 @@ export async function createAppointmentForTherapist(
 // else about the request changes what's owed.
 async function resolveOutcomeFor(
 	therapistId: string,
-	appt: typeof appointment.$inferSelect
+	appt: typeof appointment.$inferSelect,
+	kind: 'cancellation' | 'reschedule'
 ): Promise<PolicyOutcome> {
 	// walk-in (customName) appointments have no client row, so no rate — fee always 0
 	const rate = appt.clientId
@@ -461,7 +476,9 @@ async function resolveOutcomeFor(
 				?.rate ?? 0)
 		: 0;
 	const settings = await getPaymentSettings(therapistId);
-	return resolvePolicyOutcome(appt.startAt, settings, rate);
+	return kind === 'reschedule'
+		? resolveReschedulePolicyOutcome(appt.startAt, settings, rate)
+		: resolvePolicyOutcome(appt.startAt, settings, rate);
 }
 
 export type CancelAppointmentResult =
@@ -513,7 +530,7 @@ export async function cancelAppointment(
 			: 0;
 		outcome = { tier: manualTier, feeAmount: Math.round(baseAmount * tierFraction(manualTier)) };
 	} else {
-		outcome = await resolveOutcomeFor(therapistId, appt);
+		outcome = await resolveOutcomeFor(therapistId, appt, 'cancellation');
 	}
 
 	await db.transaction(async (tx) => {
@@ -584,7 +601,7 @@ export async function finishReschedule(
 	oldAppt: typeof appointment.$inferSelect,
 	insertNew: (tx: DbOrTx) => Promise<RescheduleInsertResult>
 ): Promise<RescheduleAppointmentResult> {
-	const outcome = await resolveOutcomeFor(therapistId, oldAppt);
+	const outcome = await resolveOutcomeFor(therapistId, oldAppt, 'reschedule');
 
 	const result = await db.transaction(async (tx) => {
 		const inserted = await insertNew(tx);

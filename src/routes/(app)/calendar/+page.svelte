@@ -147,7 +147,7 @@
 	</div>
 
 	<div class="month-view">
-		<!-- colour key for the month grid; mirrors the chip/day colours in MonthGrid and +page.server.ts -->
+		<!-- colour key for the session chips; mirrors +page.server.ts's statusColor/modalityColor -->
 		<div class="legend">
 			<span class="legend-group">
 				<span class="legend-title">Sessions</span>
@@ -155,13 +155,6 @@
 				<span class="legend-chip" style="background: var(--citrus-400)">Online</span>
 				<span class="legend-chip legend-done" style="background: var(--beige-600)">Done</span>
 				<span class="legend-chip legend-cancelled" style="background: var(--beige-300)">Cancelled</span>
-			</span>
-			<span class="legend-group">
-				<span class="legend-title">Days</span>
-				<span class="legend-day" style="background: var(--beige-0)"></span>In person
-				<span class="legend-day" style="background: var(--coral-100)"></span>Online
-				<span class="legend-day legend-hybrid"></span>Hybrid
-				<span class="legend-day legend-off"></span>Off
 			</span>
 		</div>
 		<MonthGrid {weeks} onDayClick={(day) => (dayDialogDay = day)} />
@@ -303,24 +296,6 @@
 	.legend-cancelled {
 		opacity: 0.55;
 		text-decoration: line-through;
-	}
-
-	.legend-day {
-		width: 14px;
-		height: 14px;
-		border: 2px solid var(--beige-400);
-		border-radius: var(--radius-xs);
-		margin-left: 4px;
-	}
-
-	.legend-hybrid {
-		background: repeating-linear-gradient(135deg, var(--coral-100) 0 4px, var(--beige-0) 4px 8px);
-	}
-
-	.legend-off {
-		background: repeating-linear-gradient(135deg, var(--beige-200) 0 3px, var(--beige-50) 3px 6px);
-		border-style: dashed;
-		opacity: 0.6;
 	}
 
 	.toolbar-actions {

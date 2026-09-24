@@ -90,9 +90,15 @@ export async function claimPendingSlot(therapistId: string, seen: string | null)
 				eq(subscription.therapistId, therapistId),
 				or(
 					slotFree,
-					lt(
-						subscription.pendingSince,
-						sql`now() - interval '${sql.raw(String(STALE_SECONDS))} seconds'`
+					and(
+						// only a crashed/abandoned claimPendingSlot call (still on the sentinel)
+						// counts as stale — a real pending sub id means the user is legitimately
+						// still on Razorpay's redirect/OTP flow, however long that takes
+						eq(subscription.pendingSubId, CREATING_SENTINEL),
+						lt(
+							subscription.pendingSince,
+							sql`now() - interval '${sql.raw(String(STALE_SECONDS))} seconds'`
+						)
 					)
 				)
 			)

@@ -63,6 +63,14 @@ export async function listClients(therapistId: string) {
 	return db.select().from(client).where(eq(client.therapistId, therapistId));
 }
 
+export async function getClient(therapistId: string, clientId: string) {
+	const [row] = await db
+		.select()
+		.from(client)
+		.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
+	return row ?? null;
+}
+
 export async function addClient(therapistId: string, input: NewClientInput, origin: string) {
 	const limit = await usageLimit(therapistId, 'clients');
 	const [{ count }] = await db
@@ -243,6 +251,11 @@ export async function linkClientToUser(clientId: string, userId: string) {
 // belongs to the caller (invite token or locals.clientId).
 export async function setClientPhone(clientId: string, phone: string | null) {
 	await db.update(client).set({ phone }).where(eq(client.id, clientId));
+}
+
+// null clears back to "use the therapist's timezone" (see client.timezone comment).
+export async function setClientTimezone(clientId: string, timezone: string | null) {
+	await db.update(client).set({ timezone }).where(eq(client.id, clientId));
 }
 
 // Same trust model as setClientPhone: the client's own answers, already validated by

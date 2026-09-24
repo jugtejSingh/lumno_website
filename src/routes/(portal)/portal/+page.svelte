@@ -21,6 +21,7 @@
 
 	// seeded from the load data only, like every other draft in this app
 	let phone = $state(data.clientPhone);
+	let timezone = $state(data.clientTimezone);
 	let profile = $state(structuredClone(data.clientProfile));
 
 	let bookDay = $state<number | null>(null);
@@ -211,6 +212,7 @@
 			onDayClick={(day) => (bookDay = day)}
 		/>
 		<div class="hint">{data.cancellationPolicy}</div>
+		<div class="hint">{data.reschedulePolicy}</div>
 	</div>
 
 	<div id="payments" class="section">
@@ -364,12 +366,22 @@
 					label="Phone"
 					name="phone"
 					type="tel"
-					placeholder="+91 98765 43210"
+					placeholder="+910000000000"
 					bind:value={phone}
 				/>
 				<div class="hint">
 					Optional. Give us a number and session reminders come by WhatsApp instead of email.
 				</div>
+				<label class="field">
+					<span class="field-label">Timezone</span>
+					<select class="field-input" name="timezone" bind:value={timezone}>
+						<option value="">Same as {data.therapistName} ({data.therapistTimezone})</option>
+						{#each data.timezoneOptions as tz (tz)}
+							<option value={tz}>{tz}</option>
+						{/each}
+					</select>
+				</label>
+				<div class="hint">Session times below show in this timezone.</div>
 				<Button type="submit" variant="primary" size="sm">Save</Button>
 			</form>
 		</Card>
@@ -392,7 +404,7 @@
 	month={data.month}
 	slots={bookSlots}
 	message={form?.message}
-	cancellationPolicy={data.cancellationPolicy}
+	cancellationPolicy={rescheduleId ? data.reschedulePolicy : data.cancellationPolicy}
 	rescheduleAppointmentId={rescheduleId}
 	onclose={closeBookDialog}
 />
@@ -512,6 +524,41 @@
 	/* align-items: flex-start keeps Save from stretching, so the field needs its width back */
 	.details-form > :global(.field) {
 		width: 100%;
+	}
+
+	/* raw <select> here (not the Select component) because the "same as therapist"
+	   option needs a label distinct from its value — Select assumes value === label */
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		width: 100%;
+	}
+
+	.field-label {
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--text-secondary);
+	}
+
+	.field-input {
+		width: 100%;
+		box-sizing: border-box;
+		font-family: var(--font-body);
+		font-size: 14px;
+		color: var(--text-primary);
+		background: var(--surface-card);
+		border: 2px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-inset);
+		padding: 10px 12px;
+	}
+
+	.field-input:focus {
+		outline: none;
+		border-color: var(--outline);
+		background: var(--coral-100);
+		box-shadow: var(--shadow-focus);
 	}
 
 	.book-toolbar {

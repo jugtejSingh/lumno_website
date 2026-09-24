@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { isRedirect } from '@sveltejs/kit';
 
 process.env.TOKEN_ENC_KEY = Buffer.alloc(32, 7).toString('base64');
@@ -114,6 +114,22 @@ describe('getAccessToken', () => {
 		await Promise.all([getAccessToken(therapistId), getAccessToken(therapistId)]);
 
 		expect(refreshMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('gives up instead of retrying forever when the lease stays held past the wait deadline', async () => {
+		await storeConnection(therapistId, tokenResponse({ expires_in: 5 }), 'test');
+		// Simulate another request holding the lease (e.g. a crashed refresh that
+		// never released it) — the deadline passed in is already in the past, so
+		// this must throw on the very first contended attempt, not recurse.
+		await db
+			.update(therapistRazorpayConnection)
+			.set({ refreshLockUntil: sql`now() + interval '1 hour'` })
+			.where(eq(therapistRazorpayConnection.therapistId, therapistId));
+
+		await expect(getAccessToken(therapistId, Date.now() - 1)).rejects.toThrow(
+			/timed out waiting for Razorpay refresh lease/
+		);
+		expect(refreshMock).not.toHaveBeenCalled();
 	});
 
 	it('marks the connection refresh_failed on a 4xx and does not retry', async () => {

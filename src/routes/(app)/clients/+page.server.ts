@@ -1,17 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import {
-	addClient,
-	deleteClient,
-	getClientCustomFields,
-	listClients,
-	resendInvite,
-	updateClient,
-	type ClientStatus
-} from '$lib/server/clients';
+import { addClient, deleteClient, listClients, resendInvite } from '$lib/server/clients';
 import { getClientFieldHeadings, mergeClientFieldValues } from '$lib/server/clientFields';
-import { resourceActions } from '$lib/server/resourceActions';
-import { therapistScope } from '$lib/server/resources';
 
 const addErrorMessages = {
 	duplicate: 'You already have a client with that email',
@@ -25,13 +15,6 @@ const resendErrorMessages = {
 	already_joined: 'This client already has portal access'
 } as const;
 
-const updateErrorMessages = {
-	not_found: 'Client not found',
-	limit_reached: "You've reached your plan's client limit — upgrade to bring them back"
-} as const;
-
-const validStatuses: ClientStatus[] = ['active', 'paused', 'left'];
-
 export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
 	const [clients, fieldHeadings] = await Promise.all([
@@ -42,11 +25,6 @@ export const load: PageServerLoad = async (event) => {
 };
 
 export const actions: Actions = {
-	// posted clientId is only trusted after therapistScope checks this therapist owns it
-	...resourceActions((event, formData) => {
-		return therapistScope(event.locals.therapistId!, formData.get('clientId')?.toString() ?? '');
-	}),
-
 	add: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
@@ -100,45 +78,6 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const clientId = formData.get('clientId')?.toString() ?? '';
 		await deleteClient(therapistId, clientId);
-	},
-
-	update: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const clientId = formData.get('clientId')?.toString() ?? '';
-		const name = formData.get('name')?.toString().trim() ?? '';
-		const rateRaw = formData.get('rate')?.toString().trim() || '';
-		const status = formData.get('status')?.toString() ?? '';
-		const tags = (formData.get('tags')?.toString() ?? '')
-			.split(',')
-			.map((t) => t.trim())
-			.filter(Boolean);
-
-		if (!name.includes(' ')) {
-			return fail(400, { fieldErrors: { name: 'Please enter their first and last name.' } });
-		}
-		if (!validStatuses.includes(status as ClientStatus)) {
-			return fail(400, { message: 'Invalid status' });
-		}
-
-		const [headings, existingFields] = await Promise.all([
-			getClientFieldHeadings(therapistId),
-			getClientCustomFields(therapistId, clientId)
-		]);
-		if (existingFields === null) {
-			return fail(400, { message: updateErrorMessages.not_found });
-		}
-
-		const result = await updateClient(therapistId, clientId, {
-			name,
-			rate: rateRaw ? Number(rateRaw) : null,
-			customFields: mergeClientFieldValues(existingFields, headings, formData),
-			tags,
-			status: status as ClientStatus
-		});
-		if (result && 'error' in result && result.error !== undefined) {
-			return fail(400, { message: updateErrorMessages[result.error] });
-		}
 	},
 
 	resendInvite: async (event) => {

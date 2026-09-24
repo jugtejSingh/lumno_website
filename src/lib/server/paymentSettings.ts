@@ -11,6 +11,9 @@ export type { PaymentSettings, PaymentMode, PackExhaustedAction, ChangeTier, Pol
 type PackPolicySettings = {
 	freeChangeWindowHours: number;
 	partialChangeWindowHours: number | null;
+	rescheduleChargesEnabled: boolean;
+	rescheduleFreeChangeWindowHours: number;
+	reschedulePartialChangeWindowHours: number | null;
 };
 
 export async function getPaymentSettings(therapistId: string): Promise<PaymentSettings> {
@@ -20,7 +23,10 @@ export async function getPaymentSettings(therapistId: string): Promise<PaymentSe
 			paymentMode: paymentSettings.paymentMode,
 			packExhaustedAction: paymentSettings.packExhaustedAction,
 			freeChangeWindowHours: paymentSettings.freeChangeWindowHours,
-			partialChangeWindowHours: paymentSettings.partialChangeWindowHours
+			partialChangeWindowHours: paymentSettings.partialChangeWindowHours,
+			rescheduleChargesEnabled: paymentSettings.rescheduleChargesEnabled,
+			rescheduleFreeChangeWindowHours: paymentSettings.rescheduleFreeChangeWindowHours,
+			reschedulePartialChangeWindowHours: paymentSettings.reschedulePartialChangeWindowHours
 		})
 		.from(paymentSettings)
 		.where(eq(paymentSettings.therapistId, therapistId));
@@ -35,6 +41,12 @@ export async function updatePaymentSettings(
 ) {
 	if (input.partialChangeWindowHours !== null && input.partialChangeWindowHours >= input.freeChangeWindowHours) {
 		throw new Error('partialChangeWindowHours must be less than freeChangeWindowHours');
+	}
+	if (
+		input.reschedulePartialChangeWindowHours !== null &&
+		input.reschedulePartialChangeWindowHours >= input.rescheduleFreeChangeWindowHours
+	) {
+		throw new Error('reschedulePartialChangeWindowHours must be less than rescheduleFreeChangeWindowHours');
 	}
 	await executor.update(paymentSettings).set(input).where(eq(paymentSettings.therapistId, therapistId));
 }

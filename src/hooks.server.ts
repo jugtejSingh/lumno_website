@@ -78,6 +78,24 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		}
 	}
 
+	// A session with a user but neither a therapist nor a client row (e.g. a
+	// therapist deletes a client while that client still holds a valid session
+	// cookie) would otherwise bounce forever between the (app) and (portal)
+	// guards below — sign out instead of looping.
+	if (
+		event.locals.user &&
+		!event.locals.therapistId &&
+		!event.locals.clientId &&
+		(event.route.id?.startsWith('/(app)') || event.route.id?.startsWith('/(portal)'))
+	) {
+		const { headers } = await auth.api.signOut({
+			headers: event.request.headers,
+			returnHeaders: true
+		});
+		headers.set('Location', '/login?error=account_removed');
+		return new Response(null, { status: 302, headers });
+	}
+
 	// Single gate for everything under (app) — pages, actions, and standalone
 	// +server.ts endpoints alike (layout `load` doesn't run for the last two).
 	// Downstream (app) code can treat locals.therapistId as non-null.

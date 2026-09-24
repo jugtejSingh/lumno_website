@@ -108,6 +108,10 @@
 	let sendBookingEmails = $state(initial.notifications.sendBookingEmails);
 	let sendSessionReminderEmails = $state(initial.notifications.sendSessionReminderEmails);
 	let sendPaymentReminderEmails = $state(initial.notifications.sendPaymentReminderEmails);
+	let sendRebookReminderEmails = $state(initial.notifications.sendRebookReminderEmails);
+
+	// ---- timezone ----
+	let timezone = $state(initial.timezone);
 
 	// ---- booking rules ----
 	let requireZeroBalance = $state(initial.bookingRules.requireZeroBalance);
@@ -124,6 +128,13 @@
 		initial.payments.partialChangeWindowHours === null
 			? ''
 			: String(initial.payments.partialChangeWindowHours)
+	);
+	let rescheduleChargesEnabled = $state(initial.payments.rescheduleChargesEnabled);
+	let rescheduleFreeChangeWindowHours = $state(initial.payments.rescheduleFreeChangeWindowHours);
+	let reschedulePartialChangeWindowHours = $state(
+		initial.payments.reschedulePartialChangeWindowHours === null
+			? ''
+			: String(initial.payments.reschedulePartialChangeWindowHours)
 	);
 	let payBankDetails = $state(initial.manualPay.bankDetails);
 	let removePayQr = $state(false);
@@ -170,10 +181,14 @@
 			sendBookingEmails,
 			sendSessionReminderEmails,
 			sendPaymentReminderEmails,
+			sendRebookReminderEmails,
 			requireZeroBalance,
 			maxUpcomingBookingsPerClient,
 			freeChangeWindowHours,
 			partialChangeWindowHours,
+			rescheduleChargesEnabled,
+			rescheduleFreeChangeWindowHours,
+			reschedulePartialChangeWindowHours,
 			payBankDetails,
 			removePayQr,
 			paymentModeAutomatic,
@@ -252,6 +267,11 @@
 	<input type="hidden" name="removePayQr" value={removePayQr ? 'on' : ''} />
 	<input type="hidden" name="sendBookingEmails" value={sendBookingEmails ? 'on' : ''} />
 	<input type="hidden" name="paymentModeAutomatic" value={paymentModeAutomatic ? 'on' : ''} />
+	<input
+		type="hidden"
+		name="rescheduleChargesEnabled"
+		value={rescheduleChargesEnabled ? 'on' : ''}
+	/>
 	<input type="hidden" name="requireZeroBalance" value={requireZeroBalance ? 'on' : ''} />
 	<input
 		type="hidden"
@@ -262,6 +282,11 @@
 		type="hidden"
 		name="sendPaymentReminderEmails"
 		value={sendPaymentReminderEmails ? 'on' : ''}
+	/>
+	<input
+		type="hidden"
+		name="sendRebookReminderEmails"
+		value={sendRebookReminderEmails ? 'on' : ''}
 	/>
 
 	<Card>
@@ -403,6 +428,11 @@
 				info="At most once a week, clients with an unpaid balance get an email listing what they owe."
 				bind:checked={sendPaymentReminderEmails}
 			/>
+			<Switch
+				label="Email clients who haven't booked a follow-up session"
+				info="A nudge 4 days after their last session, another at 11 days, then every 2 weeks until they book again."
+				bind:checked={sendRebookReminderEmails}
+			/>
 		</div>
 	</Card>
 
@@ -414,6 +444,19 @@
 					text="Limits on what clients can book themselves in their portal. Sessions you add on the Calendar are never blocked by these."
 				/>
 			</div>
+			<label class="field">
+				<span class="field-label">
+					Timezone<InfoTip
+						label="Timezone"
+						text="Your working hours and the calendar day boundaries for booking are anchored to this timezone."
+					/>
+				</span>
+				<select class="field-input" name="timezone" bind:value={timezone}>
+					{#each data.timezoneOptions as tz (tz)}
+						<option value={tz}>{tz}</option>
+					{/each}
+				</select>
+			</label>
 			<Switch
 				label="Block portal bookings while a client owes you money"
 				info="While a client has any unpaid invoice, they can't book a new session in their portal until it's settled. Rescheduling a session they already have still works."
@@ -460,8 +503,8 @@
 			</div>
 			<div class="helper">
 				The two windows below set your late-change policy: a client who cancels or reschedules with
-				more notice than the free window owes nothing; inside the 50% window they owe half the
-				session rate; with less notice than that they owe the full rate.
+				more notice than the 50% window owes nothing; inside the 50% window they owe half the
+				session rate; inside the 100% window they owe the full rate.
 			</div>
 
 			<div class="section-title">Online Payments (Razorpay)</div>
@@ -488,7 +531,7 @@
 						<span>Portal payments are paused — reconnect Razorpay to resume</span>
 						<Button href="/settings/payments/connect" variant="secondary" size="sm">Reconnect</Button>
 					{/if}
-					{#if !confirmDisconnect}
+					{#if !confirmDisconnect && (rzp.health === 'connected' || rzp.health === 'expiring')}
 						<Button variant="secondary" size="sm" onclick={() => (confirmDisconnect = true)}>
 							Disconnect
 						</Button>
@@ -535,9 +578,9 @@
 
 			<label class="field">
 				<span class="field-label">
-					Free Cancellation Window<InfoTip
-						label="Free Cancellation Window"
-						text="If a client cancels or reschedules with at least this much notice, there's no charge. With less notice, a fee invoice is created automatically; you can change the amount or delete it from Payments. Clients see this policy in their portal."
+					50% Cancellation Fee Window<InfoTip
+						label="50% Cancellation Fee Window"
+						text="If a client cancels within this long before the session, they're charged 50% of the rate. Earlier than this, there's no charge. A fee invoice is created automatically; you can change the amount or delete it from Payments. Clients see this policy in their portal. Pick 0 hours for no charge at any point before the session starts."
 					/>
 				</span>
 				<select class="field-input" name="freeChangeWindowHours" bind:value={freeChangeWindowHours}>
@@ -548,9 +591,9 @@
 			</label>
 			<label class="field">
 				<span class="field-label">
-					Partial Fee Window (50%)<InfoTip
-						label="Partial Fee Window (50%)"
-						text="Example: free window 24h, 50% window 2h. More than 24h notice costs nothing, 2–24h costs half the rate, and under 2h costs the full rate. Pick &quot;No partial tier&quot; to go straight from free to full."
+					100% Cancellation Fee Window<InfoTip
+						label="100% Cancellation Fee Window"
+						text="Example: 50% window 24h, 100% window 2h. More than 24h notice costs nothing, within 24h costs half the rate, and within 2h costs the full rate. Pick &quot;No 50% tier&quot; to go straight from free to full."
 					/>
 				</span>
 				<select
@@ -558,12 +601,55 @@
 					name="partialChangeWindowHours"
 					bind:value={partialChangeWindowHours}
 				>
-					<option value="">No partial tier — straight to 100%</option>
+					<option value="">No 50% tier — straight to 100%</option>
 					{#each data.hourOptions as o (o.hours)}
 						<option value={o.hours}>{o.label}</option>
 					{/each}
 				</select>
 			</label>
+
+			<Switch
+				label="Charge for rescheduling"
+				info="When off, clients can reschedule for free no matter how little notice they give. When on, rescheduling follows its own free/50%/100% windows below, separate from the cancellation windows above."
+				bind:checked={rescheduleChargesEnabled}
+			/>
+			{#if rescheduleChargesEnabled}
+				<label class="field">
+					<span class="field-label">
+						50% Reschedule Fee Window<InfoTip
+							label="50% Reschedule Fee Window"
+							text="If a client reschedules within this long before the session, they're charged 50% of the rate. Earlier than this, there's no charge. A fee invoice is created automatically; you can change the amount or delete it from Payments. Clients see this policy in their portal. Pick 0 hours for no charge at any point before the session starts."
+						/>
+					</span>
+					<select
+						class="field-input"
+						name="rescheduleFreeChangeWindowHours"
+						bind:value={rescheduleFreeChangeWindowHours}
+					>
+						{#each data.hourOptions as o (o.hours)}
+							<option value={o.hours}>{o.label}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="field">
+					<span class="field-label">
+						100% Reschedule Fee Window<InfoTip
+							label="100% Reschedule Fee Window"
+							text="Example: 50% window 24h, 100% window 2h. More than 24h notice costs nothing, within 24h costs half the rate, and within 2h costs the full rate. Pick &quot;No 50% tier&quot; to go straight from free to full."
+						/>
+					</span>
+					<select
+						class="field-input"
+						name="reschedulePartialChangeWindowHours"
+						bind:value={reschedulePartialChangeWindowHours}
+					>
+						<option value="">No 50% tier — straight to 100%</option>
+						{#each data.hourOptions as o (o.hours)}
+							<option value={o.hours}>{o.label}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
 
 			<div class="section-title">Manual Payment Methods</div>
 			<div class="helper">
@@ -620,6 +706,12 @@
 						{TIER_NAMES[data.billing.plan]}
 						{#if data.billing.status === 'past_due'}
 							<span class="plan-warning">— payment failed</span>
+						{:else if data.billing.status === 'cancelled'}
+							<span class="plan-warning">
+								— cancelled{#if data.billing.currentEnd}, access until {new Date(
+										data.billing.currentEnd
+									).toLocaleDateString()}{/if}
+							</span>
 						{:else if data.billing.cancelScheduled}
 							<span class="plan-warning">— cancels at period end</span>
 						{/if}

@@ -12,23 +12,34 @@ export type PaymentSettings = {
 	packsEnabled: boolean;
 	paymentMode: PaymentMode;
 	packExhaustedAction: PackExhaustedAction;
-	// hours of notice before a session's start required to cancel/reschedule for free
+	// hours of notice before a session's start required to cancel for free
 	freeChangeWindowHours: number;
 	// hours of notice for the 50% tier; null = no partial tier, straight from free to 100%
 	partialChangeWindowHours: number | null;
+	// reschedule has its own independent policy, same tier system, own windows
+	rescheduleChargesEnabled: boolean;
+	rescheduleFreeChangeWindowHours: number;
+	reschedulePartialChangeWindowHours: number | null;
 };
 
 export type ChangeTier = 'free' | 'partial' | 'full';
+
+// The two fields resolveChangeTier actually needs — PaymentSettings satisfies this
+// structurally for cancellation, and a reschedule-specific windows object does too.
+export type ChangeWindows = {
+	freeChangeWindowHours: number;
+	partialChangeWindowHours: number | null;
+};
 
 export function hoursNotice(startAt: Date, now: Date): number {
 	return (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
 }
 
-export function resolveChangeTier(notice: number, settings: PaymentSettings): ChangeTier {
-	if (notice >= settings.freeChangeWindowHours) {
+export function resolveChangeTier(notice: number, windows: ChangeWindows): ChangeTier {
+	if (notice >= windows.freeChangeWindowHours) {
 		return 'free';
 	}
-	if (settings.partialChangeWindowHours !== null && notice >= settings.partialChangeWindowHours) {
+	if (windows.partialChangeWindowHours !== null && notice >= windows.partialChangeWindowHours) {
 		return 'partial';
 	}
 	return 'full';
@@ -60,6 +71,24 @@ export function resolvePolicyOutcome(
 	return { tier, feeAmount: Math.round(baseAmount * tierFraction(tier)) };
 }
 
+// Reschedule has its own on/off switch plus its own windows — same tier math,
+// independent settings from cancellation.
+export function resolveReschedulePolicyOutcome(
+	startAt: Date,
+	settings: PaymentSettings,
+	baseAmount: number,
+	now: Date = new Date()
+): PolicyOutcome {
+	if (!settings.rescheduleChargesEnabled) {
+		return { tier: 'free', feeAmount: 0 };
+	}
+	const tier = resolveChangeTier(hoursNotice(startAt, now), {
+		freeChangeWindowHours: settings.rescheduleFreeChangeWindowHours,
+		partialChangeWindowHours: settings.reschedulePartialChangeWindowHours
+	});
+	return { tier, feeAmount: Math.round(baseAmount * tierFraction(tier)) };
+}
+
 // Default note stamped on the auto-created fee row at the moment of cancel/reschedule —
 // same as `amount` defaulting to client.rate at booking time, it's just a starting point.
 // The therapist can edit or replace this note (and the amount, and delete the row) after
@@ -70,19 +99,35 @@ export function feeNote(kind: 'cancellation' | 'reschedule', tier: ChangeTier): 
 }
 
 export function formatCancellationPolicy(settings: PaymentSettings): string {
-	const free = `Free to cancel or reschedule up to ${formatHours(settings.freeChangeWindowHours)} before your session.`;
+	const free = `Free to cancel more than ${formatHours(settings.freeChangeWindowHours)} before your session.`;
 	if (settings.partialChangeWindowHours === null) {
-		return `${free} After that, a 100% fee applies.`;
+		return `${free} Within ${formatHours(settings.freeChangeWindowHours)} (or after it's started), a 100% fee applies.`;
 	}
-	const partial = `Between ${formatHours(settings.partialChangeWindowHours)} and ${formatHours(settings.freeChangeWindowHours)} of notice, a 50% fee applies.`;
-	const full = `Inside ${formatHours(settings.partialChangeWindowHours)} of your session (or after it's started), a 100% fee applies.`;
+	const partial = `Within ${formatHours(settings.freeChangeWindowHours)}, a 50% fee applies.`;
+	const full = `Within ${formatHours(settings.partialChangeWindowHours)} (or after it's started), a 100% fee applies.`;
+	return `${free} ${partial} ${full}`;
+}
+
+export function formatReschedulePolicy(settings: PaymentSettings): string {
+	if (!settings.rescheduleChargesEnabled) {
+		return 'Rescheduling is always free.';
+	}
+	const free = `Free to reschedule more than ${formatHours(settings.rescheduleFreeChangeWindowHours)} before your session.`;
+	if (settings.reschedulePartialChangeWindowHours === null) {
+		return `${free} Within ${formatHours(settings.rescheduleFreeChangeWindowHours)} (or after it's started), a 100% fee applies.`;
+	}
+	const partial = `Within ${formatHours(settings.rescheduleFreeChangeWindowHours)}, a 50% fee applies.`;
+	const full = `Within ${formatHours(settings.reschedulePartialChangeWindowHours)} (or after it's started), a 100% fee applies.`;
 	return `${free} ${partial} ${full}`;
 }
 
 // Standard set of notice windows offered in the settings UI dropdown, shortest to longest.
-export const CHANGE_WINDOW_HOURS_OPTIONS = [1, 2, 4, 8, 12, 24, 48, 72, 168];
+export const CHANGE_WINDOW_HOURS_OPTIONS = [0, 1, 2, 4, 8, 12, 24, 48, 72, 168];
 
 export function formatHours(hours: number): string {
+	if (hours === 0) {
+		return '0 hours';
+	}
 	if (hours % 24 === 0) {
 		const days = hours / 24;
 		return days === 1 ? '1 day' : `${days} days`;

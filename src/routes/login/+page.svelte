@@ -39,6 +39,7 @@
 	const checkEmail = $derived(page.url.searchParams.get('checkEmail') === '1');
 	const therapistReady = $derived(page.url.searchParams.get('therapistReady') === '1');
 	const emailFailed = $derived(page.url.searchParams.get('emailFailed') === '1');
+	const accountRemoved = $derived(page.url.searchParams.get('error') === 'account_removed');
 </script>
 
 <svelte:head>
@@ -62,6 +63,12 @@
 			{/if}
 			{#if data.oauthError}
 				<div class="banner banner-bad">{data.oauthError}</div>
+			{/if}
+			{#if accountRemoved}
+				<div class="banner banner-bad">
+					Your account is no longer linked to a profile — please log in again or contact your
+					therapist.
+				</div>
 			{/if}
 			{#if therapistReady}
 				<div class="banner">Your therapist profile is ready. Log in to get started.</div>

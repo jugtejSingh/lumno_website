@@ -29,7 +29,8 @@ export const load: LayoutServerLoad = async (event) => {
 				gender: client.gender,
 				city: client.city,
 				state: client.state,
-				country: client.country
+				country: client.country,
+				timezone: client.timezone
 			})
 			.from(client)
 			.where(eq(client.id, event.locals.clientId))

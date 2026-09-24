@@ -2,8 +2,14 @@ import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
+import { parseMonthParam } from '$lib/server/dateParams';
 import { therapist, user, client as clientTable } from '$lib/server/db/schema';
-import { listClientsForUser, setClientPhone, setClientProfile } from '$lib/server/clients';
+import {
+	listClientsForUser,
+	setClientPhone,
+	setClientProfile,
+	setClientTimezone
+} from '$lib/server/clients';
 import { parsePhone } from '$lib/phone';
 import { hasClientProfile, parseClientProfile } from '$lib/clientProfile';
 import { setActiveClientCookie } from '$lib/server/activeClient';
@@ -25,7 +31,7 @@ import { getPaymentSettings, getManualPayDetails } from '$lib/server/paymentSett
 import { signedUrl } from '$lib/server/storage';
 import { connectionHealth } from '$lib/server/razorpayConnection';
 import { startInvoiceCheckout } from '$lib/server/sessionPayments';
-import { formatCancellationPolicy } from '$lib/server/paymentPolicy';
+import { formatCancellationPolicy, formatReschedulePolicy } from '$lib/server/paymentPolicy';
 import { formatCurrency } from '$lib/format';
 import { resourceActions } from '$lib/server/resourceActions';
 import { clientScope, listResources } from '$lib/server/resources';
@@ -48,12 +54,15 @@ export const load: PageServerLoad = async (event) => {
 
 	const clientName = client.name;
 	const therapistName = therapistRow?.name ?? 'your therapist';
-	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
+	const therapistTimezone = therapistRow?.timezone ?? 'Asia/Kolkata';
+	// only display formatting (session list, invoice/notes dates) uses this — booking
+	// and availability always stay on the therapist's own timezone
+	const timezone = client.timezone ?? therapistTimezone;
 	const currency = therapistRow?.currency ?? 'INR';
 
 	const now = new Date();
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
-	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
+	const month = parseMonthParam(event.url.searchParams.get('month'), now);
 	const PAGE_SIZE = 5;
 	const paymentsPage = Math.max(1, Number(event.url.searchParams.get('paymentsPage')) || 1);
 	const notesPage = Math.max(1, Number(event.url.searchParams.get('notesPage')) || 1);
@@ -139,6 +148,9 @@ export const load: PageServerLoad = async (event) => {
 	return {
 		clientName,
 		clientPhone: client.phone ?? '',
+		clientTimezone: client.timezone ?? '',
+		therapistTimezone,
+		timezoneOptions: Intl.supportedValuesOf('timeZone'),
 		clientProfile: {
 			dateOfBirth: client.dateOfBirth ?? '',
 			gender: client.gender ?? '',
@@ -165,6 +177,7 @@ export const load: PageServerLoad = async (event) => {
 		hasBalanceDue: balanceDue > 0,
 		manualPay,
 		cancellationPolicy: formatCancellationPolicy(paymentSettings),
+		reschedulePolicy: formatReschedulePolicy(paymentSettings),
 		resources
 	};
 };
@@ -220,7 +233,8 @@ export const actions: Actions = {
 		return redirect(302, '/portal');
 	},
 
-	// the client editing their own phone number. Unverified — see setClientPhone.
+	// the client editing their own phone number and display timezone. Phone is
+	// unverified — see setClientPhone.
 	saveDetails: async (event) => {
 		if (!event.locals.clientId) {
 			return fail(401);
@@ -232,7 +246,14 @@ export const actions: Actions = {
 			return fail(400, { message: parsedPhone.error });
 		}
 
+		// '' means "use the therapist's timezone" — cleared back to null
+		const timezoneRaw = formData.get('timezone')?.toString() ?? '';
+		if (timezoneRaw && !Intl.supportedValuesOf('timeZone').includes(timezoneRaw)) {
+			return fail(400, { message: 'Pick a valid timezone' });
+		}
+
 		await setClientPhone(event.locals.clientId, parsedPhone.phone);
+		await setClientTimezone(event.locals.clientId, timezoneRaw || null);
 	},
 
 	// the client's own date of birth / gender / location, all required. The therapist

@@ -63,15 +63,18 @@
 	<h3>Cancellation and reschedule fees</h3>
 	<p>Two settings in <a href="/settings">Settings → Payment Setup</a> make up your policy:</p>
 	<ul>
-		<li><strong>Free window</strong>: with at least this much notice, cancelling or moving is free.</li>
 		<li>
-			<strong>50% window</strong>: with less notice than the free window but more than this, the fee
-			is half the client's rate. With less notice than that, it's the full rate. You can also skip the
-			50% step.
+			<strong>50% window</strong>: cancelling or moving within this long before the session costs
+			half the client's rate. Earlier than that is free, and 0 hours means no charge before the
+			session starts.
+		</li>
+		<li>
+			<strong>100% window</strong>: within this long before the session, the fee is the full rate.
+			You can also skip the 50% step.
 		</li>
 	</ul>
 	<p>
-		Example: a 24-hour free window and a 2-hour 50% window. Cancelling two days ahead costs nothing,
+		Example: a 24-hour 50% window and a 2-hour 100% window. Cancelling two days ahead costs nothing,
 		cancelling 10 hours ahead costs half, and cancelling an hour before costs the full rate. Fees are
 		added as invoices automatically, and you can edit or delete them like any other invoice.
 	</p>

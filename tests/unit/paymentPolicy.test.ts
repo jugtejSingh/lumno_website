@@ -4,9 +4,11 @@ import {
 	resolveChangeTier,
 	tierFraction,
 	resolvePolicyOutcome,
+	resolveReschedulePolicyOutcome,
 	feeNote,
 	formatHours,
 	formatCancellationPolicy,
+	formatReschedulePolicy,
 	type PaymentSettings
 } from '../../src/lib/server/paymentPolicy';
 
@@ -15,7 +17,10 @@ const threeTier: PaymentSettings = {
 	paymentMode: 'manual',
 	packExhaustedAction: 'require_single_payment',
 	freeChangeWindowHours: 24,
-	partialChangeWindowHours: 8
+	partialChangeWindowHours: 8,
+	rescheduleChargesEnabled: true,
+	rescheduleFreeChangeWindowHours: 24,
+	reschedulePartialChangeWindowHours: 8
 };
 const twoTier: PaymentSettings = { ...threeTier, partialChangeWindowHours: null };
 
@@ -76,6 +81,35 @@ describe('resolvePolicyOutcome', () => {
 	});
 });
 
+describe('resolveReschedulePolicyOutcome', () => {
+	const now = new Date('2026-09-01T00:00:00Z');
+
+	it('always returns free when reschedule charges are disabled, regardless of notice', () => {
+		const disabled = { ...threeTier, rescheduleChargesEnabled: false };
+		expect(resolveReschedulePolicyOutcome(new Date('2026-09-01T00:30:00Z'), disabled, 1500, now)).toEqual({
+			tier: 'free',
+			feeAmount: 0
+		});
+	});
+
+	it('uses its own windows, independent of the cancellation windows', () => {
+		const settings = {
+			...threeTier,
+			freeChangeWindowHours: 24,
+			partialChangeWindowHours: 8,
+			rescheduleFreeChangeWindowHours: 2,
+			reschedulePartialChangeWindowHours: 1
+		};
+		// 4 hours notice: past the cancellation free window (24h) but past the
+		// reschedule free window (2h) too, so reschedule is free while cancel wouldn't be
+		expect(resolveReschedulePolicyOutcome(new Date('2026-09-01T04:00:00Z'), settings, 1500, now)).toEqual({
+			tier: 'free',
+			feeAmount: 0
+		});
+		expect(resolvePolicyOutcome(new Date('2026-09-01T04:00:00Z'), settings, 1500, now).tier).toBe('full');
+	});
+});
+
 describe('feeNote', () => {
 	it('names the kind and percent', () => {
 		expect(feeNote('cancellation', 'partial')).toBe('Late cancellation fee (50%)');
@@ -98,5 +132,19 @@ describe('formatCancellationPolicy', () => {
 		expect(formatCancellationPolicy(twoTier)).not.toContain('50%');
 		expect(formatCancellationPolicy(twoTier)).toContain('100% fee');
 		expect(formatCancellationPolicy(threeTier)).toContain('50% fee');
+	});
+});
+
+describe('formatReschedulePolicy', () => {
+	it('says rescheduling is always free when charges are disabled', () => {
+		const disabled = { ...threeTier, rescheduleChargesEnabled: false };
+		expect(formatReschedulePolicy(disabled)).toBe('Rescheduling is always free.');
+	});
+
+	it('mentions the 50% tier only when a partial reschedule window exists', () => {
+		const noPartial = { ...threeTier, reschedulePartialChangeWindowHours: null };
+		expect(formatReschedulePolicy(noPartial)).not.toContain('50%');
+		expect(formatReschedulePolicy(noPartial)).toContain('100% fee');
+		expect(formatReschedulePolicy(threeTier)).toContain('50% fee');
 	});
 });

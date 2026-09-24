@@ -22,9 +22,7 @@
 				class="cell"
 				class:today={cell.isToday}
 				class:empty={cell.day === null}
-				class:kind-online={cell.kind === 'online'}
-				class:kind-in_person={cell.kind === 'in_person'}
-				class:kind-hybrid={cell.kind === 'hybrid'}
+				class:kind-bookable={cell.kind !== null && cell.kind !== 'off'}
 				class:kind-off={cell.kind === 'off'}
 				role="button"
 				tabindex={cell.day !== null ? 0 : -1}
@@ -125,19 +123,12 @@
 
 	.cell.empty {
 		cursor: default;
-	}
-
-	/* day tints stay quiet so the session chips carry the contrast */
-	.cell.kind-in_person {
-		background: var(--beige-0);
-	}
-
-	.cell.kind-online {
 		background: var(--coral-100);
 	}
 
-	.cell.kind-hybrid {
-		background: repeating-linear-gradient(135deg, var(--coral-100) 0 8px, var(--beige-0) 8px 16px);
+	/* day tint stays quiet so the session chips carry the contrast; modality doesn't matter here */
+	.cell.kind-bookable {
+		background: var(--surface-canvas);
 	}
 
 	.cell.kind-off {

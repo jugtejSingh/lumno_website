@@ -44,10 +44,15 @@ export const paymentSettings = pgTable('payment_settings', {
 	packExhaustedAction: packExhaustedActionEnum('pack_exhausted_action')
 		.notNull()
 		.default('require_single_payment'),
-	// hours of notice before a session's start_at required to cancel/reschedule for free
+	// hours of notice before a session's start_at required to cancel for free
 	freeChangeWindowHours: integer('free_change_window_hours').notNull().default(24),
 	// hours of notice for the 50% tier; null = no partial tier, straight from free to 100%
 	partialChangeWindowHours: integer('partial_change_window_hours').default(8),
+	// reschedule has its own independent policy — off entirely, or the same
+	// free/50%/100% tier system as cancellation but with its own windows
+	rescheduleChargesEnabled: boolean('reschedule_charges_enabled').notNull().default(true),
+	rescheduleFreeChangeWindowHours: integer('reschedule_free_change_window_hours').notNull().default(24),
+	reschedulePartialChangeWindowHours: integer('reschedule_partial_change_window_hours').default(8),
 	// manual-mode payment details shown to clients in the portal when they can't
 	// pay through Razorpay: S3 object key of an uploaded QR image, and free-text
 	// bank/UPI details. Both null until the therapist sets them.

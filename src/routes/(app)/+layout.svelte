@@ -7,8 +7,9 @@
 	import MobileNav from '$lib/components/utils/MobileNav.svelte';
 	import FeedbackDialog from '$lib/components/utils/FeedbackDialog.svelte';
 	import type { Snippet } from 'svelte';
+	import type { LayoutData } from './$types';
 
-	let { children }: { children: Snippet } = $props();
+	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	let feedbackOpen = $state(false);
 
@@ -69,7 +70,7 @@
 				{[...links, ...accountLinks].find((l) => l.href === page.url.pathname)?.label ?? ''}
 			</div>
 			<div class="app-header-right">
-				<Avatar name="Dana Reyes" />
+				<Avatar name={data.user.name} />
 				<MobileNav>
 					{#each links as link (link.href)}
 						<a href={link.href}>{link.label}</a>

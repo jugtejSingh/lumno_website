@@ -24,6 +24,10 @@ const REFRESH_TTL_FALLBACK_MS = 180 * DAY_MS;
 // Refresh proactively once the access token has less than this left, not on expiry.
 const REFRESH_LEAD_MS = 10 * DAY_MS;
 const LEASE_MS = 60 * 1000;
+// A lease self-expires after LEASE_MS, so any single held lease clears by then.
+// This bounds how long a waiting caller retries before giving up, instead of
+// recursing on lease contention with no cap on attempts or total wait time.
+const MAX_LEASE_WAIT_MS = LEASE_MS + 15 * 1000;
 
 export type ConnectionHealth = 'not_connected' | 'connected' | 'expiring' | 'action_needed';
 
@@ -68,7 +72,10 @@ export async function storeConnection(
 // concurrent refreshes race — one wins, the other burns an invalidated token and
 // that therapist is locked out until they re-consent. The row lease below is the
 // single-flight guard (design doc §4.2). Row-level so it survives multi-instance.
-export async function getAccessToken(therapistId: string): Promise<string> {
+export async function getAccessToken(
+	therapistId: string,
+	waitDeadline: number = Date.now() + MAX_LEASE_WAIT_MS
+): Promise<string> {
 	const [cred] = await db
 		.select()
 		.from(therapistRazorpayConnection)
@@ -95,9 +102,14 @@ export async function getAccessToken(therapistId: string): Promise<string> {
 		.returning();
 
 	if (leased.length === 0) {
-		// Someone else is refreshing. Back off and re-read rather than racing.
+		// Someone else is refreshing. Back off and re-read rather than racing —
+		// but only until waitDeadline, so sustained contention (or a lease left
+		// by a crashed holder) fails loudly instead of hanging this caller.
+		if (Date.now() >= waitDeadline) {
+			throw new Error(`therapist ${therapistId}: timed out waiting for Razorpay refresh lease`);
+		}
 		await sleep(500 + Math.random() * 1500);
-		return getAccessToken(therapistId);
+		return getAccessToken(therapistId, waitDeadline);
 	}
 
 	// The row `cred` above was read BEFORE we held the lease — another request may

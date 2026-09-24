@@ -1,6 +1,8 @@
+import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
+import { therapist } from '$lib/server/db/schema';
 import { auth } from '$lib/server/auth';
 import { getOrCreateSubscription } from '$lib/server/billing';
 import { getReferralProfile, updateReferralProfile } from '$lib/server/referrals';
@@ -77,7 +79,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const billing = {
 		plan: subscription.plan,
 		status: subscription.status,
-		cancelScheduled: subscription.cancelScheduled
+		cancelScheduled: subscription.cancelScheduled,
+		currentEnd: subscription.currentEnd
 	};
 
 	const hourOptions = CHANGE_WINDOW_HOURS_OPTIONS.map((hours) => ({
@@ -109,7 +112,9 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		googleConnected,
 		hourOptions,
 		razorpay,
-		calendarError
+		calendarError,
+		timezone: therapist.timezone,
+		timezoneOptions: Intl.supportedValuesOf('timeZone')
 	};
 };
 
@@ -167,7 +172,8 @@ export const actions: Actions = {
 			sendMeetLinks: form.get('sendMeetLinks') === 'on',
 			sendBookingEmails: form.get('sendBookingEmails') === 'on',
 			sendSessionReminderEmails: form.get('sendSessionReminderEmails') === 'on',
-			sendPaymentReminderEmails: form.get('sendPaymentReminderEmails') === 'on'
+			sendPaymentReminderEmails: form.get('sendPaymentReminderEmails') === 'on',
+			sendRebookReminderEmails: form.get('sendRebookReminderEmails') === 'on'
 		};
 
 		// ---- payments (cancellation policy) ----
@@ -188,10 +194,41 @@ export const actions: Actions = {
 					'Partial change window must be a non-negative number of hours, shorter than the free window'
 			});
 		}
+		// ---- payments (reschedule policy) ----
+		const rescheduleChargesEnabled = form.get('rescheduleChargesEnabled') === 'on';
+		const rescheduleFreeChangeWindowHours = Number(form.get('rescheduleFreeChangeWindowHours'));
+		if (!Number.isFinite(rescheduleFreeChangeWindowHours) || rescheduleFreeChangeWindowHours < 0) {
+			return fail(400, {
+				message: 'Free reschedule window must be a non-negative number of hours'
+			});
+		}
+		const reschedulePartialRaw = form.get('reschedulePartialChangeWindowHours')?.toString() ?? '';
+		const reschedulePartialChangeWindowHours =
+			reschedulePartialRaw === '' ? null : Number(reschedulePartialRaw);
+		if (
+			reschedulePartialChangeWindowHours !== null &&
+			(!Number.isFinite(reschedulePartialChangeWindowHours) ||
+				reschedulePartialChangeWindowHours < 0 ||
+				reschedulePartialChangeWindowHours >= rescheduleFreeChangeWindowHours)
+		) {
+			return fail(400, {
+				message:
+					'Partial reschedule window must be a non-negative number of hours, shorter than the free window'
+			});
+		}
 		const payments = {
 			freeChangeWindowHours,
-			partialChangeWindowHours
+			partialChangeWindowHours,
+			rescheduleChargesEnabled,
+			rescheduleFreeChangeWindowHours,
+			reschedulePartialChangeWindowHours
 		};
+
+		// ---- timezone ----
+		const timezoneRaw = form.get('timezone')?.toString() ?? '';
+		if (!Intl.supportedValuesOf('timeZone').includes(timezoneRaw)) {
+			return fail(400, { message: 'Pick a valid timezone' });
+		}
 
 		// ---- booking rules ----
 		const maxUpcomingRaw = form.get('maxUpcomingBookingsPerClient')?.toString() ?? '';
@@ -262,6 +299,7 @@ export const actions: Actions = {
 			await updateNotificationSettings(therapistId, notifications, tx);
 			await updatePaymentSettings(therapistId, payments, tx);
 			await updateBookingRules(therapistId, bookingRules, tx);
+			await tx.update(therapist).set({ timezone: timezoneRaw }).where(eq(therapist.id, therapistId));
 			await updateClientFieldHeadings(therapistId, parsedHeadings.headings, tx);
 			if (paymentMode !== null) {
 				await updatePaymentMode(therapistId, paymentMode, tx);

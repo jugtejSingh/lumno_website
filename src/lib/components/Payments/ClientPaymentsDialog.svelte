@@ -27,6 +27,13 @@
 	function handleTotals(t: ClientPaymentTotals) {
 		totals = t;
 	}
+
+	// clear stale totals immediately on switch, instead of showing the old client's
+	// numbers until PaymentHistoryList's fetch for the new one resolves
+	$effect(() => {
+		clientId;
+		totals = { owed: 0, paidThisMonth: 0, paidThisYear: 0 };
+	});
 </script>
 
 <Dialog

@@ -152,9 +152,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		// retry fires subscription.charged and restores status='active' cleanly.
 		({ processed } = await handleWebhookEvent({ ...base, plan, status: 'past_due' }));
 	} else if (CANCELLED_EVENTS.includes(payload.event)) {
-		// plan=0 — status already gates access, this is display-only so the
-		// settings UI can show "access until <date>" for the tail before expiry.
-		({ processed } = await handleWebhookEvent({ ...base, plan: 0, status: 'cancelled' }));
+		// Keep `plan` as the tier the therapist had — status='cancelled' is what
+		// actually revokes access (see getEffectivePlan). Retaining it, not
+		// resetting to 0, is what lets the settings UI show "Pro — access until
+		// <date>" for the tail before expiry instead of "Free".
+		({ processed } = await handleWebhookEvent({ ...base, plan, status: 'cancelled' }));
 	}
 	// any other event type: not handled, ignore
 

@@ -15,9 +15,11 @@ const BALANCES_PER_PAGE = 15;
 
 const PAYMENT_NOT_FOUND = 'That payment could not be found — it may have been deleted. Refresh and try again.';
 
-function parseAmount(raw: FormDataEntryValue | null): number | null {
+export function parseAmount(raw: FormDataEntryValue | null): number | null {
 	const amount = Number(raw);
-	if (!Number.isFinite(amount) || amount < 1) {
+	// amount is a whole-rupee integer column — a fractional value would otherwise
+	// pass through and get silently rounded by Postgres's float->integer cast.
+	if (!Number.isInteger(amount) || amount < 1) {
 		return null;
 	}
 	return amount;
@@ -86,7 +88,7 @@ export const actions: Actions = {
 			return fail(400, { message: 'Pick a client or enter a name' });
 		}
 		if (amount === null) {
-			return fail(400, { message: 'Enter an amount greater than 0' });
+			return fail(400, { message: 'Enter a whole number amount greater than 0' });
 		}
 
 		await addCharge(therapistId, { ...(customName ? { customName } : { clientId }), amount, note });
@@ -100,7 +102,7 @@ export const actions: Actions = {
 		const note = formData.get('note')?.toString().trim() || null;
 
 		if (amount === null) {
-			return fail(400, { message: 'Enter an amount greater than 0' });
+			return fail(400, { message: 'Enter a whole number amount greater than 0' });
 		}
 
 		const found = await updatePayment(therapistId, paymentId, { amount, note });

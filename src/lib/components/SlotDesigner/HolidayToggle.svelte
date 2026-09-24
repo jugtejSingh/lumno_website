@@ -46,7 +46,7 @@
 		height: 22px;
 		border: 2px solid var(--outline);
 		border-radius: var(--radius-pill);
-		background: var(--citrus-400);
+		background: var(--surface-sunken);
 		transition: background 0.15s;
 	}
 
@@ -59,16 +59,16 @@
 		border: 2px solid var(--outline);
 		border-radius: 50%;
 		background: var(--surface-card);
-		transform: translateX(18px);
+		transform: translateX(0);
 		transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 
 	input:checked + .track {
-		background: var(--surface-sunken);
+		background: var(--citrus-400);
 	}
 
 	input:checked + .track .dot {
-		transform: translateX(0);
+		transform: translateX(18px);
 	}
 
 	input:focus-visible + .track {

@@ -7,9 +7,7 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import ClientForm from '$lib/components/Clients/ClientForm.svelte';
-	import ClientProfileDetails from '$lib/components/Clients/ClientProfileDetails.svelte';
 	import type { ClientFieldValues } from '$lib/types/clientFields';
-	import ClientResources from '$lib/components/Resources/ClientResources.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
@@ -17,14 +15,9 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const currency = $derived(data.therapist.currency);
-	const statusOptions = ['active', 'paused', 'left'];
 
 	let query = $state('');
 	let addOpen = $state(false);
-	let resourcesClientId = $state<string | null>(null);
-	const resourcesClientName = $derived(
-		data.clients.find((c) => c.id === resourcesClientId)?.name ?? ''
-	);
 
 	const CLIENTS_PER_PAGE = 15;
 	let page = $state(1);
@@ -39,10 +32,15 @@
 	const totalPages = $derived(Math.max(1, Math.ceil(filtered.length / CLIENTS_PER_PAGE)));
 	const paged = $derived(filtered.slice((page - 1) * CLIENTS_PER_PAGE, page * CLIENTS_PER_PAGE));
 
-	// jump back to page 1 whenever the search narrows/widens the result set
+	// jump back to page 1 only when the search itself changes, not on every data reload
 	$effect(() => {
-		filtered;
+		query;
 		page = 1;
+	});
+
+	// keep page in range if an action (e.g. delete) shrinks the result set
+	$effect(() => {
+		if (page > totalPages) page = totalPages;
 	});
 
 	function toneFor(status: string): 'success' | 'warning' | 'danger' {
@@ -65,23 +63,6 @@
 		addOpen = true;
 	}
 
-	// Edit client draft
-	let editClientId = $state<string | null>(null);
-	let editName = $state('');
-	let editRate = $state('');
-	let editCustomFields = $state<ClientFieldValues>({});
-	let editTags = $state<string[]>([]);
-	let editStatus = $state('');
-	const editClient = $derived(data.clients.find((c) => c.id === editClientId));
-
-	function openEdit(c: (typeof data.clients)[number]) {
-		editClientId = c.id;
-		editName = c.name;
-		editRate = c.rate?.toString() ?? '';
-		editCustomFields = { ...c.customFields };
-		editTags = [...c.tags];
-		editStatus = c.status;
-	}
 </script>
 
 <div class="clients">
@@ -102,7 +83,7 @@
 			{/if}
 			Invite link: <code>{form.inviteUrl}</code>
 		</div>
-	{:else if form?.message && !addOpen && !editClientId}
+	{:else if form?.message && !addOpen}
 		<div class="banner form-error">{form.message}</div>
 	{/if}
 
@@ -134,12 +115,8 @@
 						</div>
 					</div>
 					<div class="actions">
-						{#if c.userId}
-							<Button variant="secondary" size="sm" onclick={() => (resourcesClientId = c.id)}>
-								Resources
-							</Button>
-							<Button variant="secondary" size="sm" onclick={() => openEdit(c)}>Edit</Button>
-						{:else}
+						<Button href={`/clients/${c.id}`} variant="secondary" size="sm">View</Button>
+						{#if !c.userId}
 							<form method="POST" action="?/resendInvite" use:enhance>
 								<input type="hidden" name="clientId" value={c.id} />
 								<Button type="submit" variant="secondary" size="sm">
@@ -217,57 +194,6 @@
 		{/if}
 		<Button type="submit" variant="primary">Add & invite client</Button>
 	</form>
-</Dialog>
-
-<Dialog open={!!editClientId} title="Edit client" onclose={() => (editClientId = null)}>
-	<form
-		class="dialog-form"
-		method="POST"
-		action="?/update"
-		use:enhance={() => {
-			return async ({ result, update }) => {
-				if (result.type === 'success') editClientId = null;
-				await update();
-			};
-		}}
-	>
-		<input type="hidden" name="clientId" value={editClientId} />
-		{#if editClient}
-			<ClientProfileDetails
-				phone={editClient.phone}
-				dateOfBirth={editClient.dateOfBirth}
-				gender={editClient.gender}
-				city={editClient.city}
-				state={editClient.state}
-				country={editClient.country}
-			/>
-		{/if}
-		<ClientForm
-			bind:name={editName}
-			bind:rate={editRate}
-			bind:customFields={editCustomFields}
-			fieldHeadings={data.fieldHeadings}
-			bind:tags={editTags}
-			bind:status={editStatus}
-			showEmail={false}
-			{statusOptions}
-			errors={form?.fieldErrors ?? {}}
-		/>
-		{#if form?.message}
-			<div class="form-error">{form.message}</div>
-		{/if}
-		<Button type="submit" variant="primary">Save changes</Button>
-	</form>
-</Dialog>
-
-<Dialog
-	open={!!resourcesClientId}
-	title={resourcesClientId ? `${resourcesClientName} — resources` : ''}
-	onclose={() => (resourcesClientId = null)}
->
-	{#if resourcesClientId}
-		<ClientResources clientId={resourcesClientId} />
-	{/if}
 </Dialog>
 
 <style>

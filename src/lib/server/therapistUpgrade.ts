@@ -87,7 +87,19 @@ export async function completeTherapistUpgrade(token: string) {
 	if (name) {
 		await db.update(user).set({ name }).where(eq(user.id, userId));
 	}
-	await createTherapistProfile(userId);
+
+	try {
+		await createTherapistProfile(userId);
+	} catch (err) {
+		// therapist.userId is unique — a concurrent completion of the same link
+		// can pass the existingTherapist check above before either insert
+		// commits, so the loser hits a unique-violation here instead of a
+		// pre-existing row. Treat that the same as the already_therapist case.
+		if (err instanceof Error && 'code' in err && err.code === '23505') {
+			return { error: 'already_therapist' as const };
+		}
+		throw err;
+	}
 
 	return { success: true as const };
 }

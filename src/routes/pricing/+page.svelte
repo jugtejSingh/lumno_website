@@ -52,13 +52,14 @@
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing (0% commission)',
-				'Therapist community — refer clients to colleagues'
+				'Therapist community — refer clients to colleagues',
+				'No AI features'
 			]
 		},
 		{
 			tier: 1,
 			name: 'Basic',
-			price: '₹999',
+			price: '₹899',
 			period: '/month',
 			blurb: 'For a growing solo practice.',
 			features: [
@@ -69,13 +70,14 @@
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing (0% commission)',
 				'Therapist community — refer clients to colleagues',
-				'AI note clean-up'
+				'AI: fix note wording, one-line summaries',
+				'AI: client-safe recap sent to the client, ask-about-a-client chat'
 			]
 		},
 		{
 			tier: 2,
 			name: 'Pro',
-			price: '₹1899',
+			price: '₹1499',
 			period: '/month',
 			blurb: 'For a full practice, with no caseload ceiling.',
 			features: [
@@ -86,7 +88,8 @@
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing (0% commission)',
 				'Therapist community — refer clients to colleagues',
-				'AI note clean-up'
+				'AI: fix note wording, one-line summaries',
+				'AI: client-safe recap sent to the client, ask-about-a-client chat'
 			]
 		}
 	];
@@ -210,6 +213,11 @@
 				</div>
 			{/each}
 		</div>
+
+		<div class="ai-note">
+			Notes sent to AI (fix, summarize, client recaps, chat) are processed only by
+			zero-data-retention AI providers — nothing is stored, logged, or used to train any model.
+		</div>
 	</div>
 
 	<Footer />
@@ -254,6 +262,14 @@
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 		gap: 28px;
 		align-items: start;
+	}
+
+	.ai-note {
+		text-align: center;
+		font-size: 13px;
+		color: var(--text-muted);
+		max-width: 640px;
+		margin: 0 auto;
 	}
 
 	.plan-card {

@@ -8,11 +8,14 @@ export const load: PageServerLoad = async (event) => {
 		return redirect(302, '/login');
 	}
 
+	// Fail safe: only an exact 'Therapist' round-trips into provisioning a therapist
+	// profile below. A missing/mangled/replayed param defaults to Client, which never
+	// auto-creates anything (see the signInGoogle comment this mirrors).
 	let role: 'Therapist' | 'Client';
-	if (event.url.searchParams.get('role') === 'Client') {
-		role = 'Client';
-	} else {
+	if (event.url.searchParams.get('role') === 'Therapist') {
 		role = 'Therapist';
+	} else {
+		role = 'Client';
 	}
 
 	const destination = await destinationForRole(event.locals.user.id, role);

@@ -29,6 +29,8 @@
 
 	const weekdayName = $derived(new Date(year, month, day).toLocaleDateString('en-US', { weekday: 'long' }));
 
+	const isOff = $derived(overrideDay !== undefined && overrideDay.slots.length === 0);
+
 	const effectiveDay = $derived.by(() => {
 		if (overrideDay !== undefined) {
 			return overrideDay;
@@ -126,21 +128,20 @@
 
 		<div class="actions">
 			<Button variant="secondary" size="sm" onclick={startEditing}>Edit this date</Button>
-			{#if !(overrideDay !== undefined && overrideDay.slots.length === 0)}
+			{#if isOff}
+				<form method="POST" action="?/clearDateOverride" use:enhance={onSaved}>
+					<input type="hidden" name="year" value={year} />
+					<input type="hidden" name="month" value={month} />
+					<input type="hidden" name="day" value={day} />
+					<Button type="submit" variant="secondary" size="sm">Turn this day on</Button>
+				</form>
+			{:else}
 				<form method="POST" action="?/saveDateOverride" use:enhance={onSaved}>
 					<input type="hidden" name="year" value={year} />
 					<input type="hidden" name="month" value={month} />
 					<input type="hidden" name="day" value={day} />
 					<input type="hidden" name="slots" value="[]" />
-					<Button type="submit" variant="secondary" size="sm">Make it a day off</Button>
-				</form>
-			{/if}
-			{#if overrideDay !== undefined}
-				<form method="POST" action="?/clearDateOverride" use:enhance={onSaved}>
-					<input type="hidden" name="year" value={year} />
-					<input type="hidden" name="month" value={month} />
-					<input type="hidden" name="day" value={day} />
-					<Button type="submit" variant="secondary" size="sm">Use weekly slots</Button>
+					<Button type="submit" variant="secondary" size="sm">Turn this day off</Button>
 				</form>
 			{/if}
 		</div>
@@ -185,6 +186,18 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
+	}
+
+	@media (max-width: 620px) {
+		.chips {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			padding-bottom: 2px;
+		}
+
+		.chip {
+			flex-shrink: 0;
+		}
 	}
 
 	.chip {

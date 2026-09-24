@@ -12,6 +12,7 @@ import {
 } from '$lib/server/appointments';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
 import { listClients } from '$lib/server/clients';
+import { parseMonthParam } from '$lib/server/dateParams';
 import { db } from '$lib/server/db';
 import { client } from '$lib/server/db/schema';
 import { addCharge } from '$lib/server/payments';
@@ -97,7 +98,7 @@ export const load: PageServerLoad = async (event) => {
 	await markPastAppointmentsCompleted(therapist.id);
 	const now = new Date();
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
-	const month = Number(event.url.searchParams.get('month') ?? now.getMonth());
+	const month = parseMonthParam(event.url.searchParams.get('month'), now);
 
 	const [appointments, clients, dayKinds, slotDesign] = await Promise.all([
 		listAppointmentsForMonth(therapist.id, therapist.timezone, year, month),

@@ -1,4 +1,4 @@
-import { and, eq, ilike, ne, or, sql } from 'drizzle-orm';
+import { and, eq, ilike, ne, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
 import { therapist, therapistSettings, user } from '$lib/server/db/schema';
 import { formatCurrency } from '$lib/format';
@@ -39,13 +39,10 @@ export async function listReferralTherapists(
 
 	const filters = [eq(therapistSettings.referralVisible, true), ne(therapist.id, viewerTherapistId)];
 	if (q) {
-		const pattern = `%${q}%`;
-		filters.push(
-			or(
-				ilike(user.name, pattern),
-				sql`EXISTS (SELECT 1 FROM unnest(${therapist.tags}) AS tag WHERE tag ILIKE ${pattern})`
-			)!
-		);
+		// Escape LIKE wildcards in the raw query so a name containing "%" or "_"
+		// (or a search for one) isn't read as a pattern.
+		const escaped = q.replace(/[%_\\]/g, (char) => `\\${char}`);
+		filters.push(ilike(user.name, `%${escaped}%`));
 	}
 	const where = and(...filters);
 

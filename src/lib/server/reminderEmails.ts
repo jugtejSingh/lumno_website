@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, lte, sql } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import {
@@ -205,6 +205,98 @@ export async function sendPaymentReminders(): Promise<void> {
 				.where(eq(client.id, row.clientId));
 		} catch (err) {
 			logError('reminderEmails.payment', err, { clientId: row.clientId });
+		}
+	}
+}
+
+// Nags clients who've gone quiet: 4 days after their last (or only-ever-known) session,
+// then again at 11 days, then every 14 days after that — off client.lastSessionAt, which
+// createAppointmentForTherapist keeps as the latest known startAt (future or past). A
+// future lastSessionAt means they already have something booked, so this query only looks
+// at rows in the past. Gated on the therapist's sendRebookReminderEmails setting and on
+// the client having an email. Never throws.
+export async function sendRebookReminders(): Promise<void> {
+	const now = new Date();
+
+	const rows = await db
+		.select({
+			clientId: client.id,
+			clientEmail: client.email,
+			stage: client.rebookReminderStage,
+			lastReminderAt: client.lastRebookReminderAt,
+			lastSessionAt: client.lastSessionAt,
+			therapistName: user.name,
+			therapistEmail: user.email
+		})
+		.from(client)
+		.innerJoin(therapist, eq(client.therapistId, therapist.id))
+		.innerJoin(user, eq(therapist.userId, user.id))
+		.innerJoin(therapistSettings, eq(therapistSettings.therapistId, therapist.id))
+		.where(
+			and(
+				eq(client.status, 'active'),
+				eq(therapistSettings.sendRebookReminderEmails, true),
+				lt(client.lastSessionAt, now)
+			)
+		);
+
+	// ponytail: same sequential tradeoff as sendSessionReminders — fine at low volume.
+	for (const row of rows) {
+		if (!row.clientEmail || !row.lastSessionAt) continue;
+		try {
+			const daysSinceSession = (now.getTime() - row.lastSessionAt.getTime()) / DAY_MS;
+
+			// auto-reset: a session since the last reminder means they've already come
+			// back, so the ladder restarts from 0 without a separate write for it.
+			let effectiveStage = row.stage;
+			if (row.stage > 0 && row.lastReminderAt && row.lastSessionAt > row.lastReminderAt) {
+				effectiveStage = 0;
+			}
+
+			let targetStage = 0;
+			if (daysSinceSession >= 11) {
+				targetStage = 2;
+			} else if (daysSinceSession >= 4) {
+				targetStage = 1;
+			}
+
+			if (targetStage === 0) continue;
+
+			let shouldSend = false;
+			if (targetStage > effectiveStage) {
+				shouldSend = true;
+			} else if (targetStage === 2 && effectiveStage === 2) {
+				const sinceLastReminder = row.lastReminderAt
+					? now.getTime() - row.lastReminderAt.getTime()
+					: Infinity;
+				if (sinceLastReminder >= 2 * WEEK_MS) {
+					shouldSend = true;
+				}
+			}
+
+			if (!shouldSend) continue;
+
+			const bodyText =
+				targetStage === 1
+					? `It's been a few days since your last session with ${row.therapistName} — want to grab your next one?`
+					: `It's been a while since your last session with ${row.therapistName}. Want to book your next one?`;
+			const url = `${env.ORIGIN}/portal`;
+			const html = wrapEmail({
+				heading: 'Time to book your next session?',
+				bodyHtml: `<p>${escapeHtml(bodyText)}</p>`,
+				cta: { text: 'Book a session', url },
+				footerNote: `Sent on behalf of ${row.therapistName}. Reply to this email to reach them directly.`
+			});
+			await sendEmail(row.clientEmail, 'Time to book your next session?', html, {
+				text: `${bodyText}\n\n${url}`,
+				replyTo: row.therapistEmail
+			});
+			await db
+				.update(client)
+				.set({ rebookReminderStage: targetStage, lastRebookReminderAt: now })
+				.where(eq(client.id, row.clientId));
+		} catch (err) {
+			logError('reminderEmails.rebook', err, { clientId: row.clientId });
 		}
 	}
 }

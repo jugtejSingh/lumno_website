@@ -58,7 +58,7 @@
 						</select>
 					</form>
 				{/if}
-				<Avatar name="Maria Chen" size={30} />
+				<Avatar name={data.client?.name ?? data.user.name} size={30} />
 				<MobileNav>
 					{#each links as link (link.href)}
 						<a href={link.href}>{link.label}</a>

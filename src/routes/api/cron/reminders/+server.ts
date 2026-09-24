@@ -1,7 +1,11 @@
 import { error, json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
-import { sendPaymentReminders, sendSessionReminders } from '$lib/server/reminderEmails';
+import {
+	sendPaymentReminders,
+	sendRebookReminders,
+	sendSessionReminders
+} from '$lib/server/reminderEmails';
 import { refreshExpiringConnections } from '$lib/server/razorpayConnection';
 import { sweepStaleOrders } from '$lib/server/sessionPayments';
 import { logError } from '$lib/server/log';
@@ -9,6 +13,7 @@ import { logError } from '$lib/server/log';
 const JOBS: Record<string, () => Promise<unknown>> = {
 	sessionReminders: sendSessionReminders,
 	paymentReminders: sendPaymentReminders,
+	rebookReminders: sendRebookReminders,
 	refreshConnections: refreshExpiringConnections,
 	sweepStaleOrders: sweepStaleOrders
 };
@@ -18,7 +23,10 @@ const JOBS: Record<string, () => Promise<unknown>> = {
 // response says which ones failed so the Vercel log has a clear signal.
 export const GET: RequestHandler = async ({ request }) => {
 	const authHeader = request.headers.get('authorization');
-	if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
+	const secret = env.CRON_SECRET;
+	// A missing secret must fail closed, not degrade to a fixed guessable
+	// "Bearer undefined" that any caller could send.
+	if (!secret || authHeader !== `Bearer ${secret}`) {
 		error(401, 'Unauthorized');
 	}
 

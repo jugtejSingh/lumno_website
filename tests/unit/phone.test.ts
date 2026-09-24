@@ -9,15 +9,28 @@ describe('parsePhone', () => {
 		expect(parsePhone(undefined)).toEqual({ phone: null });
 	});
 
-	it('keeps plausible numbers as typed, trimmed', () => {
-		expect(parsePhone(' +91 98765 43210 ')).toEqual({ phone: '+91 98765 43210' });
-		expect(parsePhone('(020) 7946-0958')).toEqual({ phone: '(020) 7946-0958' });
+	it('accepts E.164 numbers with 1, 2 and 3-digit country codes', () => {
+		expect(parsePhone('+919876543210')).toEqual({ phone: '+919876543210' });
+		expect(parsePhone('+12025550123')).toEqual({ phone: '+12025550123' });
+		expect(parsePhone('+998912345678')).toEqual({ phone: '+998912345678' });
+	});
+
+	it('rejects spaces, dashes and parentheses', () => {
+		expect(parsePhone('+91 98765 43210')).toHaveProperty('error');
+		expect(parsePhone('(020) 7946-0958')).toHaveProperty('error');
 	});
 
 	it('rejects junk, too-short and too-long input', () => {
 		expect(parsePhone('not a phone')).toHaveProperty('error');
-		expect(parsePhone('12345')).toHaveProperty('error');
-		expect(parsePhone('1'.repeat(21))).toHaveProperty('error');
-		expect(parsePhone('+91 98765 43210 ext 4')).toHaveProperty('error');
+		expect(parsePhone('+1234567')).toHaveProperty('error');
+		expect(parsePhone('+1' + '2'.repeat(15))).toHaveProperty('error');
+	});
+
+	it('rejects a punctuation-only string with no digits', () => {
+		expect(parsePhone('()()()-----')).toHaveProperty('error');
+	});
+
+	it('rejects a missing leading plus', () => {
+		expect(parsePhone('919876543210')).toHaveProperty('error');
 	});
 });

@@ -76,7 +76,7 @@
 					<Input
 						label="Phone (optional)"
 						type="tel"
-						placeholder="+91 98765 43210"
+						placeholder="+910000000000"
 						bind:value={phone}
 					/>
 					<div class="form-hint">We'll send session reminders on WhatsApp instead of email.</div>

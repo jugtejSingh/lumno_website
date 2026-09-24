@@ -7,8 +7,13 @@
 		if (raw === '') {
 			value = null;
 		} else {
-			// the server rejects anything that isn't a whole number 1–50
-			value = Number(raw);
+			// the server rejects anything that isn't a whole number 1–50; a value still
+			// mid-typing (lone "-" or ".") parses to NaN, which JSON.stringify would
+			// silently turn into "no limit" on save — ignore it instead of committing
+			const parsed = Number(raw);
+			if (!Number.isNaN(parsed)) {
+				value = parsed;
+			}
 		}
 	}
 </script>

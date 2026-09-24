@@ -33,6 +33,7 @@ export type NotificationSettings = {
 	sendBookingEmails: boolean;
 	sendSessionReminderEmails: boolean;
 	sendPaymentReminderEmails: boolean;
+	sendRebookReminderEmails: boolean;
 };
 
 export async function getNotificationSettings(therapistId: string): Promise<NotificationSettings> {
@@ -41,7 +42,8 @@ export async function getNotificationSettings(therapistId: string): Promise<Noti
 			sendMeetLinks: therapistSettings.sendMeetLinks,
 			sendBookingEmails: therapistSettings.sendBookingEmails,
 			sendSessionReminderEmails: therapistSettings.sendSessionReminderEmails,
-			sendPaymentReminderEmails: therapistSettings.sendPaymentReminderEmails
+			sendPaymentReminderEmails: therapistSettings.sendPaymentReminderEmails,
+			sendRebookReminderEmails: therapistSettings.sendRebookReminderEmails
 		})
 		.from(therapistSettings)
 		.where(eq(therapistSettings.therapistId, therapistId));

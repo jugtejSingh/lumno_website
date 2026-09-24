@@ -30,6 +30,7 @@
 		if (open) {
 			useCustomName = false;
 			customName = '';
+			clientName = clients[0]?.name ?? '';
 		}
 	});
 </script>
