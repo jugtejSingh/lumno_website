@@ -1,6 +1,11 @@
-import { and, eq, gte, isNotNull, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { availabilitySlot, availabilityDateOverride, therapistSettings } from '$lib/server/db/schema';
+import {
+	availabilitySlot,
+	availabilityDateOverride,
+	client,
+	therapistSettings
+} from '$lib/server/db/schema';
 import type { DesignedDay, DesignedSlot, SlotModality, WeeklyDay } from '$lib/types/slots';
 
 export type { DesignedDay, DesignedSlot, SlotModality, WeeklyDay };
@@ -18,12 +23,26 @@ export function toDateKey(year: number, month: number, day: number): string {
 }
 
 // Postgres `time` comes back as "HH:MM:SS"; the designer works in "HH:MM"
-function toDesignedSlot(row: { startTime: string; endTime: string; modality: SlotModality }): DesignedSlot {
-	return {
+// id and reservedClientId are only selected for weekly-template slots (date overrides can't be reserved)
+function toDesignedSlot(row: {
+	id?: string;
+	reservedClientId?: string | null;
+	startTime: string;
+	endTime: string;
+	modality: SlotModality;
+}): DesignedSlot {
+	const slot: DesignedSlot = {
 		startTime: row.startTime.slice(0, 5),
 		endTime: row.endTime.slice(0, 5),
 		modality: row.modality
 	};
+	if (row.id !== undefined) {
+		slot.id = row.id;
+	}
+	if (row.reservedClientId !== undefined) {
+		slot.reservedClientId = row.reservedClientId;
+	}
+	return slot;
 }
 
 function sortByStart(slots: DesignedSlot[]): DesignedSlot[] {
@@ -40,11 +59,19 @@ export function parseDesignedSlots(raw: unknown): DesignedSlot[] | null {
 		if (typeof item !== 'object' || item === null) {
 			return null;
 		}
-		const { startTime, endTime, modality } = item as Record<string, unknown>;
+		const { id, startTime, endTime, modality } = item as Record<string, unknown>;
 		if (typeof startTime !== 'string' || typeof endTime !== 'string' || typeof modality !== 'string') {
 			return null;
 		}
-		slots.push({ startTime, endTime, modality: modality as SlotModality });
+		const slot: DesignedSlot = { startTime, endTime, modality: modality as SlotModality };
+		if (id !== undefined && id !== null) {
+			if (typeof id !== 'string') {
+				return null;
+			}
+			slot.id = id;
+		}
+		// reservedClientId is deliberately never read from the browser here; see setSlotReservation
+		slots.push(slot);
 	}
 	return slots;
 }
@@ -102,6 +129,8 @@ export async function getSlotDesign(therapistId: string, year: number, month: nu
 			.where(eq(therapistSettings.therapistId, therapistId)),
 		db
 			.select({
+				id: availabilitySlot.id,
+				reservedClientId: availabilitySlot.reservedClientId,
 				weekday: availabilitySlot.weekday,
 				startTime: availabilitySlot.startTime,
 				endTime: availabilitySlot.endTime,
@@ -199,22 +228,84 @@ export async function listDesignedDaysForMonth(therapistId: string, year: number
 /** Replaces the whole weekly template. `week` must have 7 entries, index 0 = Sunday. */
 export async function replaceWeekTemplate(therapistId: string, week: WeeklyDay[]) {
 	await db.transaction(async (tx) => {
-		await tx
-			.delete(availabilitySlot)
+		// Saved slots are updated or kept in place, never re-created: a reservation
+		// (reservedClientId) lives on the row, so re-creating would lose it. Only ids that
+		// are already this therapist's count as existing; any other id is treated as a new slot.
+		const existingRows = await tx
+			.select({
+				id: availabilitySlot.id,
+				weekday: availabilitySlot.weekday,
+				startTime: availabilitySlot.startTime,
+				endTime: availabilitySlot.endTime,
+				modality: availabilitySlot.modality
+			})
+			.from(availabilitySlot)
 			.where(and(eq(availabilitySlot.therapistId, therapistId), isNotNull(availabilitySlot.weekday)));
+		const existingById = new Map<string, (typeof existingRows)[number]>();
+		for (const row of existingRows) {
+			existingById.set(row.id, row);
+		}
 
-		const rows = [];
+		const keptIds = new Set<string>();
+		const rowsToInsert = [];
 		const weeklyMaxSessions: (number | null)[] = [];
 		const weeklyHolidays: boolean[] = [];
 		for (let weekday = 0; weekday < 7; weekday++) {
 			for (const slot of week[weekday].slots) {
-				rows.push({ therapistId, weekday, ...slot });
+				let existing;
+				if (slot.id !== undefined) {
+					existing = existingById.get(slot.id);
+				}
+				// the same id twice (e.g. a copied day) only keeps the first; the rest are new slots
+				if (existing !== undefined && keptIds.has(existing.id)) {
+					existing = undefined;
+				}
+				if (existing === undefined) {
+					rowsToInsert.push({
+						therapistId,
+						weekday,
+						startTime: slot.startTime,
+						endTime: slot.endTime,
+						modality: slot.modality
+					});
+					continue;
+				}
+
+				keptIds.add(existing.id);
+				const changed =
+					existing.weekday !== weekday ||
+					existing.startTime.slice(0, 5) !== slot.startTime ||
+					existing.endTime.slice(0, 5) !== slot.endTime ||
+					existing.modality !== slot.modality;
+				if (changed) {
+					await tx
+						.update(availabilitySlot)
+						.set({
+							weekday,
+							startTime: slot.startTime,
+							endTime: slot.endTime,
+							modality: slot.modality
+						})
+						.where(and(eq(availabilitySlot.id, existing.id), eq(availabilitySlot.therapistId, therapistId)));
+				}
 			}
 			weeklyMaxSessions.push(week[weekday].maxSessions);
 			weeklyHolidays.push(week[weekday].holiday);
 		}
-		if (rows.length > 0) {
-			await tx.insert(availabilitySlot).values(rows);
+
+		const idsToDelete: string[] = [];
+		for (const row of existingRows) {
+			if (!keptIds.has(row.id)) {
+				idsToDelete.push(row.id);
+			}
+		}
+		if (idsToDelete.length > 0) {
+			await tx
+				.delete(availabilitySlot)
+				.where(and(eq(availabilitySlot.therapistId, therapistId), inArray(availabilitySlot.id, idsToDelete)));
+		}
+		if (rowsToInsert.length > 0) {
+			await tx.insert(availabilitySlot).values(rowsToInsert);
 		}
 
 		await tx
@@ -222,6 +313,49 @@ export async function replaceWeekTemplate(therapistId: string, week: WeeklyDay[]
 			.set({ weeklyMaxSessions, weeklyHolidays })
 			.where(eq(therapistSettings.therapistId, therapistId));
 	});
+}
+
+export type SetSlotReservationResult = {
+	error?: 'slot_not_found' | 'client_not_found' | 'hybrid_slot';
+};
+
+/**
+ * Holds a weekly-template slot for one client (or releases it with null). A separate action from
+ * the weekly save on purpose: the save never touches reservedClientId, so it can't wipe or spoof
+ * one. The nightly cron books reserved slots ahead (recurringBookings.ts).
+ */
+export async function setSlotReservation(
+	therapistId: string,
+	slotId: string,
+	clientId: string | null
+): Promise<SetSlotReservationResult> {
+	const [slot] = await db
+		.select({ weekday: availabilitySlot.weekday, modality: availabilitySlot.modality })
+		.from(availabilitySlot)
+		.where(and(eq(availabilitySlot.id, slotId), eq(availabilitySlot.therapistId, therapistId)));
+	if (!slot || slot.weekday === null) {
+		return { error: 'slot_not_found' };
+	}
+
+	if (clientId !== null) {
+		// a hybrid slot has no fixed modality, and nobody is there to pick one on an auto-booking
+		if (slot.modality === 'hybrid') {
+			return { error: 'hybrid_slot' };
+		}
+		const [clientRow] = await db
+			.select({ id: client.id })
+			.from(client)
+			.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
+		if (!clientRow) {
+			return { error: 'client_not_found' };
+		}
+	}
+
+	await db
+		.update(availabilitySlot)
+		.set({ reservedClientId: clientId })
+		.where(and(eq(availabilitySlot.id, slotId), eq(availabilitySlot.therapistId, therapistId)));
+	return {};
 }
 
 /** Makes `dateKey` use exactly this design instead of its weekday's template. No slots = day off. */
@@ -239,7 +373,14 @@ export async function setDateOverride(therapistId: string, dateKey: string, desi
 
 		const rows = [];
 		for (const slot of design.slots) {
-			rows.push({ therapistId, overrideDate: dateKey, ...slot });
+			// built field by field: a browser-supplied id must never become a row's primary key
+			rows.push({
+				therapistId,
+				overrideDate: dateKey,
+				startTime: slot.startTime,
+				endTime: slot.endTime,
+				modality: slot.modality
+			});
 		}
 		if (rows.length > 0) {
 			await tx.insert(availabilitySlot).values(rows);

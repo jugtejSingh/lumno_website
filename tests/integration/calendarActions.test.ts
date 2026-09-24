@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { isActionFailure } from '@sveltejs/kit';
 import { getSlotDesign, setDateOverride, toDateKey } from '$lib/server/availabilitySlots';
+import { getBookingNote, BOOKING_NOTE_MAX_LENGTH } from '$lib/server/bookingNote';
 import type { WeeklyDay } from '$lib/types/slots';
 import { actions } from '../../src/routes/(app)/calendar/+page.server';
 import { resetDb, mkTherapist, mkEvent } from './helpers';
@@ -45,7 +46,8 @@ describe('saveWeekTemplate', () => {
 		expect(isActionFailure(result)).toBe(false);
 
 		const design = await getSlotDesign(therapistId, 2027, 0);
-		expect(design.week[1]).toEqual(week[1]);
+		expect(design.week[1]).toMatchObject(week[1]);
+		expect(design.week[1].slots[0].reservedClientId).toBeNull();
 	});
 
 	it('accepts a blank-string cap as no limit', async () => {
@@ -184,5 +186,37 @@ describe('clearDateOverride', () => {
 			status: 400,
 			message: 'Pick a valid date'
 		});
+	});
+});
+
+describe('saveBookingNote', () => {
+	it('saves the note for the signed-in therapist', async () => {
+		const result = await post('saveBookingNote', { bookingNote: '  Pay before the session.  ' });
+		expect(isActionFailure(result)).toBe(false);
+		expect(await getBookingNote(therapistId)).toBe('Pay before the session.');
+	});
+
+	it('clears the note when submitted blank', async () => {
+		await post('saveBookingNote', { bookingNote: 'something' });
+		await post('saveBookingNote', { bookingNote: '' });
+		expect(await getBookingNote(therapistId)).toBe('');
+	});
+
+	it('rejects a note over the length cap and leaves the saved one alone', async () => {
+		await post('saveBookingNote', { bookingNote: 'original' });
+
+		const result = await post('saveBookingNote', { bookingNote: 'a'.repeat(BOOKING_NOTE_MAX_LENGTH + 1) });
+		if (!isActionFailure(result)) {
+			throw new Error('expected a failure');
+		}
+		expect(result.status).toBe(400);
+		expect((result.data as unknown as { noteMessage: string }).noteMessage).toContain('under');
+		expect(await getBookingNote(therapistId)).toBe('original');
+	});
+
+	it('never touches another therapist’s note', async () => {
+		const other = await mkTherapist({ timezone: 'UTC' });
+		await post('saveBookingNote', { bookingNote: 'mine' });
+		expect(await getBookingNote(other.id)).toBe('');
 	});
 });

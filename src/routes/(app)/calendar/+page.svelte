@@ -3,6 +3,7 @@
 	import MonthGrid from '$lib/components/Calendar/MonthGrid.svelte';
 	import DayDialog from '$lib/components/Calendar/DayDialog.svelte';
 	import TodayDialog from '$lib/components/Calendar/TodayDialog.svelte';
+	import BookingNoteEditor from '$lib/components/Calendar/BookingNoteEditor.svelte';
 	import WeekTemplateDialog from '$lib/components/SlotDesigner/WeekTemplateDialog.svelte';
 	import { goto } from '$app/navigation';
 	import type { ActionData, PageData } from './$types';
@@ -146,6 +147,8 @@
 		</div>
 	</div>
 
+	<BookingNoteEditor saved={data.bookingNote} message={form?.noteMessage} />
+
 	<div class="month-view">
 		<!-- colour key for the session chips; mirrors +page.server.ts's statusColor/modalityColor -->
 		<div class="legend">
@@ -203,6 +206,7 @@
 {#if weekTemplateOpen}
 	<WeekTemplateDialog
 		week={data.slotDesign.week}
+		clients={data.clients}
 		message={form?.message}
 		onclose={() => (weekTemplateOpen = false)}
 	/>

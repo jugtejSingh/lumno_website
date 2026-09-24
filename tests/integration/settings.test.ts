@@ -37,9 +37,7 @@ describe('notification settings', () => {
 describe('payment settings', () => {
 	it('returns the seeded defaults', async () => {
 		expect(await getPaymentSettings(therapistId)).toEqual({
-			packsEnabled: false,
 			paymentMode: 'manual',
-			packExhaustedAction: 'require_single_payment',
 			freeChangeWindowHours: 24,
 			partialChangeWindowHours: 8,
 			rescheduleChargesEnabled: true,

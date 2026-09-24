@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAmount } from '../../src/routes/(app)/payments/+page.server';
+import { parseAmount } from '$lib/server/payments';
 
 describe('parseAmount', () => {
 	it('accepts a whole positive number', () => {

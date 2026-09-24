@@ -6,7 +6,11 @@ import {
 	setPaymentStatus,
 	addCharge,
 	updatePayment,
-	deletePayment
+	deletePayment,
+	createPack,
+	markPackPaid,
+	listPacksForTherapist,
+	parseAmount
 } from '$lib/server/payments';
 import { listClients } from '$lib/server/clients';
 import { listDoubleCharges, dismissDoubleCharge } from '$lib/server/sessionPayments';
@@ -15,27 +19,42 @@ const BALANCES_PER_PAGE = 15;
 
 const PAYMENT_NOT_FOUND = 'That payment could not be found — it may have been deleted. Refresh and try again.';
 
-export function parseAmount(raw: FormDataEntryValue | null): number | null {
-	const amount = Number(raw);
-	// amount is a whole-rupee integer column — a fractional value would otherwise
-	// pass through and get silently rounded by Postgres's float->integer cast.
-	if (!Number.isInteger(amount) || amount < 1) {
-		return null;
-	}
-	return amount;
-}
-
 export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
 	const now = new Date();
 	const balancesPage = Math.max(1, Number(event.url.searchParams.get('balancesPage')) || 1);
 
-	const [summary, balances, clients, doubleChargeRows] = await Promise.all([
+	const [summary, balances, clients, doubleChargeRows, allPacks] = await Promise.all([
 		getMonthlyPaymentSummary(therapist.id, now.getFullYear(), now.getMonth()),
 		listOutstandingBalancesByClient(therapist.id),
 		listClients(therapist.id),
-		listDoubleCharges(therapist.id)
+		listDoubleCharges(therapist.id),
+		listPacksForTherapist(therapist.id)
 	]);
+
+	// only packs that still matter day to day: usable now, or finished but never paid for
+	const packs: {
+		id: string;
+		clientName: string;
+		sessionCount: number;
+		remaining: number;
+		amount: number;
+		paid: boolean;
+	}[] = [];
+	for (const pack of allPacks) {
+		const isLive = pack.status === 'active';
+		const isUnpaid = pack.paidAt === null && pack.status !== 'cancelled';
+		if (isLive || isUnpaid) {
+			packs.push({
+				id: pack.id,
+				clientName: pack.clientName,
+				sessionCount: pack.sessionCount,
+				remaining: pack.remaining,
+				amount: pack.amount,
+				paid: pack.paidAt !== null
+			});
+		}
+	}
 
 	const doubleCharges: { id: string; name: string; amount: number; date: string }[] = [];
 	for (const row of doubleChargeRows) {
@@ -55,6 +74,7 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		doubleCharges,
+		packs,
 		summary,
 		balances: balances.slice((balancesPage - 1) * BALANCES_PER_PAGE, balancesPage * BALANCES_PER_PAGE),
 		balancesPage,
@@ -92,6 +112,45 @@ export const actions: Actions = {
 		}
 
 		await addCharge(therapistId, { ...(customName ? { customName } : { clientId }), amount, note });
+	},
+
+	createPack: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const clientId = formData.get('clientId')?.toString() ?? '';
+		const sessionCount = parseAmount(formData.get('sessionCount'));
+		const amount = parseAmount(formData.get('amount'));
+		const paid = formData.get('paid') === 'on';
+
+		if (!clientId) {
+			return fail(400, { message: 'Pick a client' });
+		}
+		if (sessionCount === null) {
+			return fail(400, { message: 'Enter a whole number of sessions greater than 0' });
+		}
+		if (amount === null) {
+			return fail(400, { message: 'Enter a whole number price greater than 0' });
+		}
+
+		const result = await createPack(therapistId, { clientId, sessionCount, amount, paid });
+		if ('error' in result) {
+			if (result.error === 'client_has_active_pack') {
+				return fail(400, {
+					message: `This client still has ${result.remaining} session(s) left on their current pack`
+				});
+			}
+			return fail(404, { message: 'That client could not be found' });
+		}
+	},
+
+	markPackPaid: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const packId = formData.get('packId')?.toString() ?? '';
+		const result = await markPackPaid(therapistId, packId);
+		if ('error' in result) {
+			return fail(404, { message: 'That pack could not be found. Refresh and try again.' });
+		}
 	},
 
 	updatePayment: async (event) => {

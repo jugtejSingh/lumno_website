@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lt, lte, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import {
@@ -166,7 +166,7 @@ export async function sendPaymentReminders(): Promise<void> {
 				coalesce((select sum(${payment.amount}) from ${payment}
 					where ${payment.clientId} = ${client.id} and ${payment.status} = 'unpaid'), 0)
 				+ coalesce((select sum(${paymentPack.amount}) from ${paymentPack}
-					where ${paymentPack.clientId} = ${client.id} and ${paymentPack.status} = 'pending_payment'), 0)
+					where ${paymentPack.clientId} = ${client.id} and ${paymentPack.paidAt} is null and ${paymentPack.status} <> 'cancelled'), 0)
 			`.mapWith(Number),
 			clientEmail: client.email,
 			clientName: client.name,
@@ -181,7 +181,7 @@ export async function sendPaymentReminders(): Promise<void> {
 		.where(
 			and(
 				eq(therapistSettings.sendPaymentReminderEmails, true),
-				sql`(${client.lastPaymentReminderAt} is null or ${client.lastPaymentReminderAt} <= ${cooldownCutoff})`
+				or(isNull(client.lastPaymentReminderAt), lte(client.lastPaymentReminderAt, cooldownCutoff))
 			)
 		);
 

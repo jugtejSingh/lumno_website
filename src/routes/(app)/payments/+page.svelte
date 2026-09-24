@@ -3,6 +3,7 @@
 	import StatCard from '$lib/components/utils/StatCard.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import AddChargeDialog from '$lib/components/Payments/AddChargeDialog.svelte';
+	import PacksMakerDialog from '$lib/components/Payments/PacksMakerDialog.svelte';
 	import ClientPaymentsDialog from '$lib/components/Payments/ClientPaymentsDialog.svelte';
 	import ClientSidebar from '$lib/components/Payments/ClientSidebar.svelte';
 	import { formatCurrency } from '$lib/format';
@@ -14,6 +15,7 @@
 
 	let openClientId = $state<string | null>(null);
 	let addChargeOpen = $state(false);
+	let packsMakerOpen = $state(false);
 
 	const openClientName = $derived(data.clients.find((c) => c.id === openClientId)?.name ?? '');
 	const balancesTotalPages = $derived(Math.max(1, Math.ceil(data.balancesTotal / data.balancesPerPage)));
@@ -31,7 +33,10 @@
 	<div class="payments">
 		<div class="header">
 			<div class="title">Payments</div>
-			<Button variant="pop" onclick={() => (addChargeOpen = true)}>+ Add charge</Button>
+			<div class="header-actions">
+				<Button variant="secondary" onclick={() => (packsMakerOpen = true)}>+ Add pack</Button>
+				<Button variant="pop" onclick={() => (addChargeOpen = true)}>+ Add charge</Button>
+			</div>
 		</div>
 
 		{#if data.doubleCharges.length > 0}
@@ -56,6 +61,30 @@
 			<StatCard label="Unpaid this month" value={formatCurrency(data.summary.unpaid, data.currency)} accent="citrus" />
 			<StatCard label="Total this month" value={formatCurrency(data.summary.total, data.currency)} accent="plum" />
 		</div>
+
+		{#if data.packs.length > 0}
+			<div class="section-title">Packs</div>
+			<div class="balance-list">
+				{#each data.packs as pack (pack.id)}
+					<Card>
+						<div class="pack-row">
+							<span class="balance-name">{pack.clientName}</span>
+							<span class="pack-detail">
+								{pack.remaining} of {pack.sessionCount} sessions left · {formatCurrency(pack.amount, data.currency)}
+							</span>
+							{#if pack.paid}
+								<span class="pack-detail">Paid</span>
+							{:else}
+								<form method="POST" action="?/markPackPaid" use:enhance>
+									<input type="hidden" name="packId" value={pack.id} />
+									<Button type="submit" variant="secondary" size="sm">Mark paid</Button>
+								</form>
+							{/if}
+						</div>
+					</Card>
+				{/each}
+			</div>
+		{/if}
 
 		<div class="section-title">Who owes what</div>
 		<div class="balance-list">
@@ -101,6 +130,13 @@
 
 <AddChargeDialog open={addChargeOpen} clients={data.clients} message={form?.message} onclose={() => (addChargeOpen = false)} />
 
+<PacksMakerDialog
+	open={packsMakerOpen}
+	clients={data.clients}
+	message={form?.message}
+	onclose={() => (packsMakerOpen = false)}
+/>
+
 <ClientPaymentsDialog
 	clientId={openClientId}
 	clientName={openClientName}
@@ -137,6 +173,25 @@
 		align-items: flex-end;
 		flex-wrap: wrap;
 		gap: 10px;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.pack-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+
+	.pack-detail {
+		font-size: 13px;
+		color: var(--text-muted);
 	}
 
 	.title {

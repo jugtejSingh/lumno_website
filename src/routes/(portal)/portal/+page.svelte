@@ -198,6 +198,24 @@
 			</div>
 		{/if}
 
+		{#if data.bookingNote}
+			<div class="booking-note">{data.bookingNote}</div>
+		{/if}
+		{#if data.packRemaining !== null}
+			<div class="hint">
+				{#if data.packRemaining === 1}
+					1 session remaining in your pack.
+				{:else}
+					{data.packRemaining} sessions remaining in your pack.
+				{/if}
+			</div>
+		{:else if data.packUsedUp}
+			<div class="hint">
+				Your session pack is used up. Contact {data.therapistName} to buy another pack, or go ahead and
+				book a session at the regular price.
+			</div>
+		{/if}
+
 		<div class="book-toolbar">
 			<div class="month-label">{monthLabel}</div>
 			<div class="month-arrows">
@@ -497,6 +515,18 @@
 	.hint {
 		font-size: 13px;
 		color: var(--text-muted);
+	}
+
+	/* plain text from the therapist; pre-wrap keeps their line breaks */
+	.booking-note {
+		font-size: 14px;
+		color: var(--text-primary);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		background: var(--surface-card);
+		border: 2px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 10px 12px;
 	}
 
 	.form-error {

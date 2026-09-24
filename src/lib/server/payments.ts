@@ -8,6 +8,20 @@ import { payment, paymentPack, appointment, client } from '$lib/server/db/schema
 // letting these functions fall back to the module-level `db`.
 type Executor = DbOrTx;
 
+// A pack is usable the moment the therapist creates it; payment is tracked separately by
+// paidAt. So "owed" means never-paid and not cancelled, whatever the pack's status.
+const packIsOwed = and(isNull(paymentPack.paidAt), ne(paymentPack.status, 'cancelled'));
+
+export function parseAmount(raw: FormDataEntryValue | null): number | null {
+	const amount = Number(raw);
+	// amount is a whole-rupee integer column — a fractional value would otherwise
+	// pass through and get silently rounded by Postgres's float->integer cast.
+	if (!Number.isInteger(amount) || amount < 1) {
+		return null;
+	}
+	return amount;
+}
+
 // ---- single-session / ad-hoc charges ----------------------------------
 
 // exactly one of clientId/customName — same convention as the payment table itself
@@ -141,7 +155,7 @@ export async function getClientPaymentTotals(therapistId: string, clientId: stri
 			and(
 				eq(paymentPack.therapistId, therapistId),
 				eq(paymentPack.clientId, clientId),
-				eq(paymentPack.status, 'pending_payment')
+				packIsOwed
 			)
 		);
 
@@ -214,14 +228,38 @@ export type NewPackInput = {
 	clientId: string;
 	sessionCount: number;
 	amount: number;
+	// false = therapist is still waiting on the money; the pack is usable either way
+	paid: boolean;
 };
 
+// The pack is active immediately. One active pack per client (unique index), so this
+// refuses while the client still has credit left on the current one.
 export async function createPack(therapistId: string, input: NewPackInput) {
+	const [owned] = await db
+		.select({ id: client.id })
+		.from(client)
+		.where(and(eq(client.id, input.clientId), eq(client.therapistId, therapistId)));
+	if (!owned) {
+		return { error: 'client_not_found' as const };
+	}
+
+	const activePack = await getActivePackForClient(input.clientId);
+	if (activePack) {
+		return { error: 'client_has_active_pack' as const, remaining: activePack.remaining };
+	}
+
 	const [row] = await db
 		.insert(paymentPack)
-		.values({ therapistId, clientId: input.clientId, sessionCount: input.sessionCount, amount: input.amount })
+		.values({
+			therapistId,
+			clientId: input.clientId,
+			sessionCount: input.sessionCount,
+			amount: input.amount,
+			status: 'active',
+			paidAt: input.paid ? new Date() : null
+		})
 		.returning();
-	return row;
+	return { pack: row };
 }
 
 export async function updatePack(
@@ -242,24 +280,17 @@ export async function updatePack(
 	return {};
 }
 
-// The only way a pack becomes bookable-against — "block until payment clears" for packs
-// falls out of this being the sole path to 'active', not a separate flag.
+// Records that the therapist has been paid for a pack. Never touches status: an
+// unpaid pack is already usable, and a completed one must stay completed.
 export async function markPackPaid(therapistId: string, packId: string) {
-	const [pack] = await db
-		.select()
-		.from(paymentPack)
-		.where(and(eq(paymentPack.id, packId), eq(paymentPack.therapistId, therapistId)));
-	if (!pack) return { error: 'not_found' as const };
-
-	const activePack = await getActivePackForClient(pack.clientId);
-	if (activePack && activePack.id !== packId) {
-		return { error: 'client_has_active_pack' as const, remaining: activePack.remaining };
-	}
-
-	await db
+	const updated = await db
 		.update(paymentPack)
-		.set({ status: 'active', paidAt: new Date() })
-		.where(eq(paymentPack.id, packId));
+		.set({ paidAt: new Date() })
+		.where(and(eq(paymentPack.id, packId), eq(paymentPack.therapistId, therapistId)))
+		.returning({ id: paymentPack.id });
+	if (updated.length === 0) {
+		return { error: 'not_found' as const };
+	}
 	return {};
 }
 
@@ -360,7 +391,7 @@ export async function hasOutstandingBalance(therapistId: string, clientId: strin
 			and(
 				eq(paymentPack.therapistId, therapistId),
 				eq(paymentPack.clientId, clientId),
-				eq(paymentPack.status, 'pending_payment')
+				packIsOwed
 			)
 		)
 		.limit(1);
@@ -430,7 +461,7 @@ export async function listOutstandingBalancesByClient(therapistId: string): Prom
 		})
 		.from(paymentPack)
 		.innerJoin(client, eq(paymentPack.clientId, client.id))
-		.where(and(eq(paymentPack.therapistId, therapistId), eq(paymentPack.status, 'pending_payment')))
+		.where(and(eq(paymentPack.therapistId, therapistId), packIsOwed))
 		.groupBy(client.id, client.name);
 
 	const byKey = new Map<string, ClientBalanceSummary>();

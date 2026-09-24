@@ -3,9 +3,12 @@
 	import type { DesignedSlot } from '$lib/types/slots';
 
 	let {
-		slots = $bindable()
+		slots = $bindable(),
+		clients
 	}: {
 		slots: DesignedSlot[];
+		// pass only for the weekly template, which is the only place a slot can be reserved
+		clients?: { id: string; name: string }[];
 	} = $props();
 
 	// "HH:MM" + minutes, clamped to 23:59 so a new slot never spills into tomorrow
@@ -37,7 +40,7 @@
 
 <div class="day-slots">
 	{#each slots as _, index (index)}
-		<SlotRow bind:slot={slots[index]} onremove={() => removeSlot(index)} />
+		<SlotRow bind:slot={slots[index]} {clients} onremove={() => removeSlot(index)} />
 	{/each}
 	{#if slots.length === 0}
 		<div class="empty">No slots — clients can’t book this day.</div>

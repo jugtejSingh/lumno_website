@@ -6,7 +6,9 @@ import { appointment, client } from '$lib/server/db/schema';
 import { replaceWeekTemplate, type WeeklyDay, type DesignedSlot } from '$lib/server/availabilitySlots';
 import { load as layoutLoad } from '../../src/routes/(portal)/+layout.server';
 import { load as pageLoad, actions } from '../../src/routes/(portal)/portal/+page.server';
-import { resetDb, mkTherapist, mkClient, mkUser, mkAppointment, mkEvent } from './helpers';
+import { createPack } from '$lib/server/payments';
+import { setBookingNote } from '$lib/server/bookingNote';
+import { resetDb, mkTherapist, mkClient, mkUser, mkAppointment, mkPack, mkEvent } from './helpers';
 
 // The client portal: what the layout ships to the browser, and the client's own actions.
 
@@ -109,7 +111,7 @@ describe('portal layout', () => {
 	it('ships exactly the allow-listed client fields — no notes, tags or rate', async () => {
 		const data = (await runLayout({ user: clientUser, clientId })) as { client: Record<string, unknown> };
 		expect(Object.keys(data.client).sort()).toEqual(
-			['city', 'country', 'dateOfBirth', 'gender', 'id', 'name', 'phone', 'state', 'therapistId'].sort()
+			['city', 'country', 'dateOfBirth', 'gender', 'id', 'name', 'phone', 'state', 'therapistId', 'timezone'].sort()
 		);
 		const serialized = JSON.stringify(data);
 		expect(serialized).not.toContain('therapist-only note');
@@ -268,5 +270,61 @@ describe('rescheduleSession', () => {
 		const result = await post('rescheduleSession', { ...dateFields, appointmentId: own.id, startTime: '15:00' });
 		expect((result as { data: unknown }).data).toEqual({ message: 'That time is no longer available' });
 		expect(await statusOf(own.id)).toBe('confirmed');
+	});
+});
+
+describe('portal load: packs and booking note', () => {
+	it('has no pack info when the client never had a pack', async () => {
+		const data = await runPage(`year=${y}&month=${m}`);
+		expect(data.packRemaining).toBeNull();
+		expect(data.packUsedUp).toBe(false);
+		expect(data.bookingNote).toBe('');
+	});
+
+	it('shows the sessions remaining on the active pack', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		await mkAppointment(therapistId, clientId, { packId: pack!.id });
+
+		const data = await runPage(`year=${y}&month=${m}`);
+		expect(data.packRemaining).toBe(3);
+		expect(data.packUsedUp).toBe(false);
+	});
+
+	it('flags a used-up pack', async () => {
+		await mkPack(therapistId, clientId, { status: 'completed', paidAt: new Date() });
+
+		const data = await runPage(`year=${y}&month=${m}`);
+		expect(data.packRemaining).toBeNull();
+		expect(data.packUsedUp).toBe(true);
+	});
+
+	it('is not "used up" once a new pack is active', async () => {
+		await mkPack(therapistId, clientId, { status: 'completed', paidAt: new Date() });
+		await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
+
+		const data = await runPage(`year=${y}&month=${m}`);
+		expect(data.packRemaining).toBe(2);
+		expect(data.packUsedUp).toBe(false);
+	});
+
+	it('a cancelled pack is neither active nor used up', async () => {
+		await mkPack(therapistId, clientId, { status: 'cancelled' });
+
+		const data = await runPage(`year=${y}&month=${m}`);
+		expect(data.packRemaining).toBeNull();
+		expect(data.packUsedUp).toBe(false);
+	});
+
+	it('does not show another client’s pack', async () => {
+		const other = await mkClient(therapistId, { name: 'Other Client' });
+		await createPack(therapistId, { clientId: other.id, sessionCount: 2, amount: 2000, paid: true });
+
+		expect((await runPage(`year=${y}&month=${m}`)).packRemaining).toBeNull();
+	});
+
+	it('passes the therapist’s booking note through as plain text', async () => {
+		await setBookingNote(therapistId, 'Pay before the session.\n<b>not html</b>');
+
+		expect((await runPage(`year=${y}&month=${m}`)).bookingNote).toBe('Pay before the session.\n<b>not html</b>');
 	});
 });

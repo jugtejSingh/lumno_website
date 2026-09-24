@@ -13,9 +13,7 @@ import {
 } from '../../src/lib/server/paymentPolicy';
 
 const threeTier: PaymentSettings = {
-	packsEnabled: false,
 	paymentMode: 'manual',
-	packExhaustedAction: 'require_single_payment',
 	freeChangeWindowHours: 24,
 	partialChangeWindowHours: 8,
 	rescheduleChargesEnabled: true,

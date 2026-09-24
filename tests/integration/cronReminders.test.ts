@@ -19,6 +19,11 @@ vi.mock('$lib/server/sessionPayments', () => ({
 	sweepStaleOrders: sweepStaleOrdersMock
 }));
 
+const materialiseReservedSlotsMock = vi.fn().mockResolvedValue({ created: 0, failed: 0 });
+vi.mock('$lib/server/recurringBookings', () => ({
+	materialiseReservedSlots: materialiseReservedSlotsMock
+}));
+
 const { GET } = await import('../../src/routes/api/cron/reminders/+server');
 
 function request(authHeader: string | null) {
@@ -65,5 +70,17 @@ describe('GET /api/cron/reminders', () => {
 		expect(sendRebookRemindersMock).toHaveBeenCalledOnce();
 		expect(refreshExpiringConnectionsMock).toHaveBeenCalledOnce();
 		expect(sweepStaleOrdersMock).toHaveBeenCalledOnce();
+		expect(materialiseReservedSlotsMock).toHaveBeenCalledOnce();
+	});
+
+	it('still runs the other jobs, and reports 500, when the reserved-slot job throws', async () => {
+		process.env.CRON_SECRET = 'real-secret';
+		materialiseReservedSlotsMock.mockRejectedValueOnce(new Error('boom'));
+		const res = await GET({ request: request('Bearer real-secret') } as never);
+		expect(res.status).toBe(500);
+		const body = await res.json();
+		expect(body.jobs.reservedSlots).toBe('failed');
+		expect(body.jobs.sessionReminders).toBe('ok');
+		expect(sendSessionRemindersMock).toHaveBeenCalledOnce();
 	});
 });

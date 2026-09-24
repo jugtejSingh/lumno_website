@@ -1,17 +1,13 @@
 // Pure calculations for the cancellation/reschedule policy — no DB, no framework imports,
 // independent of everything that depends on it (booking, cancel, reschedule).
 
-export type PackExhaustedAction = 'block_booking' | 'require_single_payment';
-
 // 'automatic' = collect session payments in-portal via Razorpay Route; 'manual' =
 // therapist marks rows paid by hand. Only meaningful alongside a linked Razorpay
 // account — see paymentSettings.ts / the portal's payNow action.
 export type PaymentMode = 'manual' | 'automatic';
 
 export type PaymentSettings = {
-	packsEnabled: boolean;
 	paymentMode: PaymentMode;
-	packExhaustedAction: PackExhaustedAction;
 	// hours of notice before a session's start required to cancel for free
 	freeChangeWindowHours: number;
 	// hours of notice for the 50% tier; null = no partial tier, straight from free to 100%

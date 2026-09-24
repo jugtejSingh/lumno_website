@@ -14,10 +14,6 @@ import { randomUUID } from 'node:crypto';
 import { therapist, client } from './users.schema';
 import { appointment } from './appointments.schema';
 
-export const packExhaustedActionEnum = pgEnum('pack_exhausted_action', [
-	'block_booking',
-	'require_single_payment'
-]);
 export const packStatusEnum = pgEnum('pack_status', [
 	'pending_payment',
 	'active',
@@ -38,12 +34,7 @@ export const paymentSettings = pgTable('payment_settings', {
 	therapistId: text('therapist_id')
 		.primaryKey()
 		.references(() => therapist.id, { onDelete: 'cascade' }),
-	packsEnabled: boolean('packs_enabled').notNull().default(false),
 	paymentMode: paymentModeEnum('payment_mode').notNull().default('manual'),
-	// what happens once a client's pack hits 0 remaining credits
-	packExhaustedAction: packExhaustedActionEnum('pack_exhausted_action')
-		.notNull()
-		.default('require_single_payment'),
 	// hours of notice before a session's start_at required to cancel for free
 	freeChangeWindowHours: integer('free_change_window_hours').notNull().default(24),
 	// hours of notice for the 50% tier; null = no partial tier, straight from free to 100%

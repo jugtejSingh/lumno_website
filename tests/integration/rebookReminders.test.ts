@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { client } from '$lib/server/db/schema';
-import { sendRebookReminders } from '$lib/server/reminderEmails';
+import { sendRebookReminders, sendPaymentReminders } from '$lib/server/reminderEmails';
 import { createAppointmentForTherapist } from '$lib/server/appointments';
-import { resetDb, mkTherapist, mkClient } from './helpers';
+import { createPack } from '$lib/server/payments';
+import { resetDb, mkTherapist, mkClient, mkPack, mkSettings } from './helpers';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -162,5 +163,70 @@ describe('createAppointmentForTherapist — client.lastSessionAt', () => {
 		const afterSecond = await getClient(c.id);
 
 		expect(afterSecond.lastSessionAt).toEqual(afterFirst.lastSessionAt);
+	});
+});
+
+describe('sendPaymentReminders with packs', () => {
+	async function reminded(clientId: string) {
+		return (await getClient(clientId)).lastPaymentReminderAt !== null;
+	}
+
+	it('reminds a client who owes for an unpaid active pack', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { email: 'client@example.com' });
+		await createPack(t.id, { clientId: c.id, sessionCount: 3, amount: 3000, paid: false });
+
+		await sendPaymentReminders();
+		expect(await reminded(c.id)).toBe(true);
+	});
+
+	it('does not remind for a paid pack', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { email: 'client@example.com' });
+		await createPack(t.id, { clientId: c.id, sessionCount: 3, amount: 3000, paid: true });
+
+		await sendPaymentReminders();
+		expect(await reminded(c.id)).toBe(false);
+	});
+
+	it('does not remind for a cancelled unpaid pack', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { email: 'client@example.com' });
+		await mkPack(t.id, c.id, { status: 'cancelled', paidAt: null });
+
+		await sendPaymentReminders();
+		expect(await reminded(c.id)).toBe(false);
+	});
+
+	it('still reminds for a used-up pack that was never paid', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { email: 'client@example.com' });
+		await mkPack(t.id, c.id, { status: 'completed', paidAt: null });
+
+		await sendPaymentReminders();
+		expect(await reminded(c.id)).toBe(true);
+	});
+});
+
+describe('sendRebookReminders setting gate', () => {
+	it('sends nothing when the therapist turned rebook reminders off', async () => {
+		const t = await mkTherapist();
+		await mkSettings(t.id, { sendRebookReminderEmails: false });
+		const c = await mkClient(t.id, { email: 'client@example.com' });
+		await setLastSessionAt(c.id, new Date(Date.now() - 5 * DAY_MS));
+
+		await sendRebookReminders();
+
+		expect((await getClient(c.id)).rebookReminderStage).toBe(0);
+	});
+
+	it('skips a client with no email even when reminders are on', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { email: null });
+		await setLastSessionAt(c.id, new Date(Date.now() - 5 * DAY_MS));
+
+		await sendRebookReminders();
+
+		expect((await getClient(c.id)).rebookReminderStage).toBe(0);
 	});
 });

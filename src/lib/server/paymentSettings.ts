@@ -3,11 +3,10 @@ import { db, type DbOrTx } from '$lib/server/db';
 import { paymentSettings } from '$lib/server/db/schema';
 import type { PaymentMode, PaymentSettings } from '$lib/server/paymentPolicy';
 
-export type { PaymentSettings, PaymentMode, PackExhaustedAction, ChangeTier, PolicyOutcome } from '$lib/server/paymentPolicy';
+export type { PaymentSettings, PaymentMode, ChangeTier, PolicyOutcome } from '$lib/server/paymentPolicy';
 
 // The cancellation-policy form. paymentMode is a separate control with its own
 // setter, so it is deliberately not in here — this update never touches it.
-// ponytail: packsEnabled / packExhaustedAction have no UI yet, so they stay at their DB defaults.
 type PackPolicySettings = {
 	freeChangeWindowHours: number;
 	partialChangeWindowHours: number | null;
@@ -19,9 +18,7 @@ type PackPolicySettings = {
 export async function getPaymentSettings(therapistId: string): Promise<PaymentSettings> {
 	const [row] = await db
 		.select({
-			packsEnabled: paymentSettings.packsEnabled,
 			paymentMode: paymentSettings.paymentMode,
-			packExhaustedAction: paymentSettings.packExhaustedAction,
 			freeChangeWindowHours: paymentSettings.freeChangeWindowHours,
 			partialChangeWindowHours: paymentSettings.partialChangeWindowHours,
 			rescheduleChargesEnabled: paymentSettings.rescheduleChargesEnabled,

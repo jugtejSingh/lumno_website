@@ -15,7 +15,7 @@ const { db } = await import('$lib/server/db');
 const { client } = await import('$lib/server/db/schema');
 const { getClientFieldHeadings, updateClientFieldHeadings } = await import('$lib/server/clientFields');
 const { clientFieldInputName } = await import('$lib/types/clientFields');
-const { actions: clientActions } = await import('../../src/routes/(app)/clients/+page.server');
+const { actions: clientActions } = await import('../../src/routes/(app)/clients/[clientId]/+page.server');
 const { actions: settingsActions } = await import('../../src/routes/(app)/settings/+page.server');
 const { resetDb, mkTherapist, mkClient, mkEvent } = await import('./helpers');
 
@@ -28,12 +28,14 @@ const DELETED = '33333333-3333-4333-8333-333333333333';
 let therapistId: string;
 
 function updateClient(fields: Record<string, string>, asTherapistId = therapistId) {
-	return clientActions.update(mkEvent({ locals: { therapistId: asTherapistId }, fields }) as never);
+	return clientActions.update(
+		mkEvent({ locals: { therapistId: asTherapistId }, params: { clientId: fields.clientId }, fields }) as never
+	);
 }
 
 function saveSettings(fields: Record<string, string | string[]>) {
 	return settingsActions.save(
-		mkEvent({ locals: { therapistId }, fields: { name: 'Dr Test', freeChangeWindowHours: '24', ...fields } }) as never
+		mkEvent({ locals: { therapistId }, fields: { name: 'Dr Test', freeChangeWindowHours: '24', timezone: 'Europe/London', ...fields } }) as never
 	);
 }
 

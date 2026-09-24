@@ -3,7 +3,6 @@ import { db, type DbOrTx } from '$lib/server/db';
 import { appointment, therapist, client } from '$lib/server/db/schema';
 import { zonedDayBounds, zonedDateToUTC, parseTimeOfDay } from '$lib/server/timezone';
 import { listDesignedDaysForMonth } from '$lib/server/availabilitySlots';
-import { getPaymentSettings } from '$lib/server/paymentSettings';
 import { getBookingRules } from '$lib/server/settings';
 import {
 	getActivePackForClient,
@@ -142,7 +141,6 @@ export type BookSlotResult = {
 		| 'modality_required'
 		| 'balance_due'
 		| 'booking_limit'
-		| 'pack_exhausted'
 		| 'client_inactive';
 };
 
@@ -264,12 +262,9 @@ export async function createAppointmentForClient(
 		}
 	}
 
-	const paymentSettings = await getPaymentSettings(therapistId);
-	const activePack = paymentSettings.packsEnabled ? await getActivePackForClient(clientId) : null;
+	// an exhausted (or absent) pack simply falls through to a regular-price charge below
+	const activePack = await getActivePackForClient(clientId);
 	const packHasCredit = !!activePack && activePack.remaining > 0;
-	if (activePack && !packHasCredit && paymentSettings.packExhaustedAction === 'block_booking') {
-		return { error: 'pack_exhausted' as const };
-	}
 
 	const result = await db.transaction(async (tx) => {
 		const inserted = await insertAppointmentForClient(

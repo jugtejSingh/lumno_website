@@ -26,7 +26,13 @@ import {
 	rescheduleAppointmentForClient
 } from '$lib/server/availability';
 import { listSharedNotesForClient } from '$lib/server/notes';
-import { getBalanceDueForClient, listVisiblePaymentsForClient } from '$lib/server/payments';
+import {
+	getBalanceDueForClient,
+	listVisiblePaymentsForClient,
+	getActivePackForClient,
+	listPacksForClient
+} from '$lib/server/payments';
+import { getBookingNote } from '$lib/server/bookingNote';
 import { getPaymentSettings, getManualPayDetails } from '$lib/server/paymentSettings';
 import { signedUrl } from '$lib/server/storage';
 import { connectionHealth } from '$lib/server/razorpayConnection';
@@ -67,17 +73,44 @@ export const load: PageServerLoad = async (event) => {
 	const paymentsPage = Math.max(1, Number(event.url.searchParams.get('paymentsPage')) || 1);
 	const notesPage = Math.max(1, Number(event.url.searchParams.get('notesPage')) || 1);
 
-	const [upcoming, slotsByDay, sharedNotes, payments, balanceDue, paymentSettings, rzpHealth, manualPayRow] =
-		await Promise.all([
-			listUpcomingAppointmentsForClient(client.id, timezone),
-			listAvailabilityForMonth(client.therapistId, year, month),
-			listSharedNotesForClient(client.id, notesPage, PAGE_SIZE),
-			listVisiblePaymentsForClient(client.id, paymentsPage, PAGE_SIZE),
-			getBalanceDueForClient(client.id),
-			getPaymentSettings(client.therapistId),
-			connectionHealth(client.therapistId),
-			getManualPayDetails(client.therapistId)
-		]);
+	const [
+		upcoming,
+		slotsByDay,
+		sharedNotes,
+		payments,
+		balanceDue,
+		paymentSettings,
+		rzpHealth,
+		manualPayRow,
+		activePack,
+		clientPacks,
+		bookingNote
+	] = await Promise.all([
+		listUpcomingAppointmentsForClient(client.id, timezone),
+		listAvailabilityForMonth(client.therapistId, year, month),
+		listSharedNotesForClient(client.id, notesPage, PAGE_SIZE),
+		listVisiblePaymentsForClient(client.id, paymentsPage, PAGE_SIZE),
+		getBalanceDueForClient(client.id),
+		getPaymentSettings(client.therapistId),
+		connectionHealth(client.therapistId),
+		getManualPayDetails(client.therapistId),
+		getActivePackForClient(client.id),
+		listPacksForClient(client.therapistId, client.id),
+		getBookingNote(client.therapistId)
+	]);
+
+	// sessions left on the current pack; null = no pack in play. packUsedUp is true once
+	// the client's latest pack has run out and no new one has been added.
+	let packRemaining: number | null = null;
+	let packUsedUp = false;
+	if (activePack) {
+		packRemaining = activePack.remaining;
+	} else {
+		const latestPack = clientPacks[clientPacks.length - 1];
+		if (latestPack && latestPack.status === 'completed') {
+			packUsedUp = true;
+		}
+	}
 
 	// Reschedule picker: leave the session being moved out of the daily max-sessions count,
 	// so the client can move it to another time on its own full day. Only honoured for this
@@ -164,6 +197,9 @@ export const load: PageServerLoad = async (event) => {
 		year,
 		month,
 		slotsByDay: openSlotsByDay,
+		packRemaining,
+		packUsedUp,
+		bookingNote,
 		rescheduleId,
 		sessions,
 		invoices,
@@ -190,7 +226,6 @@ const bookSessionErrorMessages = {
 		'You have an outstanding balance — please settle it with your therapist before booking',
 	booking_limit:
 		'You already have the maximum number of upcoming sessions — you can book another after your next one',
-	pack_exhausted: 'Your session pack is used up — contact your therapist to book another session',
 	client_inactive: 'Your therapist needs to upgrade their plan before you can book a new session'
 } as const;
 

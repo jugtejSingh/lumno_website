@@ -23,12 +23,15 @@ import {
 	validateDaySlots,
 	parseMaxSessions,
 	replaceWeekTemplate,
+	setSlotReservation,
 	setDateOverride,
 	clearDateOverride,
 	toDateKey,
 	type WeeklyDay
 } from '$lib/server/availabilitySlots';
+import { getBookingNote, setBookingNote, BOOKING_NOTE_MAX_LENGTH } from '$lib/server/bookingNote';
 import { logError } from '$lib/server/log';
+import { materialiseReservedSlots } from '$lib/server/recurringBookings';
 import { parseDateParts, parseTimeParts, type OverlapConflict } from '$lib/server/appointments';
 
 const addAppointmentErrorMessages = {
@@ -100,11 +103,12 @@ export const load: PageServerLoad = async (event) => {
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
 	const month = parseMonthParam(event.url.searchParams.get('month'), now);
 
-	const [appointments, clients, dayKinds, slotDesign] = await Promise.all([
+	const [appointments, clients, dayKinds, slotDesign, bookingNote] = await Promise.all([
 		listAppointmentsForMonth(therapist.id, therapist.timezone, year, month),
 		listClients(therapist.id),
 		listDayKindsForMonth(therapist.id, year, month),
-		getSlotDesign(therapist.id, year, month)
+		getSlotDesign(therapist.id, year, month),
+		getBookingNote(therapist.id)
 	]);
 	appointments.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
 
@@ -137,7 +141,7 @@ export const load: PageServerLoad = async (event) => {
 		});
 	}
 
-	return { year, month, sessionsByDay, clients, dayKinds, slotDesign };
+	return { year, month, sessionsByDay, clients, dayKinds, slotDesign, bookingNote };
 };
 
 const MAX_SESSIONS_MESSAGE = 'Max sessions must be a whole number from 1 to 50, or blank for no limit';
@@ -151,6 +155,17 @@ function readJson(formData: FormData, field: string): unknown {
 }
 
 export const actions: Actions = {
+	saveBookingNote: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const note = formData.get('bookingNote')?.toString() ?? '';
+		if (note.trim().length > BOOKING_NOTE_MAX_LENGTH) {
+			return fail(400, { noteMessage: `Keep the note under ${BOOKING_NOTE_MAX_LENGTH} characters` });
+		}
+
+		await setBookingNote(therapistId, note);
+	},
+
 	saveWeekTemplate: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
@@ -184,6 +199,42 @@ export const actions: Actions = {
 		}
 
 		await replaceWeekTemplate(therapistId, week);
+	},
+
+	// holds a saved weekly slot for one client every week; an empty clientId releases it
+	reserveSlot: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const slotId = formData.get('slotId')?.toString() ?? '';
+		const clientIdRaw = formData.get('clientId')?.toString() ?? '';
+		if (!slotId) {
+			return fail(400, { message: 'Save the slot before reserving it' });
+		}
+
+		let clientId: string | null = null;
+		if (clientIdRaw !== '') {
+			clientId = clientIdRaw;
+		}
+		const result = await setSlotReservation(therapistId, slotId, clientId);
+		if (result.error === 'slot_not_found') {
+			return fail(400, { message: 'That slot could not be found — reload and try again' });
+		}
+		if (result.error === 'client_not_found') {
+			return fail(400, { message: 'That client could not be found' });
+		}
+		if (result.error === 'hybrid_slot') {
+			return fail(400, { message: 'A slot where the client picks online or in person can’t be reserved' });
+		}
+
+		// book the coming two weeks now instead of waiting for tonight's cron. The reservation is
+		// already saved, so a failure here is logged and the cron retries it.
+		if (clientId !== null) {
+			try {
+				await materialiseReservedSlots({ slotId });
+			} catch (err) {
+				logError('calendar.reserveSlot', err);
+			}
+		}
 	},
 
 	saveDateOverride: async (event) => {

@@ -19,7 +19,8 @@ import {
 	type DesignedSlot,
 	type WeeklyDay
 } from '$lib/server/availabilitySlots';
-import { addCharge } from '$lib/server/payments';
+import { addCharge, createPack, getActivePackForClient, listPacksForTherapist } from '$lib/server/payments';
+import { payment } from '$lib/server/db/schema';
 import { resetDb, mkTherapist, mkClient, mkSettings, mkAppointment } from './helpers';
 
 // therapist in UTC so wall-clock slot times line up with the UTC instants we insert
@@ -443,5 +444,66 @@ describe('client reschedule', () => {
 			const old = await mkAppointment(therapistId, clientId, { startAt: at(9), endAt: at(10), status });
 			expect(await moveTo(old.id, '11:00')).toEqual({ error: 'not_found' });
 		}
+	});
+});
+
+describe('client booking with a session pack', () => {
+	const bookNine = () =>
+		createAppointmentForClient(therapistId, clientId, { year: y, month: m, day: d, startTime: '09:00' });
+
+	async function chargesFor(id: string) {
+		return db.select().from(payment).where(eq(payment.clientId, id));
+	}
+
+	beforeEach(async () => {
+		await everyDay(threeHourly);
+	});
+
+	it('uses a pack credit instead of creating a charge', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 3, amount: 3000, paid: false });
+
+		const result = await bookNine();
+		expect(result.appointment!.packId).toBe(pack!.id);
+		expect(await chargesFor(clientId)).toEqual([]);
+		expect((await getActivePackForClient(clientId))!.remaining).toBe(2);
+	});
+
+	it('the last credit completes the pack', async () => {
+		await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+
+		await bookNine();
+		expect(await getActivePackForClient(clientId)).toBeNull();
+		expect((await listPacksForTherapist(therapistId))[0]).toMatchObject({ status: 'completed', remaining: 0 });
+	});
+
+	it('books at the regular price once the pack is used up', async () => {
+		await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+		await bookNine();
+
+		const second = await createAppointmentForClient(therapistId, clientId, {
+			year: y,
+			month: m,
+			day: d,
+			startTime: '10:00'
+		});
+		expect(second.appointment!.packId).toBeNull();
+		const charges = await chargesFor(clientId);
+		expect(charges).toHaveLength(1);
+		expect(charges[0].amount).toBe(1000);
+	});
+
+	it('with no pack at all, books at the regular price', async () => {
+		const result = await bookNine();
+		expect(result.appointment!.packId).toBeNull();
+		expect(await chargesFor(clientId)).toHaveLength(1);
+	});
+
+	it('never uses another client’s pack', async () => {
+		const other = await mkClient(therapistId, { name: 'Other Client' });
+		await createPack(therapistId, { clientId: other.id, sessionCount: 3, amount: 3000, paid: true });
+
+		const result = await bookNine();
+		expect(result.appointment!.packId).toBeNull();
+		expect((await getActivePackForClient(other.id))!.remaining).toBe(3);
 	});
 });

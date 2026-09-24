@@ -4,6 +4,8 @@ import {
 	setPaymentStatus,
 	hasOutstandingBalance,
 	createPack,
+	cancelPack,
+	listPacksForTherapist,
 	markPackPaid,
 	updatePack,
 	getActivePackForClient,
@@ -117,56 +119,173 @@ describe('client-visible payments', () => {
 });
 
 describe('packs', () => {
-	it('createPack starts pending; markPackPaid makes it active and bookable', async () => {
-		const pack = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000 });
-		expect(pack.status).toBe('pending_payment');
-		expect(await getActivePackForClient(clientId)).toBeNull();
+	it('createPack is usable straight away, even unpaid, and counts as owed until paid', async () => {
+		const result = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const pack = result.pack!;
+		expect(pack.status).toBe('active');
+		expect(await getActivePackForClient(clientId)).toMatchObject({ id: pack.id, remaining: 4 });
+		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(true);
 
 		expect(await markPackPaid(therapistId, pack.id)).toEqual({});
-		const active = await getActivePackForClient(clientId);
-		expect(active).toMatchObject({ id: pack.id, remaining: 4 });
+		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(false);
+	});
+
+	it('a pack created as paid is not owed', async () => {
+		await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: true });
+		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(false);
 	});
 
 	it('remaining decreases as appointments are booked against the pack', async () => {
-		const pack = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000 });
-		await markPackPaid(therapistId, pack.id);
-		await mkAppointment(therapistId, clientId, { packId: pack.id });
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
+		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 
 		expect((await getActivePackForClient(clientId))!.remaining).toBe(1);
 	});
 
 	it('completePackIfExhausted flips the pack to completed at zero remaining', async () => {
-		const pack = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000 });
-		await markPackPaid(therapistId, pack.id);
-		await mkAppointment(therapistId, clientId, { packId: pack.id });
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 
-		await completePackIfExhausted(pack.id);
+		await completePackIfExhausted(pack!.id);
 		expect(await getActivePackForClient(clientId)).toBeNull();
 	});
 
-	it('markPackPaid refuses a second active pack for the same client', async () => {
-		const first = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000 });
-		await markPackPaid(therapistId, first.id);
-		const second = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000 });
+	it('markPackPaid on a completed pack leaves it completed', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: false });
+		await mkAppointment(therapistId, clientId, { packId: pack!.id });
+		await completePackIfExhausted(pack!.id);
 
-		expect(await markPackPaid(therapistId, second.id)).toMatchObject({
-			error: 'client_has_active_pack'
-		});
+		await markPackPaid(therapistId, pack!.id);
+		expect(await getActivePackForClient(clientId)).toBeNull();
+	});
+
+	it('createPack refuses a second pack while the first still has credit', async () => {
+		await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
+		const second = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
+
+		expect(second).toMatchObject({ error: 'client_has_active_pack', remaining: 2 });
 	});
 
 	it('updatePack cannot set sessionCount below what is already consumed', async () => {
-		const pack = await createPack(therapistId, { clientId, sessionCount: 3, amount: 3000 });
-		await markPackPaid(therapistId, pack.id);
-		await mkAppointment(therapistId, clientId, { packId: pack.id });
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 3, amount: 3000, paid: true });
+		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 		await mkAppointment(therapistId, clientId, {
-			packId: pack.id,
+			packId: pack!.id,
 			startAt: new Date('2026-10-02T10:00:00Z'),
 			endAt: new Date('2026-10-02T11:00:00Z')
 		});
 
-		expect(await updatePack(therapistId, pack.id, { sessionCount: 1 })).toEqual({
+		expect(await updatePack(therapistId, pack!.id, { sessionCount: 1 })).toEqual({
 			error: 'below_consumed'
 		});
-		expect(await updatePack(therapistId, pack.id, { sessionCount: 5 })).toEqual({});
+		expect(await updatePack(therapistId, pack!.id, { sessionCount: 5 })).toEqual({});
+	});
+});
+
+describe('pack ownership and owed totals', () => {
+	it('createPack refuses a client that belongs to another therapist', async () => {
+		const other = await mkTherapist();
+		const otherClient = await mkClient(other.id);
+
+		const result = await createPack(therapistId, {
+			clientId: otherClient.id,
+			sessionCount: 3,
+			amount: 3000,
+			paid: true
+		});
+		expect(result).toEqual({ error: 'client_not_found' });
+		expect(await getActivePackForClient(otherClient.id)).toBeNull();
+	});
+
+	it('createPack refuses a client that does not exist', async () => {
+		const result = await createPack(therapistId, {
+			clientId: 'no-such-client',
+			sessionCount: 3,
+			amount: 3000,
+			paid: true
+		});
+		expect(result).toEqual({ error: 'client_not_found' });
+	});
+
+	it('allows a new pack once the previous one is used up', async () => {
+		const first = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+		await mkAppointment(therapistId, clientId, { packId: first.pack!.id });
+		await completePackIfExhausted(first.pack!.id);
+
+		const second = await createPack(therapistId, { clientId, sessionCount: 5, amount: 4500, paid: true });
+		expect(second.pack).toMatchObject({ status: 'active', sessionCount: 5 });
+	});
+
+	it('an unpaid pack shows in the balance list and the client totals', async () => {
+		await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+
+		expect(await listOutstandingBalancesByClient(therapistId)).toEqual([
+			{ key: clientId, clientId, name: 'Test Client', owed: 4000 }
+		]);
+		expect((await getClientPaymentTotals(therapistId, clientId)).owed).toBe(4000);
+	});
+
+	it('a paid pack is not in the balance list', async () => {
+		await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: true });
+
+		expect(await listOutstandingBalancesByClient(therapistId)).toEqual([]);
+		expect((await getClientPaymentTotals(therapistId, clientId)).owed).toBe(0);
+	});
+
+	it('a used-up pack that was never paid for is still owed', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 900, paid: false });
+		await mkAppointment(therapistId, clientId, { packId: pack!.id });
+		await completePackIfExhausted(pack!.id);
+
+		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(true);
+		expect((await getClientPaymentTotals(therapistId, clientId)).owed).toBe(900);
+	});
+
+	it('a cancelled unpaid pack is not owed', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		await cancelPack(therapistId, pack!.id);
+
+		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(false);
+		expect(await listOutstandingBalancesByClient(therapistId)).toEqual([]);
+	});
+
+	it('pack money and charges add up together per client', async () => {
+		await addCharge(therapistId, { clientId, amount: 1000 });
+		await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+
+		const rows = await listOutstandingBalancesByClient(therapistId);
+		expect(rows).toEqual([{ key: clientId, clientId, name: 'Test Client', owed: 5000 }]);
+	});
+
+	it('markPackPaid reports not_found for another therapist’s pack', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: false });
+		const other = await mkTherapist();
+
+		expect(await markPackPaid(other.id, pack!.id)).toEqual({ error: 'not_found' });
+		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(true);
+	});
+
+	it('listPacksForTherapist reports remaining sessions per pack', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 3, amount: 3000, paid: true });
+		await mkAppointment(therapistId, clientId, { packId: pack!.id });
+
+		const packs = await listPacksForTherapist(therapistId);
+		expect(packs).toHaveLength(1);
+		expect(packs[0]).toMatchObject({
+			id: pack!.id,
+			clientName: 'Test Client',
+			sessionCount: 3,
+			remaining: 2,
+			status: 'active'
+		});
+		expect(packs[0].paidAt).not.toBeNull();
+	});
+
+	it('listPacksForTherapist only lists this therapist’s packs', async () => {
+		const other = await mkTherapist();
+		const otherClient = await mkClient(other.id);
+		await createPack(other.id, { clientId: otherClient.id, sessionCount: 2, amount: 2000, paid: true });
+
+		expect(await listPacksForTherapist(therapistId)).toEqual([]);
 	});
 });

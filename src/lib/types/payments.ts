@@ -6,8 +6,6 @@ export type ClientBalance = {
 
 export type ClientOption = { id: string; name: string };
 
-export type PackExhaustedAction = 'block_booking' | 'require_single_payment';
-
 // Mirrors payments.ts's ClientPaymentHistoryRow — redeclared here because $lib/server
 // modules can't be imported into client components. Dates arrive as ISO strings, not
 // Date objects, once they've been through the GET endpoint's JSON response.

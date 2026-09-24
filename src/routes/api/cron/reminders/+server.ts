@@ -8,9 +8,11 @@ import {
 } from '$lib/server/reminderEmails';
 import { refreshExpiringConnections } from '$lib/server/razorpayConnection';
 import { sweepStaleOrders } from '$lib/server/sessionPayments';
+import { materialiseReservedSlots } from '$lib/server/recurringBookings';
 import { logError } from '$lib/server/log';
 
 const JOBS: Record<string, () => Promise<unknown>> = {
+	reservedSlots: () => materialiseReservedSlots(),
 	sessionReminders: sendSessionReminders,
 	paymentReminders: sendPaymentReminders,
 	rebookReminders: sendRebookReminders,

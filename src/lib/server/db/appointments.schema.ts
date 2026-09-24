@@ -73,7 +73,10 @@ export const therapistSettings = pgTable('therapist_settings', {
 	clientFieldHeadings: jsonb('client_field_headings')
 		.$type<ClientFieldHeading[]>()
 		.notNull()
-		.default([])
+		.default([]),
+	// free text the therapist writes on their Calendar page, shown read-only to clients
+	// on the portal booking calendar (e.g. "payment is due before the session starts")
+	bookingNote: text('booking_note')
 });
 
 // A date the therapist hand-edited. Its slots (availabilitySlot.overrideDate) fully replace
@@ -116,10 +119,19 @@ export const availabilitySlot = pgTable(
 		overrideDate: date('override_date'),
 		startTime: time('start_time').notNull(),
 		endTime: time('end_time').notNull(),
-		modality: slotModalityEnum('modality').notNull()
+		modality: slotModalityEnum('modality').notNull(),
+		// weekly-template slots only: the client this slot is held for every week. A nightly cron
+		// books it ahead (recurringBookings.ts); null = an ordinary open slot
+		reservedClientId: text('reserved_client_id').references(() => client.id, {
+			onDelete: 'set null'
+		})
 	},
 	(table) => [
 		index('availabilitySlot_therapistId_idx').on(table.therapistId),
+		// partial: the nightly cron only reads reserved slots, so it never scans the open ones
+		index('availabilitySlot_reserved_idx')
+			.on(table.reservedClientId)
+			.where(sql`${table.reservedClientId} is not null`),
 		// removing a date override takes its slots with it. Named explicitly: the auto-generated
 		// name is over Postgres's 63-char limit, gets truncated, and drizzle-kit push then sees a
 		// "changed" key on every push and fails trying to rebuild it.
@@ -133,7 +145,11 @@ export const availabilitySlot = pgTable(
 			sql`(${table.weekday} is not null)::int + (${table.overrideDate} is not null)::int = 1`
 		),
 		check('availabilitySlot_weekday_range', sql`${table.weekday} between 0 and 6`),
-		check('availabilitySlot_end_after_start', sql`${table.endTime} > ${table.startTime}`)
+		check('availabilitySlot_end_after_start', sql`${table.endTime} > ${table.startTime}`),
+		check(
+			'availabilitySlot_reserved_template_only',
+			sql`${table.reservedClientId} is null or ${table.weekday} is not null`
+		)
 	]
 );
 

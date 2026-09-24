@@ -7,20 +7,29 @@
 	import HolidayToggle from './HolidayToggle.svelte';
 	import DaySlotsEditor from './DaySlotsEditor.svelte';
 	import MaxSessionsInput from './MaxSessionsInput.svelte';
-	import type { WeeklyDay } from '$lib/types/slots';
+	import ReservedSlotChangeDialog from './ReservedSlotChangeDialog.svelte';
+	import type { ReservedSlotChange, WeeklyDay } from '$lib/types/slots';
 
 	// mounted only while open (see calendar +page.svelte), so the draft is seeded fresh each time
 	let {
 		week,
+		clients,
 		message,
 		onclose
 	}: {
 		week: WeeklyDay[]; // index 0 = Sunday
+		clients: { id: string; name: string }[];
 		message?: string;
 		onclose: () => void;
 	} = $props();
 
 	let draft = $state(untrack(() => $state.snapshot(week)));
+
+	let formElement: HTMLFormElement;
+	// reserved slots this save would edit or remove; non-empty = the warning modal is showing
+	let pendingChanges = $state<ReservedSlotChange[]>([]);
+	// set when the therapist confirms the warning, so the re-submit goes straight through
+	let confirmedSave = false;
 
 	// listed Monday-first, stored Sunday-first
 	const dayOrder = [
@@ -43,6 +52,78 @@
 		}
 		return '';
 	});
+
+	function nameOfWeekday(weekday: number): string {
+		for (const day of dayOrder) {
+			if (day.weekday === weekday) {
+				return day.name;
+			}
+		}
+		return '';
+	}
+
+	function nameOfClient(clientId: string): string {
+		for (const client of clients) {
+			if (client.id === clientId) {
+				return client.name;
+			}
+		}
+		return 'A client';
+	}
+
+	// Compares the stored reserved slots (`week`, which refreshes after a reservation is made)
+	// with the draft: a reserved slot that is gone, or moved/retimed/retyped, is a change.
+	function findReservedChanges(): ReservedSlotChange[] {
+		const draftById = new Map<string, { weekday: number; startTime: string; endTime: string; modality: string }>();
+		for (let weekday = 0; weekday < 7; weekday++) {
+			for (const slot of draft[weekday].slots) {
+				if (slot.id) {
+					draftById.set(slot.id, {
+						weekday,
+						startTime: slot.startTime,
+						endTime: slot.endTime,
+						modality: slot.modality
+					});
+				}
+			}
+		}
+
+		const changes: ReservedSlotChange[] = [];
+		for (let weekday = 0; weekday < 7; weekday++) {
+			for (const original of week[weekday].slots) {
+				if (!original.id || !original.reservedClientId) {
+					continue;
+				}
+				const current = draftById.get(original.id);
+				let kind: ReservedSlotChange['kind'] | null = null;
+				if (!current) {
+					kind = 'removed';
+				} else if (
+					current.weekday !== weekday ||
+					current.startTime !== original.startTime ||
+					current.endTime !== original.endTime ||
+					current.modality !== original.modality
+				) {
+					kind = 'changed';
+				}
+				if (kind !== null) {
+					changes.push({
+						clientName: nameOfClient(original.reservedClientId),
+						weekdayName: nameOfWeekday(weekday),
+						time: `${original.startTime}–${original.endTime}`,
+						kind
+					});
+				}
+			}
+		}
+		return changes;
+	}
+
+	function confirmSave() {
+		confirmedSave = true;
+		pendingChanges = [];
+		formElement.requestSubmit();
+	}
 
 	// holidays don't count: nothing on them can be booked
 	const bookableSlotCount = $derived.by(() => {
@@ -73,7 +154,13 @@
 		const source = $state.snapshot(draft[fromWeekday]);
 		for (const weekday of targets) {
 			if (weekday !== fromWeekday) {
-				draft[weekday].slots = structuredClone(source.slots);
+				// copies are new slots: they must not carry the source slot's id or reservation
+				const copies = structuredClone(source.slots);
+				for (const copy of copies) {
+					delete copy.id;
+					delete copy.reservedClientId;
+				}
+				draft[weekday].slots = copies;
 				draft[weekday].maxSessions = source.maxSessions;
 			}
 		}
@@ -85,7 +172,17 @@
 		class="week-form"
 		method="POST"
 		action="?/saveWeekTemplate"
-		use:enhance={() => {
+		bind:this={formElement}
+		use:enhance={({ cancel }) => {
+			if (!confirmedSave) {
+				const changes = findReservedChanges();
+				if (changes.length > 0) {
+					pendingChanges = changes;
+					cancel();
+					return;
+				}
+			}
+			confirmedSave = false;
 			return async ({ result, update }) => {
 				if (result.type === 'success') {
 					onclose();
@@ -113,7 +210,7 @@
 				{/if}
 
 				<div class="day-body" class:on-holiday={draft[selected].holiday}>
-					<DaySlotsEditor bind:slots={draft[selected].slots} />
+					<DaySlotsEditor bind:slots={draft[selected].slots} {clients} />
 
 					<div class="day-tools">
 						{#if draft[selected].slots.length > 0}
@@ -161,6 +258,14 @@
 		</div>
 	</form>
 </Dialog>
+
+{#if pendingChanges.length > 0}
+	<ReservedSlotChangeDialog
+		changes={pendingChanges}
+		onconfirm={confirmSave}
+		oncancel={() => (pendingChanges = [])}
+	/>
+{/if}
 
 <style>
 	/* one height whichever day is picked, never taller than the screen */

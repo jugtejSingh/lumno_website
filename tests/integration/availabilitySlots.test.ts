@@ -32,6 +32,15 @@ function emptyWeek(): WeeklyDay[] {
 	return week;
 }
 
+// weekly slots also carry their row id and reservation; these tests only care about the slot content
+function bare<T extends { slots: DesignedSlot[] }>(day: T): T {
+	const slots: DesignedSlot[] = [];
+	for (const s of day.slots) {
+		slots.push({ startTime: s.startTime, endTime: s.endTime, modality: s.modality });
+	}
+	return { ...day, slots };
+}
+
 async function slotRows(id: string) {
 	return db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, id));
 }
@@ -64,9 +73,11 @@ describe('toDateKey', () => {
 });
 
 describe('parseDesignedSlots', () => {
-	it('accepts an array of slot-shaped objects and drops extra keys', () => {
-		const parsed = parseDesignedSlots([{ startTime: '09:00', endTime: '10:00', modality: 'online', id: 'x' }]);
-		expect(parsed).toEqual([slot('09:00', '10:00')]);
+	it('accepts an array of slot-shaped objects, keeping the id but never a reservation', () => {
+		const parsed = parseDesignedSlots([
+			{ startTime: '09:00', endTime: '10:00', modality: 'online', id: 'x', reservedClientId: 'someone', extra: 1 }
+		]);
+		expect(parsed).toEqual([{ ...slot('09:00', '10:00'), id: 'x' }]);
 	});
 
 	it('accepts an empty array (a day off)', () => {
@@ -92,12 +103,12 @@ describe('replaceWeekTemplate', () => {
 		await replaceWeekTemplate(therapistId, week);
 
 		const design = await getSlotDesign(therapistId, Y, M);
-		expect(design.week[1]).toEqual({
+		expect(bare(design.week[1])).toEqual({
 			slots: [slot('09:00', '10:00'), slot('11:00', '12:00', 'hybrid')],
 			maxSessions: 2,
 			holiday: false
 		});
-		expect(design.week[3]).toEqual({ slots: [slot('14:00', '15:00', 'in_person')], maxSessions: null, holiday: false });
+		expect(bare(design.week[3])).toEqual({ slots: [slot('14:00', '15:00', 'in_person')], maxSessions: null, holiday: false });
 		expect(design.week[0]).toEqual({ slots: [], maxSessions: null, holiday: false });
 
 		// read as text: drizzle's own int[] parse turns NULL elements into NaN (getSlotDesign
@@ -246,9 +257,9 @@ describe('listDesignedDaysForMonth', () => {
 
 		const days = await listDesignedDaysForMonth(therapistId, Y, M);
 		expect(Object.keys(days)).toHaveLength(31);
-		expect(days[1]).toEqual({ slots: [slot('09:00', '10:00')], maxSessions: 1 });
+		expect(bare(days[1])).toEqual({ slots: [slot('09:00', '10:00')], maxSessions: 1 });
 		expect(days[8]).toEqual({ slots: [], maxSessions: null });
-		expect(days[15]).toEqual({ slots: [slot('09:00', '10:00')], maxSessions: 1 });
+		expect(bare(days[15])).toEqual({ slots: [slot('09:00', '10:00')], maxSessions: 1 });
 		expect(days[2].slots).toEqual([]);
 	});
 
@@ -264,7 +275,7 @@ describe('listDesignedDaysForMonth', () => {
 		expect(days[8]).toEqual({ slots: [slot('14:00', '15:00')], maxSessions: null });
 
 		const design = await getSlotDesign(therapistId, Y, M);
-		expect(design.week[5]).toEqual({ slots: [slot('09:00', '10:00')], maxSessions: 1, holiday: true });
+		expect(bare(design.week[5])).toEqual({ slots: [slot('09:00', '10:00')], maxSessions: 1, holiday: true });
 		expect(design.week[4].holiday).toBe(false);
 	});
 });

@@ -1,12 +1,16 @@
 <script lang="ts">
 	import TimeInput from '$lib/components/utils/TimeInput.svelte';
+	import SlotReserveControl from './SlotReserveControl.svelte';
 	import type { DesignedSlot } from '$lib/types/slots';
 
+	// clients is only passed for weekly-template slots: date overrides can't be reserved
 	let {
 		slot = $bindable(),
+		clients,
 		onremove
 	}: {
 		slot: DesignedSlot;
+		clients?: { id: string; name: string }[];
 		onremove: () => void;
 	} = $props();
 
@@ -34,6 +38,9 @@
 			{/each}
 		</select>
 	</label>
+	{#if clients}
+		<SlotReserveControl bind:slot {clients} />
+	{/if}
 	<button type="button" class="remove-btn" onclick={onremove} aria-label="Remove slot">&times;</button>
 </div>
 
