@@ -21,7 +21,7 @@
 <form class="note-editor" method="POST" action="?/saveBookingNote" use:enhance>
 	<Textarea
 		label="Note for your clients"
-		info="Shown to clients above the booking calendar in their portal, e.g. that payment is due before the session starts."
+		info="Shown to clients above the booking calendar in their portal, e.g. that payment is due before the session starts. Your cancellation and rescheduling policies are already shared with clients from Settings (each has its own windows), so you don't need to repeat them here."
 		name="bookingNote"
 		placeholder="e.g. Payment must be made before the session starts."
 		rows={3}

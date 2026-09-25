@@ -1,6 +1,6 @@
 <script lang="ts">
-	// blank = no limit
-	let { value = $bindable() }: { value: number | null } = $props();
+	// blank = no limit. onchange fires once the value is committed (blur or Enter)
+	let { value = $bindable(), onchange }: { value: number | null; onchange?: () => void } = $props();
 
 	function oninput(event: Event & { currentTarget: HTMLInputElement }) {
 		const raw = event.currentTarget.value.trim();
@@ -20,7 +20,7 @@
 
 <label class="max-sessions">
 	<span>Max sessions</span>
-	<input type="number" min="1" max="50" step="1" placeholder="No limit" value={value ?? ''} {oninput} />
+	<input type="number" min="1" max="50" step="1" placeholder="No limit" value={value ?? ''} {oninput} {onchange} />
 </label>
 
 <style>

@@ -176,6 +176,10 @@ export const appointment = pgTable(
 		// set when this appointment was booked against a pack instead of paid individually.
 		// on reschedule, this moves to the new row along with any payment rows (see payments.schema.ts)
 		packId: text('pack_id').references((): AnyPgColumn => paymentPack.id, { onDelete: 'set null' }),
+		// set only on a hold the cron or reserveSlot booked for a reserved weekly slot; null for
+		// every portal/manual booking and for the new row of a reschedule. deleteFutureHolds
+		// finds a slot's holds by this. set null so past/cancelled holds outlive the slot.
+		slotId: text('slot_id').references(() => availabilitySlot.id, { onDelete: 'set null' }),
 		notes: text('notes'),
 		// set for online appointments when the therapist has a connected Google account;
 		// null otherwise (no Meet link shown)
@@ -196,6 +200,7 @@ export const appointment = pgTable(
 	(table) => [
 		index('appointment_therapistId_startAt_idx').on(table.therapistId, table.startAt),
 		index('appointment_clientId_startAt_idx').on(table.clientId, table.startAt),
+		index('appointment_slotId_idx').on(table.slotId),
 		check(
 			'appointment_client_xor_customName',
 			sql`(${table.clientId} is not null)::int + (${table.customName} is not null)::int = 1`

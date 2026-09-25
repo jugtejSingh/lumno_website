@@ -3,23 +3,14 @@ export type SlotModality = 'online' | 'in_person' | 'hybrid';
 
 // A handcrafted bookable slot; times are the therapist's local wall-clock, "HH:MM"
 export type DesignedSlot = {
-	// database id of a stored slot; absent on a slot the therapist just added and hasn't saved.
-	// The weekly save uses it to update/keep existing rows instead of re-creating them
+	// database id of a weekly-template slot; the per-slot actions (weeklySlots.ts) target it
 	id?: string;
 	// weekly-template slots only: the client this slot is held for every week. Read-only here —
-	// it is set through its own action (setSlotReservation), never through the weekly save
+	// it is set through its own action (reserveSlot in weeklySlots.ts)
 	reservedClientId?: string | null;
 	startTime: string;
 	endTime: string;
 	modality: SlotModality;
-};
-
-// A reserved weekly slot the therapist is about to edit or remove (see ReservedSlotChangeDialog)
-export type ReservedSlotChange = {
-	clientName: string;
-	weekdayName: string;
-	time: string;
-	kind: 'changed' | 'removed';
 };
 
 // One day of the design: its slots plus the most sessions it takes (null = no limit)

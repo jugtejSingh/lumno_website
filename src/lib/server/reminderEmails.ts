@@ -9,7 +9,7 @@ import {
 	therapistSettings,
 	user
 } from '$lib/server/db/schema';
-import { payment, paymentPack } from '$lib/server/db/payments.schema';
+import { payment } from '$lib/server/db/payments.schema';
 import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
 import { logError } from '$lib/server/log';
 import { formatCurrency } from '$lib/format';
@@ -164,10 +164,7 @@ export async function sendPaymentReminders(): Promise<void> {
 			clientId: client.id,
 			owed: sql<number>`
 				coalesce((select sum(${payment.amount}) from ${payment}
-					where ${payment.clientId} = ${client.id} and ${payment.status} = 'unpaid'), 0)
-				+ coalesce((select sum(${paymentPack.amount}) from ${paymentPack}
-					where ${paymentPack.clientId} = ${client.id} and ${paymentPack.paidAt} is null and ${paymentPack.status} <> 'cancelled'), 0)
-			`.mapWith(Number),
+					where ${payment.clientId} = ${client.id} and ${payment.status} = 'unpaid'), 0)			`.mapWith(Number),
 			clientEmail: client.email,
 			clientName: client.name,
 			currency: therapist.currency,

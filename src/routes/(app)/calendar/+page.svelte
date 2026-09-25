@@ -147,8 +147,6 @@
 		</div>
 	</div>
 
-	<BookingNoteEditor saved={data.bookingNote} message={form?.noteMessage} />
-
 	<div class="month-view">
 		<!-- colour key for the session chips; mirrors +page.server.ts's statusColor/modalityColor -->
 		<div class="legend">
@@ -189,6 +187,8 @@
 			</Button>
 		{/if}
 	</div>
+
+	<BookingNoteEditor saved={data.bookingNote} message={form?.noteMessage} />
 </div>
 
 <DayDialog
@@ -207,7 +207,6 @@
 	<WeekTemplateDialog
 		week={data.slotDesign.week}
 		clients={data.clients}
-		message={form?.message}
 		onclose={() => (weekTemplateOpen = false)}
 	/>
 {/if}

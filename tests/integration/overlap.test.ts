@@ -8,9 +8,8 @@ import {
 	isOverlapError
 } from '$lib/server/appointments';
 import { createAppointmentForClient } from '$lib/server/availability';
-import { replaceWeekTemplate } from '$lib/server/availabilitySlots';
 import type { WeeklyDay } from '$lib/types/slots';
-import { resetDb, mkTherapist, mkClient, mkAppointment } from './helpers';
+import { resetDb, mkTherapist, mkClient, mkAppointment, mkWeek } from './helpers';
 
 // Double-booking now that the buffer is gone: the JS pre-check (findOverlap) and the
 // appointment_no_overlap trigger both treat ranges as half-open [start, end), so
@@ -147,7 +146,7 @@ describe('appointment_no_overlap trigger (the race backstop)', () => {
 		for (let weekday = 0; weekday < 7; weekday++) {
 			week.push({ slots: [{ startTime: '15:00', endTime: '16:00', modality: 'online' }], maxSessions: null, holiday: false });
 		}
-		await replaceWeekTemplate(therapistId, week);
+		await mkWeek(therapistId, week);
 		const rival = await mkClient(therapistId, { name: 'Rival Client' });
 		// a date inside the 14-day booking window
 		const soon = new Date();

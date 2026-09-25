@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { appointment } from '$lib/server/db/schema';
 import {
@@ -10,7 +10,6 @@ import {
 import { cancelAppointment, createAppointmentForTherapist } from '$lib/server/appointments';
 import { listDayKindsForMonth } from '$lib/server/schedule';
 import {
-	replaceWeekTemplate,
 	setDateOverride,
 	clearDateOverride,
 	toDateKey,
@@ -21,7 +20,8 @@ import {
 } from '$lib/server/availabilitySlots';
 import { addCharge, createPack, getActivePackForClient, listPacksForTherapist } from '$lib/server/payments';
 import { payment } from '$lib/server/db/schema';
-import { resetDb, mkTherapist, mkClient, mkSettings, mkAppointment } from './helpers';
+import { reserveSlot } from '$lib/server/weeklySlots';
+import { resetDb, mkTherapist, mkClient, mkSettings, mkAppointment, mkSlot, mkWeek } from './helpers';
 
 // therapist in UTC so wall-clock slot times line up with the UTC instants we insert
 let therapistId: string;
@@ -49,7 +49,7 @@ async function everyDay(slots: DesignedSlot[], maxSessions: number | null = null
 	for (let weekday = 0; weekday < 7; weekday++) {
 		week.push({ slots, maxSessions, holiday: false });
 	}
-	await replaceWeekTemplate(therapistId, week);
+	await mkWeek(therapistId, week);
 }
 
 const threeHourly = [slot('09:00', '10:00'), slot('10:00', '11:00'), slot('11:00', '12:00')];
@@ -82,7 +82,7 @@ describe('listAvailabilityForMonth', () => {
 			week.push({ slots: threeHourly, maxSessions: null, holiday: false });
 		}
 		week[targetWeekday] = { slots: [], maxSessions: null, holiday: false };
-		await replaceWeekTemplate(therapistId, week);
+		await mkWeek(therapistId, week);
 		const byDay = await listAvailabilityForMonth(therapistId, y, m);
 		expect(byDay[d]).toBeUndefined();
 	});
@@ -182,6 +182,61 @@ describe('client booking', () => {
 			modality: 'in_person'
 		});
 		expect(result.appointment?.modality).toBe('online');
+	});
+});
+
+describe('reserved slots are never offered to clients', () => {
+	function offeredStarts(byDay: Awaited<ReturnType<typeof listAvailabilityForMonth>>) {
+		const starts: string[] = [];
+		for (const open of byDay[d] ?? []) {
+			starts.push(open.startTime);
+		}
+		return starts;
+	}
+
+	it('a reserved slot never appears, even in a week with no hold', async () => {
+		const reservedFor = await mkClient(therapistId, { name: 'Reserved' });
+		// written straight to the table, so no hold exists on the target date
+		await mkSlot(therapistId, { weekday: targetWeekday, reservedClientId: reservedFor.id });
+
+		const byDay = await listAvailabilityForMonth(therapistId, y, m);
+
+		expect(offeredStarts(byDay)).not.toContain('10:00');
+	});
+
+	it('a reserved slot can’t be booked from a stale page', async () => {
+		const reservedFor = await mkClient(therapistId, { name: 'Reserved' });
+		await mkSlot(therapistId, { weekday: targetWeekday, reservedClientId: reservedFor.id });
+
+		const result = await createAppointmentForClient(therapistId, clientId, {
+			year: y,
+			month: m,
+			day: d,
+			startTime: '10:00'
+		});
+
+		expect(result.error).toBe('unavailable');
+	});
+
+	it('an open slot on the same day is still offered', async () => {
+		const reservedFor = await mkClient(therapistId, { name: 'Reserved' });
+		await mkSlot(therapistId, { weekday: targetWeekday, reservedClientId: reservedFor.id });
+		await mkSlot(therapistId, { weekday: targetWeekday, startTime: '14:00', endTime: '15:00' });
+
+		const byDay = await listAvailabilityForMonth(therapistId, y, m);
+
+		expect(offeredStarts(byDay)).toEqual(['14:00']);
+	});
+
+	it('after release, the slot is offered again', async () => {
+		const reservedFor = await mkClient(therapistId, { name: 'Reserved' });
+		const reserved = await mkSlot(therapistId, { weekday: targetWeekday });
+		await reserveSlot(therapistId, reserved.id, reservedFor.id);
+		expect(offeredStarts(await listAvailabilityForMonth(therapistId, y, m))).not.toContain('10:00');
+
+		await reserveSlot(therapistId, reserved.id, null);
+
+		expect(offeredStarts(await listAvailabilityForMonth(therapistId, y, m))).toContain('10:00');
 	});
 });
 
@@ -451,8 +506,12 @@ describe('client booking with a session pack', () => {
 	const bookNine = () =>
 		createAppointmentForClient(therapistId, clientId, { year: y, month: m, day: d, startTime: '09:00' });
 
+	// session charges only: a pack's purchase row (payment.packId) is the pack's price, not a booking
 	async function chargesFor(id: string) {
-		return db.select().from(payment).where(eq(payment.clientId, id));
+		return db
+			.select()
+			.from(payment)
+			.where(and(eq(payment.clientId, id), isNull(payment.packId)));
 	}
 
 	beforeEach(async () => {

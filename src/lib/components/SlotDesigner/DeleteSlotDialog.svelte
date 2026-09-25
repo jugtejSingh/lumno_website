@@ -2,28 +2,25 @@
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 
-	// Shown before any change to a reserved slot: an edit, a swap, a release or a delete. The
-	// server deletes the slot's future holds on every one of those (deleteFutureHolds).
+	// Shown before deleting an open weekly slot. A reserved one uses ReservedSlotChangeDialog.
 	let {
-		clientName,
 		onconfirm,
 		oncancel
 	}: {
-		clientName: string;
 		onconfirm: () => void;
 		oncancel: () => void;
 	} = $props();
 </script>
 
-<Dialog open={true} title="Change a reserved slot?" onclose={oncancel}>
+<Dialog open={true} title="Delete this slot?" onclose={oncancel}>
 	<div class="body">
 		<p>
-			<strong>{clientName}</strong>’s future sessions on this slot will be deleted, along with their
-			unpaid charges. Pack credits are returned.
+			Sessions already booked <strong>will stay</strong>. Clients won’t be able to book this time
+			again.
 		</p>
 		<div class="actions">
 			<Button type="button" variant="secondary" onclick={oncancel}>Cancel</Button>
-			<Button type="button" variant="primary" onclick={onconfirm}>Confirm</Button>
+			<Button type="button" variant="primary" onclick={onconfirm}>Delete slot</Button>
 		</div>
 	</div>
 </Dialog>

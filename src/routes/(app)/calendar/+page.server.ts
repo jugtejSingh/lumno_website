@@ -22,16 +22,23 @@ import {
 	parseDesignedSlots,
 	validateDaySlots,
 	parseMaxSessions,
-	replaceWeekTemplate,
-	setSlotReservation,
 	setDateOverride,
 	clearDateOverride,
 	toDateKey,
-	type WeeklyDay
+	type SlotModality
 } from '$lib/server/availabilitySlots';
+import {
+	addSlot,
+	updateSlot,
+	deleteSlot,
+	reserveSlot,
+	saveWeekDay,
+	copyDay,
+	type SlotChangeResult,
+	type WeeklySlotInput
+} from '$lib/server/weeklySlots';
 import { getBookingNote, setBookingNote, BOOKING_NOTE_MAX_LENGTH } from '$lib/server/bookingNote';
 import { logError } from '$lib/server/log';
-import { materialiseReservedSlots } from '$lib/server/recurringBookings';
 import { parseDateParts, parseTimeParts, type OverlapConflict } from '$lib/server/appointments';
 
 const addAppointmentErrorMessages = {
@@ -145,6 +152,54 @@ export const load: PageServerLoad = async (event) => {
 };
 
 const MAX_SESSIONS_MESSAGE = 'Max sessions must be a whole number from 1 to 50, or blank for no limit';
+const UNREADABLE_SLOT_MESSAGE = 'Could not read that slot — reload and try again';
+
+const slotChangeErrorMessages: Record<NonNullable<SlotChangeResult['error']>, string> = {
+	slot_not_found: 'That slot could not be found — reload and try again',
+	client_not_found: 'That client could not be found',
+	hybrid_slot: 'A slot where the client picks online or in person can’t be reserved',
+	reserved_overlap: 'A reserved slot can’t overlap another slot on the same day'
+};
+
+// "0".."6" (Sunday first) or null
+function parseWeekday(raw: FormDataEntryValue | null): number | null {
+	const text = raw?.toString() ?? '';
+	if (!/^[0-6]$/.test(text)) {
+		return null;
+	}
+	return Number(text);
+}
+
+// the weekday/startTime/endTime/modality fields of one weekly slot, or the message to fail with
+function readWeeklySlot(formData: FormData): { slot: WeeklySlotInput } | { message: string } {
+	const weekday = parseWeekday(formData.get('weekday'));
+	const startTime = formData.get('startTime');
+	const endTime = formData.get('endTime');
+	const modality = formData.get('modality');
+	if (weekday === null || startTime === null || endTime === null || modality === null) {
+		return { message: UNREADABLE_SLOT_MESSAGE };
+	}
+	const slot = {
+		weekday,
+		startTime: startTime.toString(),
+		endTime: endTime.toString(),
+		modality: modality.toString() as SlotModality
+	};
+	const error = validateDaySlots([slot]);
+	if (error) {
+		return { message: error };
+	}
+	return { slot };
+}
+
+function slotChangeResponse(result: SlotChangeResult) {
+	if (result.error) {
+		return fail(400, { message: slotChangeErrorMessages[result.error] });
+	}
+	if (result.booking) {
+		return { booking: result.booking };
+	}
+}
 
 function readJson(formData: FormData, field: string): unknown {
 	try {
@@ -166,75 +221,89 @@ export const actions: Actions = {
 		await setBookingNote(therapistId, note);
 	},
 
-	saveWeekTemplate: async (event) => {
+	addSlot: async (event) => {
 		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const raw = readJson(formData, 'week');
-		if (!Array.isArray(raw) || raw.length !== 7) {
-			return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
+		const read = readWeeklySlot(await event.request.formData());
+		if ('message' in read) {
+			return fail(400, { message: read.message });
 		}
-
-		const week: WeeklyDay[] = [];
-		for (const rawDay of raw) {
-			if (typeof rawDay !== 'object' || rawDay === null) {
-				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
-			}
-			const { slots: rawSlots, maxSessions: rawMax, holiday } = rawDay as Record<string, unknown>;
-			const daySlots = parseDesignedSlots(rawSlots);
-			if (!daySlots) {
-				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
-			}
-			const error = validateDaySlots(daySlots);
-			if (error) {
-				return fail(400, { message: error });
-			}
-			const maxSessions = parseMaxSessions(rawMax);
-			if (maxSessions === undefined) {
-				return fail(400, { message: MAX_SESSIONS_MESSAGE });
-			}
-			if (typeof holiday !== 'boolean') {
-				return fail(400, { message: 'Could not read your weekly slots — reload and try again' });
-			}
-			week.push({ slots: daySlots, maxSessions, holiday });
-		}
-
-		await replaceWeekTemplate(therapistId, week);
+		return slotChangeResponse(await addSlot(therapistId, read.slot));
 	},
 
-	// holds a saved weekly slot for one client every week; an empty clientId releases it
+	updateSlot: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const slotId = formData.get('slotId')?.toString() ?? '';
+		const read = readWeeklySlot(formData);
+		if ('message' in read) {
+			return fail(400, { message: read.message });
+		}
+		if (!slotId) {
+			return fail(400, { message: slotChangeErrorMessages.slot_not_found });
+		}
+		return slotChangeResponse(await updateSlot(therapistId, slotId, read.slot));
+	},
+
+	deleteSlot: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const slotId = formData.get('slotId')?.toString() ?? '';
+		if (!slotId) {
+			return fail(400, { message: slotChangeErrorMessages.slot_not_found });
+		}
+		return slotChangeResponse(await deleteSlot(therapistId, slotId));
+	},
+
+	// holds a weekly slot for one client every week; an empty clientId releases it
 	reserveSlot: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
 		const slotId = formData.get('slotId')?.toString() ?? '';
 		const clientIdRaw = formData.get('clientId')?.toString() ?? '';
 		if (!slotId) {
-			return fail(400, { message: 'Save the slot before reserving it' });
+			return fail(400, { message: slotChangeErrorMessages.slot_not_found });
 		}
 
 		let clientId: string | null = null;
 		if (clientIdRaw !== '') {
 			clientId = clientIdRaw;
 		}
-		const result = await setSlotReservation(therapistId, slotId, clientId);
-		if (result.error === 'slot_not_found') {
-			return fail(400, { message: 'That slot could not be found — reload and try again' });
+		return slotChangeResponse(await reserveSlot(therapistId, slotId, clientId));
+	},
+
+	saveWeekDay: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const weekday = parseWeekday(formData.get('weekday'));
+		if (weekday === null) {
+			return fail(400, { message: UNREADABLE_SLOT_MESSAGE });
 		}
-		if (result.error === 'client_not_found') {
-			return fail(400, { message: 'That client could not be found' });
+		const maxSessions = parseMaxSessions(formData.get('maxSessions')?.toString() ?? '');
+		if (maxSessions === undefined) {
+			return fail(400, { message: MAX_SESSIONS_MESSAGE });
 		}
-		if (result.error === 'hybrid_slot') {
-			return fail(400, { message: 'A slot where the client picks online or in person can’t be reserved' });
+		const holiday = formData.get('holiday') === 'on';
+
+		await saveWeekDay(therapistId, weekday, maxSessions, holiday);
+	},
+
+	copyDay: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const fromWeekday = parseWeekday(formData.get('fromWeekday'));
+		if (fromWeekday === null) {
+			return fail(400, { message: UNREADABLE_SLOT_MESSAGE });
+		}
+		const targets: number[] = [];
+		for (const raw of formData.getAll('targets')) {
+			const weekday = parseWeekday(raw);
+			if (weekday === null) {
+				return fail(400, { message: UNREADABLE_SLOT_MESSAGE });
+			}
+			targets.push(weekday);
 		}
 
-		// book the coming two weeks now instead of waiting for tonight's cron. The reservation is
-		// already saved, so a failure here is logged and the cron retries it.
-		if (clientId !== null) {
-			try {
-				await materialiseReservedSlots({ slotId });
-			} catch (err) {
-				logError('calendar.reserveSlot', err);
-			}
-		}
+		await copyDay(therapistId, fromWeekday, targets);
 	},
 
 	saveDateOverride: async (event) => {

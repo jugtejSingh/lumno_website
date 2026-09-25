@@ -70,16 +70,8 @@
 						<div class="pack-row">
 							<span class="balance-name">{pack.clientName}</span>
 							<span class="pack-detail">
-								{pack.remaining} of {pack.sessionCount} sessions left · {formatCurrency(pack.amount, data.currency)}
+								{pack.remaining} of {pack.sessionCount} sessions left
 							</span>
-							{#if pack.paid}
-								<span class="pack-detail">Paid</span>
-							{:else}
-								<form method="POST" action="?/markPackPaid" use:enhance>
-									<input type="hidden" name="packId" value={pack.id} />
-									<Button type="submit" variant="secondary" size="sm">Mark paid</Button>
-								</form>
-							{/if}
 						</div>
 					</Card>
 				{/each}

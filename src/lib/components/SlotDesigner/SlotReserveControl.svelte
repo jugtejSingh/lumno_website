@@ -1,21 +1,86 @@
 <script lang="ts">
-	import { deserialize } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	import type { DesignedSlot } from '$lib/types/slots';
+	import ReserveOverlapDialog from './ReserveOverlapDialog.svelte';
+	import ReservedSlotChangeDialog from './ReservedSlotChangeDialog.svelte';
+	import { useHeldSlotsLookup } from './reservedSlotsContext';
+	import { bookingSummary, postSlotAction } from './slotActions';
 
-	// Holds a saved weekly slot for one client every week. Deliberately not part of the weekly
-	// save: it posts to its own action (?/reserveSlot) as soon as a client is picked, so a
-	// reservation can never be wiped or changed by saving the template.
+	// Holds a weekly slot for one client every week, or releases it. Posts ?/reserveSlot as soon
+	// as a client is picked. Changing who holds a reserved slot deletes their future sessions,
+	// so that asks first.
 	let {
-		slot = $bindable(),
+		slot,
 		clients
 	}: {
 		slot: DesignedSlot;
 		clients: { id: string; name: string }[];
 	} = $props();
 
+	const lookupHeldSlots = useHeldSlotsLookup();
+
 	let saving = $state(false);
 	let error = $state('');
+	let summary = $state('');
+	// the pick waiting on a modal; null = no modal
+	let pendingClientId = $state<string | null>(null);
+	let confirmingRelease = $state(false);
+	let pendingHeldSlots = $state<string[]>([]);
+	let selectElement = $state<HTMLSelectElement>();
+
+	function nameOf(clientId: string | null | undefined): string {
+		for (const client of clients) {
+			if (client.id === clientId) {
+				return client.name;
+			}
+		}
+		return 'This client';
+	}
+
+	function onPick(clientId: string) {
+		pendingClientId = clientId;
+		if (slot.reservedClientId) {
+			confirmingRelease = true;
+			return;
+		}
+		checkHeldSlots();
+	}
+
+	// A client who already holds another slot would be booked at both times, so ask first.
+	function checkHeldSlots() {
+		confirmingRelease = false;
+		const clientId = pendingClientId;
+		if (clientId === null) {
+			return;
+		}
+		if (clientId !== '' && slot.id && lookupHeldSlots) {
+			const held = lookupHeldSlots(clientId, slot.id);
+			if (held.length > 0) {
+				pendingHeldSlots = held;
+				return;
+			}
+		}
+		pendingClientId = null;
+		reserve(clientId);
+	}
+
+	function confirmOverlap() {
+		const clientId = pendingClientId;
+		pendingClientId = null;
+		pendingHeldSlots = [];
+		if (clientId !== null) {
+			reserve(clientId);
+		}
+	}
+
+	// the select already shows the new pick, so put it back to what is actually saved
+	function cancelPick() {
+		pendingClientId = null;
+		confirmingRelease = false;
+		pendingHeldSlots = [];
+		if (selectElement) {
+			selectElement.value = slot.reservedClientId ?? '';
+		}
+	}
 
 	async function reserve(clientId: string) {
 		if (!slot.id) {
@@ -23,63 +88,54 @@
 		}
 		saving = true;
 		error = '';
-		try {
-			const body = new FormData();
-			body.set('slotId', slot.id);
-			body.set('clientId', clientId);
-			const response = await fetch('?/reserveSlot', {
-				method: 'POST',
-				headers: { 'x-sveltekit-action': 'true' },
-				body
-			});
-			const result = deserialize(await response.text());
-			if (result.type === 'success') {
-				if (clientId === '') {
-					slot.reservedClientId = null;
-				} else {
-					slot.reservedClientId = clientId;
-				}
-				await invalidateAll();
-			} else if (result.type === 'failure') {
-				error = 'Could not reserve that slot';
-				const message = result.data?.message;
-				if (typeof message === 'string') {
-					error = message;
-				}
-			} else {
-				error = 'Could not reserve that slot';
-			}
-		} catch {
-			error = 'Could not reserve that slot';
-		} finally {
-			saving = false;
+		summary = '';
+		const result = await postSlotAction('reserveSlot', { slotId: slot.id, clientId });
+		saving = false;
+		if (!result.ok) {
+			error = result.message;
+			cancelPick();
+			return;
+		}
+		if (result.booking) {
+			summary = bookingSummary(result.booking);
 		}
 	}
 </script>
 
-{#if slot.modality !== 'hybrid'}
+{#if slot.modality !== 'hybrid' && slot.id}
 	<div class="reserve">
-		{#if slot.id}
-			<label class="reserve-chip" class:reserved={!!slot.reservedClientId}>
-				<span class="sr-only">Reserved for</span>
-				<select
-					value={slot.reservedClientId ?? ''}
-					disabled={saving}
-					onchange={(event) => reserve(event.currentTarget.value)}
-				>
-					<option value="">Open to everyone</option>
-					{#each clients as client (client.id)}
-						<option value={client.id}>Reserved: {client.name}</option>
-					{/each}
-				</select>
-			</label>
-		{:else}
-			<span class="hint">Save to reserve</span>
+		<label class="reserve-chip" class:reserved={!!slot.reservedClientId}>
+			<span class="sr-only">Reserved for</span>
+			<select
+				bind:this={selectElement}
+				value={slot.reservedClientId ?? ''}
+				disabled={saving}
+				onchange={(event) => onPick(event.currentTarget.value)}
+			>
+				<option value="">Open to everyone</option>
+				{#each clients as client (client.id)}
+					<option value={client.id}>Reserved: {client.name}</option>
+				{/each}
+			</select>
+		</label>
+		{#if summary}
+			<span class="summary">{summary}</span>
 		{/if}
 		{#if error}
 			<span class="error">{error}</span>
 		{/if}
 	</div>
+{/if}
+
+{#if confirmingRelease}
+	<ReservedSlotChangeDialog clientName={nameOf(slot.reservedClientId)} onconfirm={checkHeldSlots} oncancel={cancelPick} />
+{:else if pendingHeldSlots.length > 0}
+	<ReserveOverlapDialog
+		clientName={nameOf(pendingClientId)}
+		heldSlots={pendingHeldSlots}
+		onconfirm={confirmOverlap}
+		oncancel={cancelPick}
+	/>
 {/if}
 
 <style>
@@ -115,9 +171,8 @@
 		box-shadow: var(--shadow-focus);
 	}
 
-	.hint {
-		font-size: 11.5px;
-		font-style: italic;
+	.summary {
+		font-size: 12px;
 		color: var(--text-muted);
 	}
 

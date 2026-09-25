@@ -3,12 +3,12 @@ import { eq } from 'drizzle-orm';
 import { isActionFailure, isRedirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { appointment, client } from '$lib/server/db/schema';
-import { replaceWeekTemplate, type WeeklyDay, type DesignedSlot } from '$lib/server/availabilitySlots';
+import type { WeeklyDay, DesignedSlot } from '$lib/server/availabilitySlots';
 import { load as layoutLoad } from '../../src/routes/(portal)/+layout.server';
 import { load as pageLoad, actions } from '../../src/routes/(portal)/portal/+page.server';
 import { createPack } from '$lib/server/payments';
 import { setBookingNote } from '$lib/server/bookingNote';
-import { resetDb, mkTherapist, mkClient, mkUser, mkAppointment, mkPack, mkEvent } from './helpers';
+import { resetDb, mkTherapist, mkClient, mkUser, mkAppointment, mkPack, mkEvent, mkWeek } from './helpers';
 
 // The client portal: what the layout ships to the browser, and the client's own actions.
 
@@ -32,7 +32,7 @@ async function everyDay(slots: DesignedSlot[], maxSessions: number | null) {
 	for (let weekday = 0; weekday < 7; weekday++) {
 		week.push({ slots, maxSessions, holiday: false });
 	}
-	await replaceWeekTemplate(therapistId, week);
+	await mkWeek(therapistId, week);
 }
 
 const threeHourly: DesignedSlot[] = [
@@ -291,7 +291,7 @@ describe('portal load: packs and booking note', () => {
 	});
 
 	it('flags a used-up pack', async () => {
-		await mkPack(therapistId, clientId, { status: 'completed', paidAt: new Date() });
+		await mkPack(therapistId, clientId, { status: 'completed' });
 
 		const data = await runPage(`year=${y}&month=${m}`);
 		expect(data.packRemaining).toBeNull();
@@ -299,7 +299,7 @@ describe('portal load: packs and booking note', () => {
 	});
 
 	it('is not "used up" once a new pack is active', async () => {
-		await mkPack(therapistId, clientId, { status: 'completed', paidAt: new Date() });
+		await mkPack(therapistId, clientId, { status: 'completed' });
 		await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
 
 		const data = await runPage(`year=${y}&month=${m}`);

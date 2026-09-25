@@ -37,7 +37,11 @@ import { getPaymentSettings, getManualPayDetails } from '$lib/server/paymentSett
 import { signedUrl } from '$lib/server/storage';
 import { connectionHealth } from '$lib/server/razorpayConnection';
 import { startInvoiceCheckout } from '$lib/server/sessionPayments';
-import { formatCancellationPolicy, formatReschedulePolicy } from '$lib/server/paymentPolicy';
+import {
+	formatCancellationPolicy,
+	formatReschedulePolicy,
+	resolveReschedulePolicyOutcome
+} from '$lib/server/paymentPolicy';
 import { formatCurrency } from '$lib/format';
 import { resourceActions } from '$lib/server/resourceActions';
 import { clientScope, listResources } from '$lib/server/resources';
@@ -150,14 +154,30 @@ export const load: PageServerLoad = async (event) => {
 		manualPay = { qrUrl, bankDetails: manualPayRow.bankDetails };
 	}
 
-	const sessions = upcoming.map((appt) => ({
-		id: appt.id,
-		when: appt.when,
-		type: modalityLabel[appt.modality] ?? 'Session',
-		status: appt.status,
-		tone: 'success' as const,
-		meetLink: appt.meetLink
-	}));
+	const sessions: {
+		id: string;
+		when: string;
+		type: string;
+		status: string;
+		tone: 'success';
+		meetLink: string | null;
+		rescheduleChargesRegularRate: boolean;
+	}[] = [];
+	for (const appt of upcoming) {
+		// moving a pack session inside the 100% window loses its credit, and with no credit
+		// left the replacement session is billed at the regular rate
+		const rescheduleTier = resolveReschedulePolicyOutcome(appt.startAt, paymentSettings, 0).tier;
+		const noCreditLeft = packRemaining === null || packRemaining <= 0;
+		sessions.push({
+			id: appt.id,
+			when: appt.when,
+			type: modalityLabel[appt.modality] ?? 'Session',
+			status: appt.status,
+			tone: 'success',
+			meetLink: appt.meetLink,
+			rescheduleChargesRegularRate: appt.packId !== null && rescheduleTier === 'full' && noCreditLeft
+		});
+	}
 
 	const invoices = payments.rows.map((p) => ({
 		id: p.id,

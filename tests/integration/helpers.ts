@@ -11,10 +11,14 @@ import {
 	paymentPack,
 	payment,
 	appointment,
+	availabilitySlot,
 	organization,
 	subscription,
 	clientNote
 } from '$lib/server/db/schema';
+import type { WeeklyDay } from '$lib/types/slots';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const TABLES = [
 	'client_note',
@@ -96,15 +100,29 @@ export async function mkPaymentSettings(
 	return row;
 }
 
+// A pack row. Pass `price` to also add its purchase payment row (what createPack writes),
+// e.g. to set up a finished pack that was never paid for.
 export async function mkPack(
 	therapistId: string,
 	clientId: string,
-	overrides: Partial<typeof paymentPack.$inferInsert> = {}
+	overrides: Partial<typeof paymentPack.$inferInsert> = {},
+	price?: { amount: number; paid: boolean }
 ) {
 	const [row] = await db
 		.insert(paymentPack)
-		.values({ therapistId, clientId, sessionCount: 10, amount: 9000, ...overrides })
+		.values({ therapistId, clientId, sessionCount: 10, ...overrides })
 		.returning();
+	if (price) {
+		let status: 'paid' | 'unpaid' = 'unpaid';
+		let paidAt: Date | null = null;
+		if (price.paid) {
+			status = 'paid';
+			paidAt = new Date();
+		}
+		await db
+			.insert(payment)
+			.values({ therapistId, clientId, packId: row.id, amount: price.amount, status, paidAt });
+	}
 	return row;
 }
 
@@ -132,6 +150,59 @@ export async function mkAppointment(
 		.values({ therapistId, clientId, startAt: start, endAt: end, modality: 'online', ...overrides })
 		.returning();
 	return row;
+}
+
+// One weekly slot row, written straight to the table (no weeklySlots.ts rules applied).
+export async function mkSlot(
+	therapistId: string,
+	overrides: Partial<typeof availabilitySlot.$inferInsert> = {}
+) {
+	const [row] = await db
+		.insert(availabilitySlot)
+		.values({ therapistId, weekday: 1, startTime: '10:00', endTime: '11:00', modality: 'online', ...overrides })
+		.returning();
+	return row;
+}
+
+// Test setup for a whole weekly template: inserts every slot and writes the caps and holidays.
+// Replaces the removed replaceWeekTemplate in fixtures; it is not the code under test.
+export async function mkWeek(therapistId: string, week: WeeklyDay[]) {
+	const weeklyMaxSessions: (number | null)[] = [];
+	const weeklyHolidays: boolean[] = [];
+	for (let weekday = 0; weekday < 7; weekday++) {
+		for (const slot of week[weekday].slots) {
+			await mkSlot(therapistId, {
+				weekday,
+				startTime: slot.startTime,
+				endTime: slot.endTime,
+				modality: slot.modality
+			});
+		}
+		weeklyMaxSessions.push(week[weekday].maxSessions);
+		weeklyHolidays.push(week[weekday].holiday);
+	}
+	await mkSettings(therapistId, { weeklyMaxSessions, weeklyHolidays });
+}
+
+// A calendar date `daysAhead` from today, for a therapist on UTC. Days 1–13 are always inside
+// the 14 day booking window and in the future. A weekday taken from day 1–6 occurs exactly
+// twice in the window (that day and a week later), whatever time of day the suite runs.
+export function dateAhead(daysAhead: number) {
+	const date = new Date(Date.now() + daysAhead * DAY_MS);
+	const year = date.getUTCFullYear();
+	const month = date.getUTCMonth();
+	const day = date.getUTCDate();
+	const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+	return {
+		year,
+		month,
+		day,
+		weekday: date.getUTCDay(),
+		key,
+		at(hour: number, minute: number = 0) {
+			return new Date(Date.UTC(year, month, day, hour, minute));
+		}
+	};
 }
 
 export async function mkOrg(

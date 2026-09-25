@@ -102,6 +102,10 @@ export async function listAvailabilityForMonth(
 		const slots: AvailableSlot[] = [];
 
 		for (const designed of design.slots) {
+			// a reserved slot belongs to its client every week, booked or not
+			if (designed.reservedClientId) {
+				continue;
+			}
 			const [hour, minute] = parseTimeOfDay(designed.startTime);
 			const [endHour, endMinute] = parseTimeOfDay(designed.endTime);
 			const slotStart = zonedDateToUTC(year, month, day, hour, minute, timezone);

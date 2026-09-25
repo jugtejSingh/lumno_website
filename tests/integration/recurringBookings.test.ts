@@ -1,66 +1,72 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { appointment, availabilitySlot, payment, paymentPack, client } from '$lib/server/db/schema';
-import { materialiseReservedSlots } from '$lib/server/recurringBookings';
-import { replaceWeekTemplate, setDateOverride, setSlotReservation, getSlotDesign } from '$lib/server/availabilitySlots';
-import type { DesignedSlot, WeeklyDay } from '$lib/types/slots';
-import { resetDb, mkTherapist, mkClient, mkPack, mkAppointment } from './helpers';
+import { appointment, availabilitySlot, payment, paymentPack, client, clientNote } from '$lib/server/db/schema';
+import { materialiseReservedSlots, deleteFutureHolds } from '$lib/server/recurringBookings';
+import { setDateOverride } from '$lib/server/availabilitySlots';
+import { saveWeekDay } from '$lib/server/weeklySlots';
+import { getActivePackForClient } from '$lib/server/payments';
+import { rescheduleAppointmentForTherapist } from '$lib/server/appointments';
+import {
+	resetDb,
+	mkTherapist,
+	mkClient,
+	mkPack,
+	mkPayment,
+	mkAppointment,
+	mkNote,
+	mkSlot,
+	dateAhead
+} from './helpers';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let therapistId: string;
 let clientId: string;
 
-// The therapist is on UTC, so a slot at 10:00 is 10:00 UTC. `daysAhead` from 1 to 13 is always
-// inside the 14 day window and always in the future, whatever time of day the suite runs.
-function dateAhead(daysAhead: number) {
-	const date = new Date(Date.now() + daysAhead * DAY_MS);
-	const year = date.getUTCFullYear();
-	const month = date.getUTCMonth();
-	const day = date.getUTCDate();
-	const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-	return {
-		year,
-		month,
-		day,
-		weekday: date.getUTCDay(),
-		key,
-		at(hour: number) {
-			return new Date(Date.UTC(year, month, day, hour, 0));
-		}
-	};
-}
-
+// The therapist is on UTC, so a slot at 10:00 is 10:00 UTC.
 async function mkReservedSlot(
 	weekday: number,
 	overrides: Partial<typeof availabilitySlot.$inferInsert> = {}
 ) {
-	const [row] = await db
-		.insert(availabilitySlot)
-		.values({
-			therapistId,
-			weekday,
-			startTime: '10:00',
-			endTime: '11:00',
-			modality: 'online',
-			reservedClientId: clientId,
-			...overrides
-		})
-		.returning();
-	return row;
+	return mkSlot(therapistId, { weekday, reservedClientId: clientId, ...overrides });
 }
 
 async function appointmentsFor(forClientId: string) {
 	return db.select().from(appointment).where(eq(appointment.clientId, forClientId)).orderBy(appointment.startAt);
 }
 
-function emptyWeek(): WeeklyDay[] {
-	const week: WeeklyDay[] = [];
-	for (let weekday = 0; weekday < 7; weekday++) {
-		week.push({ slots: [], maxSessions: null, holiday: false });
-	}
-	return week;
+async function appointmentById(id: string) {
+	const [row] = await db.select().from(appointment).where(eq(appointment.id, id));
+	return row;
+}
+
+async function paymentById(id: string) {
+	const [row] = await db.select().from(payment).where(eq(payment.id, id));
+	return row;
+}
+
+async function packById(id: string) {
+	const [row] = await db.select().from(paymentPack).where(eq(paymentPack.id, id));
+	return row;
+}
+
+// A future confirmed hold on `slotId`, written straight to the table.
+async function mkHold(slotId: string, daysAhead: number, overrides: Partial<typeof appointment.$inferInsert> = {}) {
+	const date = dateAhead(daysAhead);
+	return mkAppointment(therapistId, clientId, {
+		startAt: date.at(10),
+		endAt: date.at(11),
+		slotId,
+		...overrides
+	});
+}
+
+// deleteFutureHolds always runs inside the caller's transaction
+async function runDelete(slotId: string) {
+	return db.transaction(async (tx) => {
+		return deleteFutureHolds(tx, slotId);
+	});
 }
 
 beforeEach(async () => {
@@ -81,6 +87,7 @@ describe('materialiseReservedSlots: booking', () => {
 		expect(rows.length).toBeGreaterThanOrEqual(2);
 		expect(rows.length).toBeLessThanOrEqual(3);
 		expect(result.created).toBe(rows.length);
+		expect(result.blocked).toBe(0);
 		expect(result.failed).toBe(0);
 		expect(rows[0].startAt.getTime()).toBe(target.at(10).getTime());
 		expect(rows[0].endAt.getTime()).toBe(target.at(11).getTime());
@@ -94,6 +101,18 @@ describe('materialiseReservedSlots: booking', () => {
 		}
 	});
 
+	it('sets slotId on every hold it books', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+
+		await materialiseReservedSlots();
+
+		const rows = await appointmentsFor(clientId);
+		expect(rows.length).toBeGreaterThan(0);
+		for (const row of rows) {
+			expect(row.slotId).toBe(slot.id);
+		}
+	});
+
 	it('is idempotent: a second and third run create nothing', async () => {
 		await mkReservedSlot(dateAhead(2).weekday);
 		const first = await materialiseReservedSlots();
@@ -101,15 +120,15 @@ describe('materialiseReservedSlots: booking', () => {
 		const third = await materialiseReservedSlots();
 
 		expect(first.created).toBeGreaterThan(0);
-		expect(second).toEqual({ created: 0, failed: 0 });
-		expect(third).toEqual({ created: 0, failed: 0 });
+		expect(second).toEqual({ created: 0, blocked: 0, failed: 0 });
+		expect(third).toEqual({ created: 0, blocked: 0, failed: 0 });
 		expect((await appointmentsFor(clientId)).length).toBe(first.created);
 	});
 
 	it('books nothing when no slot is reserved', async () => {
 		await mkReservedSlot(dateAhead(2).weekday, { reservedClientId: null });
 		const result = await materialiseReservedSlots();
-		expect(result).toEqual({ created: 0, failed: 0 });
+		expect(result).toEqual({ created: 0, blocked: 0, failed: 0 });
 		expect(await appointmentsFor(clientId)).toHaveLength(0);
 	});
 
@@ -119,14 +138,7 @@ describe('materialiseReservedSlots: booking', () => {
 		// 10:00 IST is 04:30 UTC. Book it on tomorrow's IST calendar date.
 		const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
 		const tomorrow = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate() + 1));
-		await db.insert(availabilitySlot).values({
-			therapistId: kolkata.id,
-			weekday: tomorrow.getUTCDay(),
-			startTime: '10:00',
-			endTime: '11:00',
-			modality: 'online',
-			reservedClientId: kolkataClient.id
-		});
+		await mkSlot(kolkata.id, { weekday: tomorrow.getUTCDay(), reservedClientId: kolkataClient.id });
 
 		await materialiseReservedSlots();
 
@@ -163,14 +175,7 @@ describe('materialiseReservedSlots: booking', () => {
 			endTime: '15:00',
 			reservedClientId: otherClient.id
 		});
-		await db.insert(availabilitySlot).values({
-			therapistId: otherTherapist.id,
-			weekday: dateAhead(2).weekday,
-			startTime: '10:00',
-			endTime: '11:00',
-			modality: 'online',
-			reservedClientId: thirdClient.id
-		});
+		await mkSlot(otherTherapist.id, { weekday: dateAhead(2).weekday, reservedClientId: thirdClient.id });
 
 		const result = await materialiseReservedSlots();
 
@@ -202,14 +207,8 @@ describe('materialiseReservedSlots: booking', () => {
 describe('materialiseReservedSlots: never books', () => {
 	it('skips a weekday the therapist has marked as a holiday', async () => {
 		const target = dateAhead(3);
-		const slot = await mkReservedSlot(target.weekday);
-		const week = emptyWeek();
-		week[target.weekday] = {
-			slots: [{ id: slot.id, startTime: '10:00', endTime: '11:00', modality: 'online' }],
-			maxSessions: null,
-			holiday: true
-		};
-		await replaceWeekTemplate(therapistId, week);
+		await mkReservedSlot(target.weekday);
+		await saveWeekDay(therapistId, target.weekday, null, true);
 
 		const result = await materialiseReservedSlots();
 
@@ -241,7 +240,10 @@ describe('materialiseReservedSlots: never books', () => {
 
 		await materialiseReservedSlots();
 
-		const times = (await appointmentsFor(clientId)).map((row) => row.startAt.getTime());
+		const times: number[] = [];
+		for (const row of await appointmentsFor(clientId)) {
+			times.push(row.startAt.getTime());
+		}
 		expect(times).not.toContain(target.at(10).getTime());
 		expect(times).not.toContain(target.at(16).getTime());
 	});
@@ -259,7 +261,10 @@ describe('materialiseReservedSlots: never books', () => {
 
 		await materialiseReservedSlots();
 
-		const times = (await appointmentsFor(clientId)).map((row) => row.startAt.getTime());
+		const times: number[] = [];
+		for (const row of await appointmentsFor(clientId)) {
+			times.push(row.startAt.getTime());
+		}
 		expect(times).toContain(target.at(10).getTime());
 	});
 
@@ -269,14 +274,14 @@ describe('materialiseReservedSlots: never books', () => {
 
 		const result = await materialiseReservedSlots();
 
-		expect(result).toEqual({ created: 0, failed: 0 });
+		expect(result).toEqual({ created: 0, blocked: 0, failed: 0 });
 		expect(await appointmentsFor(clientId)).toHaveLength(0);
 	});
 
 	it('skips a hybrid slot', async () => {
 		await mkReservedSlot(dateAhead(2).weekday, { modality: 'hybrid' });
 		const result = await materialiseReservedSlots();
-		expect(result).toEqual({ created: 0, failed: 0 });
+		expect(result).toEqual({ created: 0, blocked: 0, failed: 0 });
 	});
 
 	it('does not book a week that was cancelled, or one that was rescheduled', async () => {
@@ -295,7 +300,7 @@ describe('materialiseReservedSlots: never books', () => {
 		expect(await appointmentsFor(clientId)).toHaveLength(before.length);
 	});
 
-	it('does not book a time that overlaps another booking, and charges nothing for it', async () => {
+	it('counts a week that overlaps another booking as blocked, and charges nothing for it', async () => {
 		const target = dateAhead(3);
 		const otherClient = await mkClient(therapistId, { name: 'Busy' });
 		await mkAppointment(therapistId, otherClient.id, { startAt: target.at(10), endAt: target.at(11) });
@@ -303,9 +308,14 @@ describe('materialiseReservedSlots: never books', () => {
 
 		const result = await materialiseReservedSlots();
 
+		expect(result.blocked).toBe(1);
 		expect(result.failed).toBe(0);
-		const times = (await appointmentsFor(clientId)).map((row) => row.startAt.getTime());
+		const times: number[] = [];
+		for (const row of await appointmentsFor(clientId)) {
+			times.push(row.startAt.getTime());
+		}
 		expect(times).not.toContain(target.at(10).getTime());
+		expect(result.created).toBe(times.length);
 		const charges = await db.select().from(payment).where(eq(payment.clientId, clientId));
 		expect(charges).toHaveLength(times.length);
 	});
@@ -320,7 +330,7 @@ describe('materialiseReservedSlots: never books', () => {
 		}
 	});
 
-	it('cancels nothing and leaves existing appointments untouched', async () => {
+	it('the cron itself never deletes or cancels', async () => {
 		const target = dateAhead(3);
 		const existing = await mkAppointment(therapistId, clientId, {
 			startAt: target.at(15),
@@ -330,8 +340,7 @@ describe('materialiseReservedSlots: never books', () => {
 
 		await materialiseReservedSlots();
 
-		const [after] = await db.select().from(appointment).where(eq(appointment.id, existing.id));
-		expect(after.status).toBe('confirmed');
+		expect((await appointmentById(existing.id)).status).toBe('confirmed');
 		const cancelled = await db
 			.select()
 			.from(appointment)
@@ -368,194 +377,272 @@ describe('materialiseReservedSlots: charges and packs', () => {
 		}
 		const charges = await db.select().from(payment).where(eq(payment.clientId, clientId));
 		expect(charges).toHaveLength(rows.length - 1);
-		const [updatedPack] = await db.select().from(paymentPack).where(eq(paymentPack.id, pack.id));
-		expect(updatedPack.status).toBe('completed');
+		expect((await packById(pack.id)).status).toBe('completed');
 	});
 });
 
 describe('materialiseReservedSlots: failures', () => {
 	it('returns a zero result when there is nothing to do', async () => {
-		expect(await materialiseReservedSlots()).toEqual({ created: 0, failed: 0 });
+		expect(await materialiseReservedSlots()).toEqual({ created: 0, blocked: 0, failed: 0 });
 	});
 });
 
-describe('setSlotReservation', () => {
-	it('reserves and then releases a weekly slot', async () => {
-		const slot = await mkReservedSlot(2, { reservedClientId: null });
-
-		expect(await setSlotReservation(therapistId, slot.id, clientId)).toEqual({});
-		let [row] = await db.select().from(availabilitySlot).where(eq(availabilitySlot.id, slot.id));
-		expect(row.reservedClientId).toBe(clientId);
-
-		expect(await setSlotReservation(therapistId, slot.id, null)).toEqual({});
-		[row] = await db.select().from(availabilitySlot).where(eq(availabilitySlot.id, slot.id));
-		expect(row.reservedClientId).toBeNull();
-	});
-
-	it('rejects an unknown slot', async () => {
-		const result = await setSlotReservation(therapistId, '00000000-0000-0000-0000-000000000000', clientId);
-		expect(result.error).toBe('slot_not_found');
-	});
-
-	it("rejects another therapist's slot", async () => {
-		const other = await mkTherapist({ timezone: 'UTC' });
-		const slot = await mkReservedSlot(2, { reservedClientId: null });
-		const result = await setSlotReservation(other.id, slot.id, null);
-		expect(result.error).toBe('slot_not_found');
-	});
-
-	it("rejects another therapist's client", async () => {
-		const other = await mkTherapist({ timezone: 'UTC' });
-		const strangerClient = await mkClient(other.id);
-		const slot = await mkReservedSlot(2, { reservedClientId: null });
-		const result = await setSlotReservation(therapistId, slot.id, strangerClient.id);
-		expect(result.error).toBe('client_not_found');
-		const [row] = await db.select().from(availabilitySlot).where(eq(availabilitySlot.id, slot.id));
-		expect(row.reservedClientId).toBeNull();
-	});
-
-	it('rejects a hybrid slot', async () => {
-		const slot = await mkReservedSlot(2, { modality: 'hybrid', reservedClientId: null });
-		const result = await setSlotReservation(therapistId, slot.id, clientId);
-		expect(result.error).toBe('hybrid_slot');
-	});
-
-	it('rejects a date-override slot', async () => {
+describe('materialiseReservedSlots: a hold the client rescheduled', () => {
+	it('the new row has no slotId, survives a slot delete, and the old row stops a rebook', async () => {
 		const target = dateAhead(3);
-		await setDateOverride(therapistId, target.key, {
-			slots: [{ startTime: '10:00', endTime: '11:00', modality: 'online' }],
-			maxSessions: null
+		const slot = await mkReservedSlot(target.weekday);
+		await materialiseReservedSlots();
+		const [firstWeek] = await appointmentsFor(clientId);
+
+		const moved = await rescheduleAppointmentForTherapist(therapistId, firstWeek.id, {
+			year: target.year,
+			month: target.month,
+			day: target.day,
+			startHour: 15,
+			startMinute: 0,
+			endHour: 16,
+			endMinute: 0,
+			modality: 'online'
 		});
-		const rows = await db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, therapistId));
-		const result = await setSlotReservation(therapistId, rows[0].id, clientId);
-		expect(result.error).toBe('slot_not_found');
+		if (!('appointment' in moved)) {
+			throw new Error(`reschedule failed: ${moved.error}`);
+		}
+		expect(moved.appointment.slotId).toBeNull();
+
+		// the old 'rescheduled' row keeps its slotId and blocks the cron rebooking 10:00 that week
+		const rerun = await materialiseReservedSlots();
+		expect(rerun.created).toBe(0);
+
+		await runDelete(slot.id);
+
+		expect((await appointmentById(moved.appointment.id)).status).toBe('confirmed');
+		expect((await appointmentById(firstWeek.id)).status).toBe('rescheduled');
 	});
 });
 
-describe('replaceWeekTemplate keeps saved slots in place', () => {
-	function slot(startTime: string, endTime: string, id?: string): DesignedSlot {
-		return { id, startTime, endTime, modality: 'online' };
-	}
+describe('deleteFutureHolds', () => {
+	it('deletes only future confirmed appointments with this slotId', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const first = await mkHold(slot.id, 3);
+		const second = await mkHold(slot.id, 10);
 
-	it('adding a Friday slot keeps the reserved Tuesday row, id and reservation', async () => {
-		const tuesday = await mkReservedSlot(2);
-		const week = emptyWeek();
-		week[2].slots = [slot('10:00', '11:00', tuesday.id)];
-		week[5].slots = [slot('09:00', '10:00')];
+		await runDelete(slot.id);
 
-		await replaceWeekTemplate(therapistId, week);
-
-		const rows = await db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, therapistId));
-		expect(rows).toHaveLength(2);
-		const kept = rows.find((row) => row.id === tuesday.id);
-		expect(kept).toBeDefined();
-		expect(kept!.reservedClientId).toBe(clientId);
-		expect(rows.find((row) => row.weekday === 5)).toBeDefined();
+		expect(await appointmentById(first.id)).toBeUndefined();
+		expect(await appointmentById(second.id)).toBeUndefined();
 	});
 
-	it('an untouched save changes nothing', async () => {
-		const tuesday = await mkReservedSlot(2);
-		const week = emptyWeek();
-		week[2].slots = [slot('10:00', '11:00', tuesday.id)];
+	it('leaves a portal or manual booking at the same time alone', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const manual = await mkAppointment(therapistId, clientId, {
+			startAt: dateAhead(3).at(10),
+			endAt: dateAhead(3).at(11)
+		});
 
-		await replaceWeekTemplate(therapistId, week);
-		await replaceWeekTemplate(therapistId, week);
+		await runDelete(slot.id);
 
-		const rows = await db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, therapistId));
-		expect(rows).toHaveLength(1);
-		expect(rows[0].id).toBe(tuesday.id);
-		expect(rows[0].reservedClientId).toBe(clientId);
+		expect((await appointmentById(manual.id)).status).toBe('confirmed');
 	});
 
-	it('editing a time updates the row and keeps its reservation', async () => {
-		const tuesday = await mkReservedSlot(2);
-		const week = emptyWeek();
-		week[2].slots = [slot('17:00', '18:00', tuesday.id)];
+	it("leaves another slot's holds alone, including the same client's other reserved slot", async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const otherSlot = await mkReservedSlot(dateAhead(4).weekday);
+		const mine = await mkHold(slot.id, 3);
+		const theirs = await mkHold(otherSlot.id, 4);
 
-		await replaceWeekTemplate(therapistId, week);
+		await runDelete(slot.id);
 
-		const [row] = await db.select().from(availabilitySlot).where(eq(availabilitySlot.id, tuesday.id));
-		expect(row.startTime.slice(0, 5)).toBe('17:00');
-		expect(row.endTime.slice(0, 5)).toBe('18:00');
-		expect(row.reservedClientId).toBe(clientId);
+		expect(await appointmentById(mine.id)).toBeUndefined();
+		expect((await appointmentById(theirs.id)).status).toBe('confirmed');
 	});
 
-	it('deletes slots that were removed', async () => {
-		const tuesday = await mkReservedSlot(2);
-		await replaceWeekTemplate(therapistId, emptyWeek());
-		const rows = await db.select().from(availabilitySlot).where(eq(availabilitySlot.id, tuesday.id));
-		expect(rows).toHaveLength(0);
+	it('leaves an in-progress session alone', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const inProgress = await mkAppointment(therapistId, clientId, {
+			startAt: new Date(Date.now() - 30 * 60_000),
+			endAt: new Date(Date.now() + 30 * 60_000),
+			slotId: slot.id
+		});
+
+		await runDelete(slot.id);
+
+		expect((await appointmentById(inProgress.id)).status).toBe('confirmed');
 	});
 
-	it('treats an unknown id as a new slot', async () => {
-		const week = emptyWeek();
-		week[1].slots = [slot('09:00', '10:00', '11111111-1111-1111-1111-111111111111')];
-		await replaceWeekTemplate(therapistId, week);
-		const rows = await db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, therapistId));
-		expect(rows).toHaveLength(1);
-		expect(rows[0].id).not.toBe('11111111-1111-1111-1111-111111111111');
+	it('leaves past, completed and cancelled holds alone', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const past = await mkAppointment(therapistId, clientId, {
+			startAt: new Date(Date.now() - 7 * DAY_MS),
+			endAt: new Date(Date.now() - 7 * DAY_MS + 60 * 60_000),
+			status: 'completed',
+			slotId: slot.id
+		});
+		const cancelled = await mkHold(slot.id, 3, { status: 'cancelled' });
+
+		await runDelete(slot.id);
+
+		expect((await appointmentById(past.id)).status).toBe('completed');
+		expect((await appointmentById(cancelled.id)).status).toBe('cancelled');
 	});
 
-	it('a duplicated id (a copied day) keeps the original and inserts the copy as new', async () => {
-		const tuesday = await mkReservedSlot(2);
-		const week = emptyWeek();
-		week[2].slots = [slot('10:00', '11:00', tuesday.id)];
-		week[3].slots = [slot('10:00', '11:00', tuesday.id)];
+	it("deletes the hold's unpaid payment row", async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const hold = await mkHold(slot.id, 3);
+		const charge = await mkPayment(therapistId, clientId, { appointmentId: hold.id });
 
-		await replaceWeekTemplate(therapistId, week);
+		await runDelete(slot.id);
 
-		const rows = await db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, therapistId));
-		expect(rows).toHaveLength(2);
-		const original = rows.find((row) => row.id === tuesday.id);
-		expect(original!.weekday).toBe(2);
-		expect(original!.reservedClientId).toBe(clientId);
-		const copy = rows.find((row) => row.id !== tuesday.id);
-		expect(copy!.weekday).toBe(3);
-		expect(copy!.reservedClientId).toBeNull();
+		expect(await paymentById(charge.id)).toBeUndefined();
 	});
 
-	it("never touches another therapist's slot, even when its id is sent", async () => {
-		const other = await mkTherapist({ timezone: 'UTC' });
-		const otherClient = await mkClient(other.id);
-		const [theirs] = await db
-			.insert(availabilitySlot)
-			.values({
-				therapistId: other.id,
-				weekday: 4,
-				startTime: '08:00',
-				endTime: '09:00',
-				modality: 'online',
-				reservedClientId: otherClient.id
+	it('keeps a paid payment row, unlinked', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const hold = await mkHold(slot.id, 3);
+		const charge = await mkPayment(therapistId, clientId, {
+			appointmentId: hold.id,
+			status: 'paid',
+			paidAt: new Date()
+		});
+
+		await runDelete(slot.id);
+
+		const after = await paymentById(charge.id);
+		expect(after.status).toBe('paid');
+		expect(after.appointmentId).toBeNull();
+	});
+
+	it('keeps an unpaid payment with a checkout in progress, unlinked', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const hold = await mkHold(slot.id, 3);
+		const charge = await mkPayment(therapistId, clientId, {
+			appointmentId: hold.id,
+			razorpayOrderId: 'order_in_progress',
+			razorpayOrderCreatedAt: new Date()
+		});
+
+		await runDelete(slot.id);
+
+		const after = await paymentById(charge.id);
+		expect(after.status).toBe('unpaid');
+		expect(after.razorpayOrderId).toBe('order_in_progress');
+		expect(after.appointmentId).toBeNull();
+	});
+
+	it('leaves the fee payment of a hold the client cancelled', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const cancelled = await mkHold(slot.id, 3, { status: 'cancelled' });
+		const fee = await mkPayment(therapistId, clientId, { appointmentId: cancelled.id, amount: 750 });
+
+		await runDelete(slot.id);
+
+		expect((await paymentById(fee.id)).appointmentId).toBe(cancelled.id);
+	});
+
+	it("a hold on an active pack: the pack's remaining goes up by one", async () => {
+		const pack = await mkPack(therapistId, clientId, { sessionCount: 5, status: 'active' });
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		await mkHold(slot.id, 3, { packId: pack.id });
+		expect((await getActivePackForClient(clientId))!.remaining).toBe(4);
+
+		await runDelete(slot.id);
+
+		const after = await getActivePackForClient(clientId);
+		expect(after!.id).toBe(pack.id);
+		expect(after!.remaining).toBe(5);
+	});
+
+	it('a hold on a completed pack: the pack reopens as active with one credit', async () => {
+		const pack = await mkPack(therapistId, clientId, { sessionCount: 1, status: 'completed' });
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		await mkHold(slot.id, 3, { packId: pack.id });
+
+		await runDelete(slot.id);
+
+		const after = await getActivePackForClient(clientId);
+		expect(after!.id).toBe(pack.id);
+		expect(after!.remaining).toBe(1);
+	});
+
+	it('a hold on a completed pack when the client has a newer active pack: the credit moves onto the newer pack', async () => {
+		const old = await mkPack(therapistId, clientId, { sessionCount: 1, status: 'completed' });
+		const newer = await mkPack(therapistId, clientId, { sessionCount: 5, status: 'active' });
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		await mkHold(slot.id, 3, { packId: old.id });
+
+		await runDelete(slot.id);
+
+		expect((await packById(old.id)).status).toBe('completed');
+		const after = await getActivePackForClient(clientId);
+		expect(after!.id).toBe(newer.id);
+		expect(after!.remaining).toBe(6);
+	});
+
+	it('two holds on the same completed pack: both credits come back', async () => {
+		const pack = await mkPack(therapistId, clientId, { sessionCount: 2, status: 'completed' });
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		await mkHold(slot.id, 3, { packId: pack.id });
+		await mkHold(slot.id, 10, { packId: pack.id });
+
+		await runDelete(slot.id);
+
+		const after = await getActivePackForClient(clientId);
+		expect(after!.id).toBe(pack.id);
+		expect(after!.remaining).toBe(2);
+	});
+
+	it('a client note attached to a hold survives, unlinked', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const hold = await mkHold(slot.id, 3);
+		const note = await mkNote(therapistId, clientId, { appointmentId: hold.id });
+
+		await runDelete(slot.id);
+
+		const [after] = await db.select().from(clientNote).where(eq(clientNote.id, note.id));
+		expect(after.body).toBe('note body');
+		expect(after.appointmentId).toBeNull();
+	});
+
+	it('returns the deleted rows, so the caller can remove their Meet events', async () => {
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const first = await mkHold(slot.id, 3, { meetLink: 'https://meet.example/a' });
+		const second = await mkHold(slot.id, 10);
+		await mkHold(slot.id, 4, { status: 'cancelled' });
+
+		const deleted = await runDelete(slot.id);
+
+		const ids: string[] = [];
+		for (const row of deleted) {
+			ids.push(row.id);
+		}
+		ids.sort();
+		const expected = [first.id, second.id];
+		expected.sort();
+		expect(ids).toEqual(expected);
+		let withLink = null;
+		for (const row of deleted) {
+			if (row.id === first.id) {
+				withLink = row;
+			}
+		}
+		expect(withLink!.meetLink).toBe('https://meet.example/a');
+	});
+
+	it("rolls back fully when the caller's transaction throws", async () => {
+		const pack = await mkPack(therapistId, clientId, { sessionCount: 1, status: 'completed' });
+		const slot = await mkReservedSlot(dateAhead(3).weekday);
+		const hold = await mkHold(slot.id, 3, { packId: pack.id });
+		const charge = await mkPayment(therapistId, clientId, { appointmentId: hold.id });
+
+		await expect(
+			db.transaction(async (tx) => {
+				await deleteFutureHolds(tx, slot.id);
+				throw new Error('boom');
 			})
-			.returning();
-		const week = emptyWeek();
-		week[1].slots = [slot('12:00', '13:00', theirs.id)];
+		).rejects.toThrow('boom');
 
-		await replaceWeekTemplate(therapistId, week);
-
-		const [untouched] = await db.select().from(availabilitySlot).where(eq(availabilitySlot.id, theirs.id));
-		expect(untouched.therapistId).toBe(other.id);
-		expect(untouched.weekday).toBe(4);
-		expect(untouched.startTime.slice(0, 5)).toBe('08:00');
-		expect(untouched.reservedClientId).toBe(otherClient.id);
-		const mine = await db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, therapistId));
-		expect(mine).toHaveLength(1);
-		expect(mine[0].weekday).toBe(1);
-	});
-
-	it('a reservation sent from the browser is ignored', async () => {
-		const week = emptyWeek();
-		week[1].slots = [{ startTime: '09:00', endTime: '10:00', modality: 'online', reservedClientId: clientId }];
-		await replaceWeekTemplate(therapistId, week);
-		const rows = await db.select().from(availabilitySlot).where(eq(availabilitySlot.therapistId, therapistId));
-		expect(rows[0].reservedClientId).toBeNull();
-	});
-
-	it('getSlotDesign reports the id and reservation of weekly slots', async () => {
-		const tuesday = await mkReservedSlot(2);
-		const design = await getSlotDesign(therapistId, 2027, 0);
-		expect(design.week[2].slots[0].id).toBe(tuesday.id);
-		expect(design.week[2].slots[0].reservedClientId).toBe(clientId);
+		expect((await appointmentById(hold.id)).status).toBe('confirmed');
+		expect((await paymentById(charge.id)).appointmentId).toBe(hold.id);
+		expect((await packById(pack.id)).status).toBe('completed');
 	});
 });
 

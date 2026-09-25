@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { client } from '$lib/server/db/schema';
 import { sendRebookReminders, sendPaymentReminders } from '$lib/server/reminderEmails';
 import { createAppointmentForTherapist } from '$lib/server/appointments';
-import { createPack } from '$lib/server/payments';
+import { cancelPack, createPack } from '$lib/server/payments';
 import { resetDb, mkTherapist, mkClient, mkPack, mkSettings } from './helpers';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -189,10 +189,11 @@ describe('sendPaymentReminders with packs', () => {
 		expect(await reminded(c.id)).toBe(false);
 	});
 
-	it('does not remind for a cancelled unpaid pack', async () => {
+	it('stops reminding once the therapist cancels an unpaid pack', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: 'client@example.com' });
-		await mkPack(t.id, c.id, { status: 'cancelled', paidAt: null });
+		const { pack } = await createPack(t.id, { clientId: c.id, sessionCount: 3, amount: 3000, paid: false });
+		await cancelPack(t.id, pack!.id);
 
 		await sendPaymentReminders();
 		expect(await reminded(c.id)).toBe(false);
@@ -201,7 +202,7 @@ describe('sendPaymentReminders with packs', () => {
 	it('still reminds for a used-up pack that was never paid', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: 'client@example.com' });
-		await mkPack(t.id, c.id, { status: 'completed', paidAt: null });
+		await mkPack(t.id, c.id, { status: 'completed' }, { amount: 3000, paid: false });
 
 		await sendPaymentReminders();
 		expect(await reminded(c.id)).toBe(true);

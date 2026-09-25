@@ -1,6 +1,10 @@
 <script lang="ts">
 	// On = the weekday is a holiday: its slots are kept but clients can't book it
-	let { holiday = $bindable(), dayName }: { holiday: boolean; dayName: string } = $props();
+	let {
+		holiday = $bindable(),
+		dayName,
+		onchange
+	}: { holiday: boolean; dayName: string; onchange?: () => void } = $props();
 </script>
 
 <label class="holiday-toggle">
@@ -11,7 +15,7 @@
 			Bookable
 		{/if}
 	</span>
-	<input type="checkbox" role="switch" aria-label="{dayName} is a holiday" bind:checked={holiday} />
+	<input type="checkbox" role="switch" aria-label="{dayName} is a holiday" bind:checked={holiday} {onchange} />
 	<span class="track" aria-hidden="true"><span class="dot"></span></span>
 </label>
 

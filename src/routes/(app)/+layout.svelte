@@ -6,6 +6,7 @@
 	import Avatar from '$lib/components/utils/Avatar.svelte';
 	import MobileNav from '$lib/components/utils/MobileNav.svelte';
 	import FeedbackDialog from '$lib/components/utils/FeedbackDialog.svelte';
+	import WelcomeDialog from '$lib/components/utils/WelcomeDialog.svelte';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
@@ -94,6 +95,7 @@
 </div>
 
 <FeedbackDialog open={feedbackOpen} onclose={() => (feedbackOpen = false)} />
+<WelcomeDialog open={data.therapist.welcomeSeenAt === null} />
 
 <style>
 	.app-shell {

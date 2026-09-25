@@ -8,7 +8,6 @@ import {
 	updatePayment,
 	deletePayment,
 	createPack,
-	markPackPaid,
 	listPacksForTherapist,
 	parseAmount
 } from '$lib/server/payments';
@@ -32,26 +31,20 @@ export const load: PageServerLoad = async (event) => {
 		listPacksForTherapist(therapist.id)
 	]);
 
-	// only packs that still matter day to day: usable now, or finished but never paid for
+	// only packs with sessions still to use; what was paid for them is in the payment history
 	const packs: {
 		id: string;
 		clientName: string;
 		sessionCount: number;
 		remaining: number;
-		amount: number;
-		paid: boolean;
 	}[] = [];
 	for (const pack of allPacks) {
-		const isLive = pack.status === 'active';
-		const isUnpaid = pack.paidAt === null && pack.status !== 'cancelled';
-		if (isLive || isUnpaid) {
+		if (pack.status === 'active') {
 			packs.push({
 				id: pack.id,
 				clientName: pack.clientName,
 				sessionCount: pack.sessionCount,
-				remaining: pack.remaining,
-				amount: pack.amount,
-				paid: pack.paidAt !== null
+				remaining: pack.remaining
 			});
 		}
 	}
@@ -140,16 +133,6 @@ export const actions: Actions = {
 				});
 			}
 			return fail(404, { message: 'That client could not be found' });
-		}
-	},
-
-	markPackPaid: async (event) => {
-		const therapistId = event.locals.therapistId!;
-		const formData = await event.request.formData();
-		const packId = formData.get('packId')?.toString() ?? '';
-		const result = await markPackPaid(therapistId, packId);
-		if ('error' in result) {
-			return fail(404, { message: 'That pack could not be found. Refresh and try again.' });
 		}
 	},
 

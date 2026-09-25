@@ -8,10 +8,6 @@ import { payment, paymentPack, appointment, client } from '$lib/server/db/schema
 // letting these functions fall back to the module-level `db`.
 type Executor = DbOrTx;
 
-// A pack is usable the moment the therapist creates it; payment is tracked separately by
-// paidAt. So "owed" means never-paid and not cancelled, whatever the pack's status.
-const packIsOwed = and(isNull(paymentPack.paidAt), ne(paymentPack.status, 'cancelled'));
-
 export function parseAmount(raw: FormDataEntryValue | null): number | null {
 	const amount = Number(raw);
 	// amount is a whole-rupee integer column — a fractional value would otherwise
@@ -132,7 +128,7 @@ export async function listPaymentsForClientPage(
 export type ClientPaymentTotals = { owed: number; paidThisMonth: number; paidThisYear: number };
 
 // Powers the same modal's summary stats. "Owed" mirrors listOutstandingBalancesByClient's
-// definition (unpaid payment rows + pending-payment packs) but for a single client instead
+// definition (unpaid payment rows, pack purchases included) but for a single client instead
 // of grouped across the whole roster.
 export async function getClientPaymentTotals(therapistId: string, clientId: string): Promise<ClientPaymentTotals> {
 	const now = new Date();
@@ -148,19 +144,8 @@ export async function getClientPaymentTotals(therapistId: string, clientId: stri
 		.from(payment)
 		.where(and(eq(payment.therapistId, therapistId), eq(payment.clientId, clientId)));
 
-	const [pendingPackRow] = await db
-		.select({ owed: sql<number>`coalesce(sum(${paymentPack.amount}), 0)::int` })
-		.from(paymentPack)
-		.where(
-			and(
-				eq(paymentPack.therapistId, therapistId),
-				eq(paymentPack.clientId, clientId),
-				packIsOwed
-			)
-		);
-
 	return {
-		owed: (paymentRow?.unpaid ?? 0) + (pendingPackRow?.owed ?? 0),
+		owed: paymentRow?.unpaid ?? 0,
 		paidThisMonth: paymentRow?.paidThisMonth ?? 0,
 		paidThisYear: paymentRow?.paidThisYear ?? 0
 	};
@@ -248,25 +233,33 @@ export async function createPack(therapistId: string, input: NewPackInput) {
 		return { error: 'client_has_active_pack' as const, remaining: activePack.remaining };
 	}
 
-	const [row] = await db
-		.insert(paymentPack)
-		.values({
+	// The pack and its price go in together: the payment row is what history, the totals
+	// and Razorpay checkout see, and packId is the link back to the session count.
+	const row = await db.transaction(async (tx) => {
+		const [pack] = await tx
+			.insert(paymentPack)
+			.values({
+				therapistId,
+				clientId: input.clientId,
+				sessionCount: input.sessionCount,
+				status: 'active'
+			})
+			.returning();
+		await tx.insert(payment).values({
 			therapistId,
 			clientId: input.clientId,
-			sessionCount: input.sessionCount,
+			packId: pack.id,
 			amount: input.amount,
-			status: 'active',
+			note: `Pack: ${input.sessionCount} ${input.sessionCount === 1 ? 'session' : 'sessions'}`,
+			status: input.paid ? 'paid' : 'unpaid',
 			paidAt: input.paid ? new Date() : null
-		})
-		.returning();
+		});
+		return pack;
+	});
 	return { pack: row };
 }
 
-export async function updatePack(
-	therapistId: string,
-	packId: string,
-	input: { sessionCount?: number; amount?: number }
-) {
+export async function updatePack(therapistId: string, packId: string, input: { sessionCount?: number }) {
 	if (input.sessionCount !== undefined) {
 		const remaining = await getPackConsumedCount(packId);
 		if (input.sessionCount < remaining) {
@@ -280,25 +273,25 @@ export async function updatePack(
 	return {};
 }
 
-// Records that the therapist has been paid for a pack. Never touches status: an
-// unpaid pack is already usable, and a completed one must stay completed.
-export async function markPackPaid(therapistId: string, packId: string) {
-	const updated = await db
-		.update(paymentPack)
-		.set({ paidAt: new Date() })
-		.where(and(eq(paymentPack.id, packId), eq(paymentPack.therapistId, therapistId)))
-		.returning({ id: paymentPack.id });
-	if (updated.length === 0) {
-		return { error: 'not_found' as const };
-	}
-	return {};
-}
-
+// A cancelled pack is no longer owed: its unpaid purchase row goes with it. A paid row stays
+// as the record of money received, and a row with a Razorpay order is left for the payment
+// reconcile, since that order may still go through.
 export async function cancelPack(therapistId: string, packId: string) {
-	await db
-		.update(paymentPack)
-		.set({ status: 'cancelled' })
-		.where(and(eq(paymentPack.id, packId), eq(paymentPack.therapistId, therapistId)));
+	await db.transaction(async (tx) => {
+		const cancelled = await tx
+			.update(paymentPack)
+			.set({ status: 'cancelled' })
+			.where(and(eq(paymentPack.id, packId), eq(paymentPack.therapistId, therapistId)))
+			.returning({ id: paymentPack.id });
+		if (cancelled.length === 0) {
+			return;
+		}
+		await tx
+			.delete(payment)
+			.where(
+				and(eq(payment.packId, packId), eq(payment.status, 'unpaid'), isNull(payment.razorpayOrderId))
+			);
+	});
 }
 
 async function getPackConsumedCount(packId: string, executor: Executor = db): Promise<number> {
@@ -333,11 +326,9 @@ export type PackWithClient = {
 	clientId: string;
 	clientName: string;
 	sessionCount: number;
-	amount: number;
 	status: 'pending_payment' | 'active' | 'completed' | 'cancelled';
 	remaining: number;
 	createdAt: Date;
-	paidAt: Date | null;
 };
 
 // Every pack across every client, for the "session packs" overview — listPacksForClient
@@ -349,10 +340,8 @@ export async function listPacksForTherapist(therapistId: string): Promise<PackWi
 			clientId: paymentPack.clientId,
 			clientName: client.name,
 			sessionCount: paymentPack.sessionCount,
-			amount: paymentPack.amount,
 			status: paymentPack.status,
-			createdAt: paymentPack.createdAt,
-			paidAt: paymentPack.paidAt
+			createdAt: paymentPack.createdAt
 		})
 		.from(paymentPack)
 		.innerJoin(client, eq(paymentPack.clientId, client.id))
@@ -382,20 +371,7 @@ export async function hasOutstandingBalance(therapistId: string, clientId: strin
 		.from(payment)
 		.where(and(eq(payment.therapistId, therapistId), eq(payment.clientId, clientId), eq(payment.status, 'unpaid')))
 		.limit(1);
-	if (unpaid) return true;
-
-	const [pendingPack] = await db
-		.select({ id: paymentPack.id })
-		.from(paymentPack)
-		.where(
-			and(
-				eq(paymentPack.therapistId, therapistId),
-				eq(paymentPack.clientId, clientId),
-				packIsOwed
-			)
-		)
-		.limit(1);
-	return !!pendingPack;
+	return !!unpaid;
 }
 
 // Called once a booking has been made against a pack — flips the pack to
@@ -407,6 +383,71 @@ export async function completePackIfExhausted(packId: string, executor: Executor
 	if (consumed >= pack.sessionCount) {
 		await executor.update(paymentPack).set({ status: 'completed' }).where(eq(paymentPack.id, packId));
 	}
+}
+
+// Called after a free cancellation cleared an appointment's packId. A pack that was already
+// exhausted is 'completed' and invisible to booking, so the returned credit would be stranded.
+// Only one pack per client may be active, so: if the client has a newer active pack the credit
+// moves onto it (one session off the old pack, one onto the new); otherwise the old pack
+// reopens.
+export async function returnPackCredit(packId: string, executor: Executor = db) {
+	const [pack] = await executor.select().from(paymentPack).where(eq(paymentPack.id, packId));
+	if (!pack || pack.status !== 'completed') {
+		return;
+	}
+
+	const [activePack] = await executor
+		.select({ id: paymentPack.id })
+		.from(paymentPack)
+		.where(and(eq(paymentPack.clientId, pack.clientId), eq(paymentPack.status, 'active')));
+
+	if (activePack) {
+		await executor
+			.update(paymentPack)
+			.set({ sessionCount: sql`${paymentPack.sessionCount} + 1` })
+			.where(eq(paymentPack.id, activePack.id));
+		await executor
+			.update(paymentPack)
+			.set({ sessionCount: sql`${paymentPack.sessionCount} - 1` })
+			.where(eq(paymentPack.id, pack.id));
+		return;
+	}
+
+	await executor.update(paymentPack).set({ status: 'active' }).where(eq(paymentPack.id, pack.id));
+}
+
+// The new session of a reschedule whose pack credit was lost (100% window). It is paid for
+// like a fresh booking: the client's next pack credit if there is one, otherwise the regular
+// rate as an unpaid charge. Walk-ins have no packs and no rate, so nothing to do for them.
+export async function payForReplacementSession(
+	therapistId: string,
+	newAppointment: { id: string; clientId: string | null },
+	executor: Executor = db
+) {
+	if (!newAppointment.clientId) {
+		return;
+	}
+	const clientId = newAppointment.clientId;
+
+	const [activePack] = await executor
+		.select()
+		.from(paymentPack)
+		.where(and(eq(paymentPack.clientId, clientId), eq(paymentPack.status, 'active')));
+	if (activePack) {
+		const consumed = await getPackConsumedCount(activePack.id, executor);
+		if (activePack.sessionCount - consumed > 0) {
+			await executor.update(appointment).set({ packId: activePack.id }).where(eq(appointment.id, newAppointment.id));
+			await completePackIfExhausted(activePack.id, executor);
+			return;
+		}
+	}
+
+	const [clientRow] = await executor.select({ rate: client.rate }).from(client).where(eq(client.id, clientId));
+	await addCharge(
+		therapistId,
+		{ clientId, appointmentId: newAppointment.id, amount: clientRow?.rate ?? 0 },
+		executor
+	);
 }
 
 // A reschedule never mutates the old appointment row — this moves whatever was
@@ -435,12 +476,11 @@ export async function moveFinancialLinksOnReschedule(
 // ---- the "who hasn't paid" view -----------------------------------------
 
 // clientId is null for a walk-in (customName) charge — grouped by name instead, since
-// there's no client row to key on. Packs are client-only (walk-ins never buy one), so
-// every pack row has a real clientId.
+// there's no client row to key on.
 export type ClientBalanceSummary = { key: string; clientId: string | null; name: string; owed: number };
 
-// Sum of unpaid `payment` rows plus pending-payment packs, per client — what a client
-// "owes" combines both charge types, since either one is money the therapist is waiting on.
+// Sum of unpaid `payment` rows per client. Pack purchases are payment rows too, so they
+// are already in here.
 export async function listOutstandingBalancesByClient(therapistId: string): Promise<ClientBalanceSummary[]> {
 	const paymentRows = await db
 		.select({
@@ -453,19 +493,8 @@ export async function listOutstandingBalancesByClient(therapistId: string): Prom
 		.where(and(eq(payment.therapistId, therapistId), eq(payment.status, 'unpaid')))
 		.groupBy(payment.clientId, client.name, payment.customName);
 
-	const packRows = await db
-		.select({
-			clientId: client.id,
-			name: client.name,
-			owed: sql<number>`coalesce(sum(${paymentPack.amount}), 0)::int`
-		})
-		.from(paymentPack)
-		.innerJoin(client, eq(paymentPack.clientId, client.id))
-		.where(and(eq(paymentPack.therapistId, therapistId), packIsOwed))
-		.groupBy(client.id, client.name);
-
 	const byKey = new Map<string, ClientBalanceSummary>();
-	for (const row of [...paymentRows, ...packRows]) {
+	for (const row of paymentRows) {
 		const key = row.clientId ?? `walkin:${row.name}`;
 		const existing = byKey.get(key);
 		if (existing) {

@@ -1,18 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { availabilitySlot, availabilityDateOverride, therapistSettings } from '$lib/server/db/schema';
+import { availabilitySlot, availabilityDateOverride } from '$lib/server/db/schema';
 import {
 	toDateKey,
 	parseDesignedSlots,
 	getSlotDesign,
 	listDesignedDaysForMonth,
-	replaceWeekTemplate,
 	setDateOverride,
 	clearDateOverride
 } from '$lib/server/availabilitySlots';
 import type { WeeklyDay, DesignedSlot } from '$lib/types/slots';
-import { resetDb, mkTherapist } from './helpers';
+import { resetDb, mkTherapist, mkClient, mkSlot, mkWeek } from './helpers';
 
 let therapistId: string;
 
@@ -73,11 +72,11 @@ describe('toDateKey', () => {
 });
 
 describe('parseDesignedSlots', () => {
-	it('accepts an array of slot-shaped objects, keeping the id but never a reservation', () => {
+	it('accepts an array of slot-shaped objects, dropping any id or reservation sent from the browser', () => {
 		const parsed = parseDesignedSlots([
 			{ startTime: '09:00', endTime: '10:00', modality: 'online', id: 'x', reservedClientId: 'someone', extra: 1 }
 		]);
-		expect(parsed).toEqual([{ ...slot('09:00', '10:00'), id: 'x' }]);
+		expect(parsed).toEqual([slot('09:00', '10:00')]);
 	});
 
 	it('accepts an empty array (a day off)', () => {
@@ -92,78 +91,6 @@ describe('parseDesignedSlots', () => {
 		expect(parseDesignedSlots(['09:00'])).toBeNull();
 		expect(parseDesignedSlots([{ startTime: '09:00', endTime: '10:00' }])).toBeNull();
 		expect(parseDesignedSlots([{ startTime: 9, endTime: 10, modality: 'online' }])).toBeNull();
-	});
-});
-
-describe('replaceWeekTemplate', () => {
-	it('stores the slots and the per-weekday caps', async () => {
-		const week = emptyWeek();
-		week[1] = { slots: [slot('09:00', '10:00'), slot('11:00', '12:00', 'hybrid')], maxSessions: 2, holiday: false };
-		week[3] = { slots: [slot('14:00', '15:00', 'in_person')], maxSessions: null, holiday: false };
-		await replaceWeekTemplate(therapistId, week);
-
-		const design = await getSlotDesign(therapistId, Y, M);
-		expect(bare(design.week[1])).toEqual({
-			slots: [slot('09:00', '10:00'), slot('11:00', '12:00', 'hybrid')],
-			maxSessions: 2,
-			holiday: false
-		});
-		expect(bare(design.week[3])).toEqual({ slots: [slot('14:00', '15:00', 'in_person')], maxSessions: null, holiday: false });
-		expect(design.week[0]).toEqual({ slots: [], maxSessions: null, holiday: false });
-
-		// read as text: drizzle's own int[] parse turns NULL elements into NaN (getSlotDesign
-		// cleans that up), this checks Postgres really stores NULLs
-		const [settings] = await db
-			.select({ weeklyMaxSessions: sql<string>`${therapistSettings.weeklyMaxSessions}::text` })
-			.from(therapistSettings)
-			.where(eq(therapistSettings.therapistId, therapistId));
-		expect(settings.weeklyMaxSessions).toBe('{NULL,2,NULL,NULL,NULL,NULL,NULL}');
-	});
-
-	it('replaces the previous template instead of appending to it', async () => {
-		const first = emptyWeek();
-		first[1] = { slots: [slot('09:00', '10:00'), slot('10:00', '11:00')], maxSessions: 5, holiday: false };
-		await replaceWeekTemplate(therapistId, first);
-
-		const second = emptyWeek();
-		second[2] = { slots: [slot('13:00', '14:00')], maxSessions: null, holiday: false };
-		await replaceWeekTemplate(therapistId, second);
-
-		const rows = await slotRows(therapistId);
-		expect(rows).toHaveLength(1);
-		expect(rows[0].weekday).toBe(2);
-		const design = await getSlotDesign(therapistId, Y, M);
-		expect(design.week[1]).toEqual({ slots: [], maxSessions: null, holiday: false });
-	});
-
-	it('an empty week clears every template slot', async () => {
-		const week = emptyWeek();
-		week[4] = { slots: [slot('09:00', '10:00')], maxSessions: null, holiday: false };
-		await replaceWeekTemplate(therapistId, week);
-		await replaceWeekTemplate(therapistId, emptyWeek());
-		expect(await slotRows(therapistId)).toHaveLength(0);
-	});
-
-	it('leaves date overrides alone', async () => {
-		const dateKey = toDateKey(Y, M, 15);
-		await setDateOverride(therapistId, dateKey, { slots: [slot('08:00', '09:00')], maxSessions: 1 });
-		await replaceWeekTemplate(therapistId, emptyWeek());
-
-		const design = await getSlotDesign(therapistId, Y, M);
-		expect(design.overrides[dateKey]).toEqual({ slots: [slot('08:00', '09:00')], maxSessions: 1 });
-	});
-
-	it('does not touch another therapist’s template', async () => {
-		const other = await mkTherapist({ timezone: 'UTC' });
-		const otherWeek = emptyWeek();
-		otherWeek[1] = { slots: [slot('09:00', '10:00')], maxSessions: 3, holiday: false };
-		await replaceWeekTemplate(other.id, otherWeek);
-
-		await replaceWeekTemplate(therapistId, emptyWeek());
-
-		expect(await slotRows(other.id)).toHaveLength(1);
-		const otherDesign = await getSlotDesign(other.id, Y, M);
-		expect(otherDesign.week[1].maxSessions).toBe(3);
 	});
 });
 
@@ -218,7 +145,7 @@ describe('getSlotDesign', () => {
 	it('returns HH:MM times sorted by start, whatever order they were saved in', async () => {
 		const week = emptyWeek();
 		week[2] = { slots: [slot('15:30', '16:30'), slot('08:15', '09:00'), slot('11:00', '12:00')], maxSessions: null, holiday: false };
-		await replaceWeekTemplate(therapistId, week);
+		await mkWeek(therapistId, week);
 
 		const design = await getSlotDesign(therapistId, Y, M);
 		const starts: string[] = [];
@@ -240,6 +167,14 @@ describe('getSlotDesign', () => {
 		expect(design.overrides['2027-01-31'].slots).toEqual([slot('09:00', '10:00')]);
 	});
 
+	it('reports the id and reservation of weekly slots', async () => {
+		const reservedFor = await mkClient(therapistId);
+		const tuesday = await mkSlot(therapistId, { weekday: 2, reservedClientId: reservedFor.id });
+		const design = await getSlotDesign(therapistId, Y, M);
+		expect(design.week[2].slots[0].id).toBe(tuesday.id);
+		expect(design.week[2].slots[0].reservedClientId).toBe(reservedFor.id);
+	});
+
 	it('works for a therapist who has never designed anything', async () => {
 		const design = await getSlotDesign(therapistId, Y, M);
 		expect(design.week).toHaveLength(7);
@@ -251,7 +186,7 @@ describe('listDesignedDaysForMonth', () => {
 	it('uses the weekday template, except on overridden dates', async () => {
 		const week = emptyWeek();
 		week[5] = { slots: [slot('09:00', '10:00')], maxSessions: 1, holiday: false }; // Fridays
-		await replaceWeekTemplate(therapistId, week);
+		await mkWeek(therapistId, week);
 		// Jan 8 2027 is a Friday — override it to a day off
 		await setDateOverride(therapistId, toDateKey(Y, M, 8), { slots: [], maxSessions: null });
 
@@ -266,7 +201,7 @@ describe('listDesignedDaysForMonth', () => {
 	it('closes a holiday weekday but keeps its slots, and a date override still wins', async () => {
 		const week = emptyWeek();
 		week[5] = { slots: [slot('09:00', '10:00')], maxSessions: 1, holiday: true }; // Fridays
-		await replaceWeekTemplate(therapistId, week);
+		await mkWeek(therapistId, week);
 		// Jan 8 2027 is a Friday — open just that one
 		await setDateOverride(therapistId, toDateKey(Y, M, 8), { slots: [slot('14:00', '15:00')], maxSessions: null });
 

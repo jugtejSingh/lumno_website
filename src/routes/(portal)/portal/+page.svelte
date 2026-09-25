@@ -9,6 +9,7 @@
 	import Input from '$lib/components/utils/Input.svelte';
 	import ClientProfileFields from '$lib/components/Clients/ClientProfileFields.svelte';
 	import PortalMonthGrid from '$lib/components/Calendar/PortalMonthGrid.svelte';
+	import RescheduleChargeDialog from '$lib/components/Calendar/RescheduleChargeDialog.svelte';
 	import BookSlotDialog from '$lib/components/Calendar/BookSlotDialog.svelte';
 	import ResourceAddForm from '$lib/components/Resources/ResourceAddForm.svelte';
 	import ResourceList from '$lib/components/Resources/ResourceList.svelte';
@@ -115,6 +116,24 @@
 		goto(bookingUrl(nextYear, nextMonth, rescheduleId), { keepFocus: true });
 	}
 
+	let pendingRescheduleId = $state<string | null>(null);
+
+	function requestReschedule(appointmentId: string, chargesRegularRate: boolean) {
+		if (chargesRegularRate) {
+			pendingRescheduleId = appointmentId;
+			return;
+		}
+		setReschedule(appointmentId);
+	}
+
+	function confirmPendingReschedule() {
+		const appointmentId = pendingRescheduleId;
+		pendingRescheduleId = null;
+		if (appointmentId !== null) {
+			setReschedule(appointmentId);
+		}
+	}
+
 	function setReschedule(appointmentId: string | null) {
 		goto(bookingUrl(data.year, data.month, appointmentId), { keepFocus: true, noScroll: true });
 	}
@@ -172,7 +191,7 @@
 					</div>
 					<Badge tone={s.tone}>{s.status}</Badge>
 					<div class="row-actions">
-						<Button variant="secondary" size="sm" onclick={() => setReschedule(s.id)}
+						<Button variant="secondary" size="sm" onclick={() => requestReschedule(s.id, s.rescheduleChargesRegularRate)}
 							>Reschedule</Button
 						>
 						<form
@@ -426,6 +445,13 @@
 	rescheduleAppointmentId={rescheduleId}
 	onclose={closeBookDialog}
 />
+
+{#if pendingRescheduleId}
+	<RescheduleChargeDialog
+		onconfirm={confirmPendingReschedule}
+		oncancel={() => (pendingRescheduleId = null)}
+	/>
+{/if}
 
 <style>
 	.portal {

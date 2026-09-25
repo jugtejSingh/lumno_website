@@ -1,9 +1,9 @@
-import { and, eq, gte, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { appointment, availabilitySlot, client, therapist } from '$lib/server/db/schema';
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
+import { db, type DbOrTx } from '$lib/server/db';
+import { appointment, availabilitySlot, client, payment, therapist } from '$lib/server/db/schema';
 import { getZonedDateParts, parseTimeOfDay, zonedDateToUTC } from '$lib/server/timezone';
 import { listDesignedDaysForMonth, type DesignedDay, type DesignedSlot } from '$lib/server/availabilitySlots';
-import { addCharge, completePackIfExhausted, getActivePackForClient } from '$lib/server/payments';
+import { addCharge, completePackIfExhausted, getActivePackForClient, returnPackCredit } from '$lib/server/payments';
 import { attachMeetingLinkIfOnline, isOverlapError } from '$lib/server/appointments';
 import { logError } from '$lib/server/log';
 
@@ -12,6 +12,7 @@ const BOOK_AHEAD_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Candidate = {
+	slotId: string;
 	therapistId: string;
 	clientId: string;
 	clientRate: number | null;
@@ -22,6 +23,8 @@ type Candidate = {
 
 export type MaterialiseResult = {
 	created: number;
+	// weeks skipped because another booking already sits at that time
+	blocked: number;
 	failed: number;
 };
 
@@ -43,7 +46,7 @@ function findDesignedSlot(day: DesignedDay | undefined, startTime: string, endTi
  * or client cancelled or rescheduled keeps its old row, so it is never booked again.
  *
  * A week is skipped when the date no longer offers the slot (holiday, day off, or a hand-edited
- * date without it), when the client is deactivated, or when it would overlap another booking. The daily session cap is deliberately not
+ * date without it), when the client is deactivated, or when it would overlap another booking (counted as `blocked`). The daily session cap is deliberately not
  * applied: the therapist reserved the slot on purpose. No confirmation email goes out (the usual
  * 24h/1h reminders still do), and nothing is ever cancelled here.
  *
@@ -66,6 +69,7 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 	// the partial index on reserved_client_id means this never reads the open slots
 	const reserved = await db
 		.select({
+			slotId: availabilitySlot.id,
 			therapistId: availabilitySlot.therapistId,
 			clientId: client.id,
 			clientRate: client.rate,
@@ -123,6 +127,7 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 			}
 
 			candidates.push({
+				slotId: slot.slotId,
 				therapistId: slot.therapistId,
 				clientId: slot.clientId,
 				clientRate: slot.clientRate,
@@ -133,7 +138,7 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 		}
 	}
 	if (candidates.length === 0) {
-		return { created: 0, failed: 0 };
+		return { created: 0, blocked: 0, failed: 0 };
 	}
 
 	// oldest first, so a pack's remaining credits go to the earliest weeks
@@ -158,6 +163,7 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 	}
 
 	let created = 0;
+	let blocked = 0;
 	let failed = 0;
 	for (const candidate of candidates) {
 		const key = `${candidate.clientId}|${candidate.startAt.getTime()}`;
@@ -169,6 +175,8 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 			if (booked) {
 				created++;
 				taken.add(key);
+			} else {
+				blocked++;
 			}
 		} catch (err) {
 			// one bad week must not stop everyone else's
@@ -176,12 +184,12 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 			logError('recurringBookings.book', err);
 		}
 	}
-	return { created, failed };
+	return { created, blocked, failed };
 }
 
 // Mirrors createAppointmentForClient's pack/charge handling, minus the self-booking rules
 // (upcoming limit, zero balance, daily cap) and the confirmation email. Returns null when the
-// week is skipped.
+// week overlaps another booking.
 async function bookCandidate(candidate: Candidate) {
 	// an exhausted (or absent) pack simply falls through to a regular-price charge below
 	const activePack = await getActivePackForClient(candidate.clientId);
@@ -204,7 +212,8 @@ async function bookCandidate(candidate: Candidate) {
 						startAt: candidate.startAt,
 						endAt: candidate.endAt,
 						modality: candidate.modality,
-						packId
+						packId,
+						slotId: candidate.slotId
 					})
 					.returning()
 			);
@@ -238,4 +247,44 @@ async function bookCandidate(candidate: Candidate) {
 		logError('recurringBookings.meetLink', err);
 		return row;
 	}
+}
+
+// Deletes a reserved slot's upcoming holds, inside the caller's transaction. Runs whenever the
+// slot's time, client or reservation changes. Unpaid charges that never reached checkout go with
+// them; anything else (paid, or mid-checkout) is kept and just unlinked by the payment FK. Pack
+// sessions go back to the pack. Returns the deleted rows so the caller can detach Meet links
+// once the transaction has committed.
+export async function deleteFutureHolds(tx: DbOrTx, slotId: string) {
+	const holdFilter = and(
+		eq(appointment.slotId, slotId),
+		eq(appointment.status, 'confirmed'),
+		gt(appointment.startAt, new Date())
+	);
+	const holds = await tx.select({ id: appointment.id }).from(appointment).where(holdFilter);
+	if (holds.length === 0) {
+		return [];
+	}
+
+	const holdIds: string[] = [];
+	for (const hold of holds) {
+		holdIds.push(hold.id);
+	}
+
+	await tx
+		.delete(payment)
+		.where(
+			and(
+				inArray(payment.appointmentId, holdIds),
+				eq(payment.status, 'unpaid'),
+				isNull(payment.razorpayOrderId)
+			)
+		);
+	const deleted = await tx.delete(appointment).where(inArray(appointment.id, holdIds)).returning();
+
+	for (const row of deleted) {
+		if (row.packId) {
+			await returnPackCredit(row.packId, tx);
+		}
+	}
+	return deleted;
 }

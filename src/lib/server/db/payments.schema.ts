@@ -64,10 +64,9 @@ export const paymentPack = pgTable(
 			.notNull()
 			.references(() => client.id, { onDelete: 'cascade' }),
 		sessionCount: integer('session_count').notNull(),
-		// total price, whole units of the therapist's currency
-		amount: integer('amount').notNull(),
+		// lifecycle only (active / completed / cancelled). The money lives on the
+		// payment row that points back here via payment.packId.
 		status: packStatusEnum('status').notNull().default('pending_payment'),
-		paidAt: timestamp('paid_at'),
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')
 			.defaultNow()
@@ -103,6 +102,9 @@ export const payment = pgTable(
 		appointmentId: text('appointment_id').references(() => appointment.id, {
 			onDelete: 'set null'
 		}),
+		// set when this row is the purchase price of a session pack. The pack keeps only
+		// the session count; the pack's price and paid state are this row's.
+		packId: text('pack_id').references(() => paymentPack.id, { onDelete: 'set null' }),
 		// defaults to client.rate at creation time; therapist can edit any time
 		amount: integer('amount').notNull(),
 		// free text context for the amount, e.g. "late cancellation fee (50%)"
@@ -127,6 +129,7 @@ export const payment = pgTable(
 	(table) => [
 		index('payment_clientId_idx').on(table.clientId),
 		index('payment_appointmentId_idx').on(table.appointmentId),
+		index('payment_packId_idx').on(table.packId),
 		check(
 			'payment_client_xor_customName',
 			sql`(${table.clientId} is not null)::int + (${table.customName} is not null)::int = 1`
@@ -210,11 +213,13 @@ export const paymentSettingsRelations = relations(paymentSettings, ({ one }) => 
 export const paymentPackRelations = relations(paymentPack, ({ one, many }) => ({
 	therapist: one(therapist, { fields: [paymentPack.therapistId], references: [therapist.id] }),
 	client: one(client, { fields: [paymentPack.clientId], references: [client.id] }),
-	appointments: many(appointment)
+	appointments: many(appointment),
+	payments: many(payment)
 }));
 
 export const paymentRelations = relations(payment, ({ one }) => ({
 	therapist: one(therapist, { fields: [payment.therapistId], references: [therapist.id] }),
 	client: one(client, { fields: [payment.clientId], references: [client.id] }),
-	appointment: one(appointment, { fields: [payment.appointmentId], references: [appointment.id] })
+	appointment: one(appointment, { fields: [payment.appointmentId], references: [appointment.id] }),
+	pack: one(paymentPack, { fields: [payment.packId], references: [paymentPack.id] })
 }));

@@ -49,6 +49,8 @@ export const therapist = pgTable('therapist', {
 	sessionRate: integer('session_rate'),
 	// how this therapist sees clients; shown on their referral card alongside `location`
 	sessionFormat: therapistFormatEnum('session_format'),
+	// null until the first-visit welcome modal is dismissed; the (app) layout shows it while null
+	welcomeSeenAt: timestamp('welcome_seen_at'),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	updatedAt: timestamp('updated_at')
 		.defaultNow()

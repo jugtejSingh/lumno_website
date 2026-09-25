@@ -11,7 +11,12 @@ import {
 	type PolicyOutcome,
 	type ChangeTier
 } from '$lib/server/paymentPolicy';
-import { addCharge, moveFinancialLinksOnReschedule } from '$lib/server/payments';
+import {
+	addCharge,
+	moveFinancialLinksOnReschedule,
+	payForReplacementSession,
+	returnPackCredit
+} from '$lib/server/payments';
 import { createMeetEvent, patchMeetEventTime, deleteMeetEvent } from '$lib/server/googleCalendar';
 import { getNotificationSettings } from '$lib/server/settings';
 import { sendAppointmentEmail } from '$lib/server/bookingEmails';
@@ -205,7 +210,8 @@ export async function listUpcomingAppointmentsForClient(
 			startAt: appointment.startAt,
 			modality: appointment.modality,
 			status: appointment.status,
-			meetLink: appointment.meetLink
+			meetLink: appointment.meetLink,
+			packId: appointment.packId
 		})
 		.from(appointment)
 		.where(
@@ -529,8 +535,11 @@ export async function cancelAppointment(
 				)[0]?.rate ?? 0)
 			: 0;
 		outcome = { tier: manualTier, feeAmount: Math.round(baseAmount * tierFraction(manualTier)) };
-	} else {
+	} else if (clientId) {
 		outcome = await resolveOutcomeFor(therapistId, appt, 'cancellation');
+	} else {
+		// therapist cancelling an upcoming session never charges the client
+		outcome = { tier: 'free', feeAmount: 0 };
 	}
 
 	await db.transaction(async (tx) => {
@@ -541,13 +550,15 @@ export async function cancelAppointment(
 			.set({ status: 'cancelled', meetLink: null, googleEventId: null })
 			.where(eq(appointment.id, appointmentId));
 
-		if (outcome.tier === 'free') {
-			// free-tier cancellation returns the pack credit — clearing pack_id is what
-			// "returning a credit" means, per the credits-remaining derivation
-			if (appt.packId) {
-				await tx.update(appointment).set({ packId: null }).where(eq(appointment.id, appointmentId));
-			}
-		} else {
+		// only a 100% cancellation consumes the pack: free and 50% both return the credit —
+		// clearing pack_id is what "returning a credit" means, per the credits-remaining derivation
+		if (appt.packId && outcome.tier !== 'full') {
+			await tx.update(appointment).set({ packId: null }).where(eq(appointment.id, appointmentId));
+			await returnPackCredit(appt.packId, tx);
+		}
+
+		// a pack session never gets a fee row: the credit is the penalty (consumed at 100%)
+		if (outcome.tier !== 'free' && !appt.packId) {
 			await addCharge(
 				therapistId,
 				{
@@ -563,7 +574,7 @@ export async function cancelAppointment(
 
 	await detachMeetingLink(appt);
 	await sendAppointmentEmail(appt.id, 'cancelled', {
-		feeAmount: outcome.tier !== 'free' ? outcome.feeAmount : 0
+		feeAmount: outcome.tier !== 'free' && !appt.packId ? outcome.feeAmount : 0
 	});
 
 	return { outcome };
@@ -599,9 +610,15 @@ export type RescheduleInsertResult =
 export async function finishReschedule(
 	therapistId: string,
 	oldAppt: typeof appointment.$inferSelect,
-	insertNew: (tx: DbOrTx) => Promise<RescheduleInsertResult>
+	insertNew: (tx: DbOrTx) => Promise<RescheduleInsertResult>,
+	byTherapist = false
 ): Promise<RescheduleAppointmentResult> {
-	const outcome = await resolveOutcomeFor(therapistId, oldAppt, 'reschedule');
+	// therapist-initiated changes never charge the client
+	const outcome: PolicyOutcome = byTherapist
+		? { tier: 'free', feeAmount: 0 }
+		: await resolveOutcomeFor(therapistId, oldAppt, 'reschedule');
+	// a pack session moved inside the 100% window loses its credit, like a 100% cancellation
+	const packLost = !!oldAppt.packId && outcome.tier === 'full';
 
 	const result = await db.transaction(async (tx) => {
 		const inserted = await insertNew(tx);
@@ -609,14 +626,21 @@ export async function finishReschedule(
 			return inserted;
 		}
 
-		await tx
-			.update(appointment)
-			.set({ status: 'rescheduled' })
-			.where(eq(appointment.id, oldAppt.id));
-		await moveFinancialLinksOnReschedule(oldAppt.id, inserted.appointment.id, tx);
+		if (packLost) {
+			// the old row keeps its packId (credit consumed); the new one is paid for like a fresh booking
+			await tx.update(appointment).set({ status: 'cancelled' }).where(eq(appointment.id, oldAppt.id));
+			await payForReplacementSession(therapistId, inserted.appointment, tx);
+		} else {
+			await tx
+				.update(appointment)
+				.set({ status: 'rescheduled' })
+				.where(eq(appointment.id, oldAppt.id));
+			await moveFinancialLinksOnReschedule(oldAppt.id, inserted.appointment.id, tx);
+		}
 		await moveMeetLinkOnReschedule(oldAppt.id, inserted.appointment.id, tx);
 
-		if (outcome.tier !== 'free') {
+		// pack sessions never get a fee row: the credit is the penalty
+		if (outcome.tier !== 'free' && !oldAppt.packId) {
 			await addCharge(
 				therapistId,
 				{
@@ -646,7 +670,7 @@ export async function finishReschedule(
 	await syncMeetEventOnReschedule(freshAppointment ?? result.appointment);
 	await sendAppointmentEmail(result.appointment.id, 'rescheduled', {
 		previousStartAt: oldAppt.startAt,
-		feeAmount: outcome.tier !== 'free' ? outcome.feeAmount : 0
+		feeAmount: outcome.tier !== 'free' && !oldAppt.packId ? outcome.feeAmount : 0
 	});
 
 	return { appointment: freshAppointment ?? result.appointment, outcome };
@@ -689,5 +713,5 @@ export async function rescheduleAppointmentForTherapist(
 			return { error: created.error ?? ('invalid_range' as const), conflict: created.conflict };
 		}
 		return { appointment: created.appointment };
-	});
+	}, true);
 }

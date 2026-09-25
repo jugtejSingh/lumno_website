@@ -6,7 +6,6 @@ import {
 	createPack,
 	cancelPack,
 	listPacksForTherapist,
-	markPackPaid,
 	updatePack,
 	getActivePackForClient,
 	completePackIfExhausted,
@@ -17,10 +16,18 @@ import {
 	listVisiblePaymentsForClient,
 	getBalanceDueForClient
 } from '$lib/server/payments';
-import { resetDb, mkTherapist, mkClient, mkAppointment, mkPack } from './helpers';
+import { eq } from 'drizzle-orm';
+import { db } from '$lib/server/db';
+import { payment } from '$lib/server/db/schema';
+import { resetDb, mkTherapist, mkClient, mkAppointment } from './helpers';
 
 let therapistId: string;
 let clientId: string;
+
+// the payment rows that carry a pack's price
+function purchaseRows(packId: string) {
+	return db.select().from(payment).where(eq(payment.packId, packId));
+}
 
 beforeEach(async () => {
 	await resetDb();
@@ -38,9 +45,9 @@ describe('charges and balance', () => {
 		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(false);
 	});
 
-	it('listOutstandingBalancesByClient sums unpaid charges + pending packs, per client', async () => {
+	it('listOutstandingBalancesByClient sums unpaid charges and unpaid pack purchases, per client', async () => {
 		await addCharge(therapistId, { clientId, amount: 1000 });
-		await mkPack(therapistId, clientId, { amount: 5000, status: 'pending_payment' });
+		await createPack(therapistId, { clientId, sessionCount: 5, amount: 5000, paid: false });
 
 		const rows = await listOutstandingBalancesByClient(therapistId);
 		expect(rows).toEqual([{ key: clientId, clientId, name: 'Test Client', owed: 6000 }]);
@@ -119,19 +126,41 @@ describe('client-visible payments', () => {
 });
 
 describe('packs', () => {
-	it('createPack is usable straight away, even unpaid, and counts as owed until paid', async () => {
+	it('createPack is usable straight away, even unpaid, and counts as owed until its price is paid', async () => {
 		const result = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
 		const pack = result.pack!;
 		expect(pack.status).toBe('active');
 		expect(await getActivePackForClient(clientId)).toMatchObject({ id: pack.id, remaining: 4 });
 		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(true);
 
-		expect(await markPackPaid(therapistId, pack.id)).toEqual({});
+		const [purchase] = await purchaseRows(pack.id);
+		await setPaymentStatus(therapistId, purchase.id, 'paid');
 		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(false);
 	});
 
-	it('a pack created as paid is not owed', async () => {
-		await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: true });
+	it('createPack writes one purchase row carrying the price, not tied to any session', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+
+		const rows = await purchaseRows(pack!.id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			therapistId,
+			clientId,
+			appointmentId: null,
+			amount: 4000,
+			note: 'Pack: 4 sessions',
+			status: 'unpaid',
+			paidAt: null
+		});
+	});
+
+	it('a pack created as paid has a paid purchase row and is not owed', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+
+		const [purchase] = await purchaseRows(pack!.id);
+		expect(purchase.status).toBe('paid');
+		expect(purchase.paidAt).not.toBeNull();
+		expect(purchase.note).toBe('Pack: 1 session');
 		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(false);
 	});
 
@@ -150,13 +179,15 @@ describe('packs', () => {
 		expect(await getActivePackForClient(clientId)).toBeNull();
 	});
 
-	it('markPackPaid on a completed pack leaves it completed', async () => {
+	it('paying for a completed pack leaves it completed', async () => {
 		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: false });
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 		await completePackIfExhausted(pack!.id);
 
-		await markPackPaid(therapistId, pack!.id);
+		const [purchase] = await purchaseRows(pack!.id);
+		await setPaymentStatus(therapistId, purchase.id, 'paid');
 		expect(await getActivePackForClient(clientId)).toBeNull();
+		expect((await listPacksForTherapist(therapistId))[0].status).toBe('completed');
 	});
 
 	it('createPack refuses a second pack while the first still has credit', async () => {
@@ -241,12 +272,42 @@ describe('pack ownership and owed totals', () => {
 		expect((await getClientPaymentTotals(therapistId, clientId)).owed).toBe(900);
 	});
 
-	it('a cancelled unpaid pack is not owed', async () => {
+	it('a cancelled unpaid pack is not owed: its unpaid purchase row goes with it', async () => {
 		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
 		await cancelPack(therapistId, pack!.id);
 
+		expect(await purchaseRows(pack!.id)).toEqual([]);
 		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(false);
 		expect(await listOutstandingBalancesByClient(therapistId)).toEqual([]);
+		expect((await getClientPaymentTotals(therapistId, clientId)).owed).toBe(0);
+	});
+
+	it('cancelling a paid pack keeps its purchase row as the record of the payment', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: true });
+		await cancelPack(therapistId, pack!.id);
+
+		const rows = await purchaseRows(pack!.id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].status).toBe('paid');
+	});
+
+	it('cancelling leaves an unpaid purchase row with a Razorpay order in flight', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const [purchase] = await purchaseRows(pack!.id);
+		await db.update(payment).set({ razorpayOrderId: 'order_test_1' }).where(eq(payment.id, purchase.id));
+
+		await cancelPack(therapistId, pack!.id);
+		expect(await purchaseRows(pack!.id)).toHaveLength(1);
+	});
+
+	it('cancelPack does nothing to another therapist’s pack', async () => {
+		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const other = await mkTherapist();
+
+		await cancelPack(other.id, pack!.id);
+		expect(await getActivePackForClient(clientId)).toMatchObject({ id: pack!.id });
+		expect(await purchaseRows(pack!.id)).toHaveLength(1);
+		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(true);
 	});
 
 	it('pack money and charges add up together per client', async () => {
@@ -255,14 +316,6 @@ describe('pack ownership and owed totals', () => {
 
 		const rows = await listOutstandingBalancesByClient(therapistId);
 		expect(rows).toEqual([{ key: clientId, clientId, name: 'Test Client', owed: 5000 }]);
-	});
-
-	it('markPackPaid reports not_found for another therapist’s pack', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: false });
-		const other = await mkTherapist();
-
-		expect(await markPackPaid(other.id, pack!.id)).toEqual({ error: 'not_found' });
-		expect(await hasOutstandingBalance(therapistId, clientId)).toBe(true);
 	});
 
 	it('listPacksForTherapist reports remaining sessions per pack', async () => {
@@ -278,7 +331,6 @@ describe('pack ownership and owed totals', () => {
 			remaining: 2,
 			status: 'active'
 		});
-		expect(packs[0].paidAt).not.toBeNull();
 	});
 
 	it('listPacksForTherapist only lists this therapist’s packs', async () => {
