@@ -9,7 +9,7 @@
 	{id}
 	{number}
 	title="AI help with notes"
-	intro="Jot your notes down however they come out between sessions. Two buttons in the note editor can tidy them up and summarise them for you."
+	intro="Jot your notes down however they come out between sessions. AI can tidy them up, summarise them, turn them into something you can share with the client, and answer questions about a client. AI is included on the Basic and Pro plans, not on Free."
 >
 	<h3>✨ Fix: tidy up your writing</h3>
 	<p>
@@ -25,11 +25,24 @@
 		can scan a client's history at a glance without opening every note. The full note stays the same.
 	</p>
 
+	<h3>Send to client: a version of a private note that's safe to share</h3>
+	<p>
+		Open a private note and press <strong>Send to client</strong>. AI drafts a version written for the
+		client and opens it as a new note for the client, linked to the same session. Nothing is sent
+		yet: read it, change anything you like, and only then send it. Your private note stays as it is.
+	</p>
+
+	<h3>Chat: ask about a client</h3>
+	<p>
+		Press <strong>Chat</strong> in a client's notes to ask questions such as "what did we agree on
+		for homework last month?". Answers come only from that client's private notes. The chat isn't
+		saved: closing it or reloading the page starts it over.
+	</p>
+
 	<GuideCallout title="Privacy">
 		<p>
-			Session notes are health information. The AI only sends them to providers that don't keep or
-			train on what they receive (zero data retention). If none of those providers is available, the
-			request fails. It's never passed to a provider that would keep your data.
+			Session notes are health information. The AI only sends them to providers that don't use what
+			they receive to train AI models.
 		</p>
 	</GuideCallout>
 

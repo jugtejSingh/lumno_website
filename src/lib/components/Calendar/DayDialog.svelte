@@ -57,7 +57,7 @@
 	}
 </script>
 
-<Dialog open={day !== null} {title} onclose={close} flush width="clamp(320px, 80vw, 880px)">
+<Dialog open={day !== null} {title} onclose={close} flush width="clamp(320px, 90vw, 1040px)">
 	<div class="dialog-columns">
 		<div class="col-sessions">
 			{#each sessions as s (s.id)}
@@ -172,10 +172,12 @@
 </Dialog>
 
 <style>
+	/* fixed height so a busy day scrolls inside each pane instead of growing the modal */
 	.dialog-columns {
 		display: flex;
 		flex: 1;
 		min-height: 0;
+		height: min(560px, 75dvh);
 	}
 
 	.col-sessions {

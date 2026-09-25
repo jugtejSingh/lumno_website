@@ -11,6 +11,11 @@
 	title="Notes"
 	intro="Each client has two kinds of notes: private notes only you can read, and notes you send to the client, which appear in their portal. Both can be linked to a session so you can always see what was covered when."
 >
+	<p>
+		You'll find a client's notes on the <a href="/notes">Notes</a> page and on the Notes tab of their
+		page under <a href="/clients">Clients</a>. Both show the same notes.
+	</p>
+
 	<h3>Private notes vs notes for the client</h3>
 	<ul>
 		<li>

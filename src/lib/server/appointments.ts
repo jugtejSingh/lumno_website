@@ -57,6 +57,19 @@ export function parseTimeParts(value: string): { hour: number; minute: number } 
 	return { hour, minute };
 }
 
+// Every booking path calls this in the same savepoint as its insert: rebook reminders read
+// client.lastSessionAt, and a future value means "already booked, don't nudge". Keeps the
+// later of the stored value and startAt, so a reschedule to an earlier date can't clobber a
+// later known session.
+export async function bumpLastSessionAt(executor: DbOrTx, clientId: string, startAt: Date) {
+	await executor
+		.update(client)
+		.set({
+			lastSessionAt: sql`greatest(${client.lastSessionAt}, ${startAt.toISOString()}::timestamptz)`
+		})
+		.where(eq(client.id, clientId));
+}
+
 // Best-effort: creates a Google Meet event for an online appointment that doesn't have one
 // yet, and patches the row with the link/event id. No-op (returns the row unchanged) for
 // in-person appointments, an appointment that already has a link, or when the therapist
@@ -447,14 +460,7 @@ export async function createAppointmentForTherapist(
 				.returning();
 
 			if (input.clientId) {
-				// keep the later of the existing value and this booking's startAt — a
-				// reschedule to an earlier date must not clobber a later known session.
-				await savepoint
-					.update(client)
-					.set({
-					lastSessionAt: sql`greatest(${client.lastSessionAt}, ${startAt.toISOString()}::timestamptz)`
-				})
-					.where(eq(client.id, input.clientId));
+				await bumpLastSessionAt(savepoint, input.clientId, startAt);
 			}
 
 			return inserted;

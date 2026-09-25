@@ -109,17 +109,16 @@
 		flex-shrink: 0;
 		border-right: 2px solid var(--border-subtle);
 		background: var(--surface-canvas);
-		padding: 16px;
+		/* spacing shrinks with window height so every link fits without a scrollbar;
+		   full-size values kick in from ~800px tall */
+		padding: clamp(8px, 2vh, 16px) 16px;
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		/* .app-shell is 100vh and the page itself doesn't scroll, so on a short window
-		   the bottom links (Settings, Feedback, Log out) fall off with no way to reach them */
-		overflow-y: auto;
+		gap: clamp(0px, 0.5vh, 4px);
 	}
 
 	.sidebar-logo {
-		margin-bottom: 18px;
+		margin-bottom: clamp(6px, 2.2vh, 18px);
 		padding-left: 4px;
 	}
 
@@ -181,8 +180,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		margin-top: 8px;
-		padding-top: 8px;
+		margin-top: clamp(4px, 1vh, 8px);
+		padding-top: clamp(4px, 1vh, 8px);
 		border-top: 2px dotted var(--beige-400);
 	}
 

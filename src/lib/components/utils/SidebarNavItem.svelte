@@ -14,7 +14,8 @@
 
 <style>
 	.nav-item {
-		padding: 8px 12px;
+		/* tightens on short windows so the sidebar never needs to scroll */
+		padding: clamp(4px, 1vh, 8px) 12px;
 		border: 2px solid transparent;
 		border-radius: var(--radius-sm);
 		font-size: 14px;

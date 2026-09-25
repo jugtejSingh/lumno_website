@@ -12,9 +12,13 @@
 >
 	<ol>
 		<li>
-			<strong>Set your schedule.</strong> In <a href="/settings">Settings → Schedule</a>, choose your
-			session length, the gap between sessions, your working hours and what each day of the week
-			looks like (online, in person, hybrid or a day off). This decides which times clients can book.
+			<strong>Set your timezone.</strong> In <a href="/settings">Settings → Booking Rules</a>, pick
+			the timezone you work in. Your slots and the calendar's days follow it.
+		</li>
+		<li>
+			<strong>Build your weekly slots.</strong> On the <a href="/calendar">Calendar</a>, open your
+			weekly slots and add the times clients can book on each day (see
+			<a href="#calendar">Calendar &amp; scheduling</a>). Clients can only book slots you've added.
 		</li>
 		<li>
 			<strong>Tell clients how to pay you.</strong> In
@@ -29,7 +33,7 @@
 		<li>
 			<strong>Set your cancellation policy.</strong> In
 			<a href="/settings">Settings → Payment Setup</a>, choose how much notice a client must give to
-			cancel or reschedule for free.
+			cancel for free, and whether rescheduling is charged too (it has its own windows).
 		</li>
 		<li>
 			<strong>Connect Google Calendar</strong> (optional) at the bottom of

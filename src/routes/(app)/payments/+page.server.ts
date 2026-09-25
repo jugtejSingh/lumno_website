@@ -14,7 +14,8 @@ import {
 import { listClients } from '$lib/server/clients';
 import { listDoubleCharges, dismissDoubleCharge } from '$lib/server/sessionPayments';
 
-const BALANCES_PER_PAGE = 15;
+const BALANCES_PER_PAGE = 5;
+const PACKS_PER_PAGE = 5;
 
 const PAYMENT_NOT_FOUND = 'That payment could not be found — it may have been deleted. Refresh and try again.';
 
@@ -22,6 +23,7 @@ export const load: PageServerLoad = async (event) => {
 	const { therapist } = await event.parent();
 	const now = new Date();
 	const balancesPage = Math.max(1, Number(event.url.searchParams.get('balancesPage')) || 1);
+	const packsPage = Math.max(1, Number(event.url.searchParams.get('packsPage')) || 1);
 
 	const [summary, balances, clients, doubleChargeRows, allPacks] = await Promise.all([
 		getMonthlyPaymentSummary(therapist.id, now.getFullYear(), now.getMonth()),
@@ -67,7 +69,10 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		doubleCharges,
-		packs,
+		packs: packs.slice((packsPage - 1) * PACKS_PER_PAGE, packsPage * PACKS_PER_PAGE),
+		packsPage,
+		packsTotal: packs.length,
+		packsPerPage: PACKS_PER_PAGE,
 		summary,
 		balances: balances.slice((balancesPage - 1) * BALANCES_PER_PAGE, balancesPage * BALANCES_PER_PAGE),
 		balancesPage,

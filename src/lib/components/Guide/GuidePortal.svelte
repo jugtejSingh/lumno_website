@@ -42,8 +42,16 @@
 	<ul>
 		<li>
 			<strong>Their upcoming sessions</strong>, with a Google Meet link for online ones, plus
-			<strong>Reschedule</strong> and <strong>Cancel</strong> buttons. Your cancellation policy is shown
-			right under the calendar, so late fees are never a surprise.
+			<strong>Reschedule</strong> and <strong>Cancel</strong> buttons. Your cancellation and reschedule
+			policies are shown right under the calendar, so late fees are never a surprise.
+		</li>
+		<li>
+			<strong>Your note for clients</strong>, if you've written one, above the booking calendar.
+		</li>
+		<li>
+			<strong>Their pack</strong>: how many sessions are left, or that it's used up and the next
+			sessions are at the regular price. If they move a pack session too late and have no credits
+			left, they're warned it'll be charged before they confirm.
 		</li>
 		<li>
 			<strong>A calendar of open slots</strong> for the next 14 days. It only shows times that are
@@ -57,6 +65,10 @@
 		<li>
 			<strong>Notes &amp; homework</strong> you've chosen to share with them. Your private notes are
 			never shown.
+		</li>
+		<li>
+			<strong>Resources</strong>: files and links you've added for them, and they can add their own
+			(see <a href="#clients">Clients</a>).
 		</li>
 		<li>
 			<strong>Their details</strong>: they can add a phone number for WhatsApp reminders.

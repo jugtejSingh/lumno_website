@@ -71,7 +71,8 @@
 				'Payment collection & invoicing (0% commission)',
 				'Therapist community — refer clients to colleagues',
 				'AI: fix note wording, one-line summaries',
-				'AI: client-safe recap sent to the client, ask-about-a-client chat'
+				'AI: client-safe recap sent to the client, ask-about-a-client chat',
+				'Good limits for AI use'
 			]
 		},
 		{
@@ -89,7 +90,8 @@
 				'Payment collection & invoicing (0% commission)',
 				'Therapist community — refer clients to colleagues',
 				'AI: fix note wording, one-line summaries',
-				'AI: client-safe recap sent to the client, ask-about-a-client chat'
+				'AI: client-safe recap sent to the client, ask-about-a-client chat',
+				'Very high limits for AI use'
 			]
 		}
 	];
@@ -215,8 +217,8 @@
 		</div>
 
 		<div class="ai-note">
-			Notes sent to AI (fix, summarize, client recaps, chat) are processed only by
-			zero-data-retention AI providers — nothing is stored, logged, or used to train any model.
+			Notes sent to AI (fix, summarize, client recaps, chat) are processed only by AI providers
+			that don't use them to train any model.
 		</div>
 	</div>
 

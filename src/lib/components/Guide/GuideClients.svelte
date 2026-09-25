@@ -31,10 +31,24 @@
 		</li>
 	</ul>
 
-	<h3>Adding more information with Edit</h3>
+	<h3>The client's page</h3>
 	<p>
-		Press <strong>Edit</strong> on a client's card to add everything the invite didn't need:
+		Press <strong>View</strong> on a client's card to open their own page. Their other clients are
+		listed on the side so you can jump between them, and the page has five tabs:
 	</p>
+	<ul>
+		<li><strong>Info</strong>: their details and everything below, with <strong>Save changes</strong>.</li>
+		<li><strong>Sessions</strong>: their upcoming and past sessions.</li>
+		<li>
+			<strong>Payments</strong>: what they owe and have paid this month and year, their full invoice
+			history, and <strong>+ Add charge</strong> for anything extra, such as a late fee.
+		</li>
+		<li><strong>Notes</strong>: their private and shared notes (see <a href="#notes">Notes</a>).</li>
+		<li><strong>Resources</strong>: files and links for this client (see below).</li>
+	</ul>
+
+	<h3>Adding more information on the Info tab</h3>
+	<p>The Info tab holds everything the invite didn't need:</p>
 	<ul>
 		<li>
 			<strong>Your own headings</strong>: set up to 20 in Settings → Client Profile Fields (for example
@@ -60,9 +74,15 @@
 		</li>
 	</ul>
 
-	<h3>Payments and deleting</h3>
+	<h3>Resources</h3>
 	<p>
-		<strong>View payments</strong> shows that client's full invoice history.
+		On the Resources tab, add a file (PDF, PNG, JPEG or WebP, under 20 MB) or a link, give it a
+		name and a tag such as Worksheet / homework, Reading or Assessment. The client sees it in their
+		portal and can add their own there too, for example a prescription or a medical report.
+	</p>
+
+	<h3>Deleting a client</h3>
+	<p>
 		<strong>Delete</strong> permanently removes the client. If you might work with them again, set
 		them to <strong>left</strong> instead.
 	</p>

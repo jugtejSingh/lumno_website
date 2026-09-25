@@ -6,6 +6,7 @@
 	import PacksMakerDialog from '$lib/components/Payments/PacksMakerDialog.svelte';
 	import ClientPaymentsDialog from '$lib/components/Payments/ClientPaymentsDialog.svelte';
 	import ClientSidebar from '$lib/components/Payments/ClientSidebar.svelte';
+	import Pager from '$lib/components/utils/Pager.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$lib/enhance';
@@ -19,10 +20,12 @@
 
 	const openClientName = $derived(data.clients.find((c) => c.id === openClientId)?.name ?? '');
 	const balancesTotalPages = $derived(Math.max(1, Math.ceil(data.balancesTotal / data.balancesPerPage)));
+	const packsTotalPages = $derived(Math.max(1, Math.ceil(data.packsTotal / data.packsPerPage)));
 
-	function gotoBalancesPage(target: number) {
+	// each column owns its own URL param, so paging one leaves the other where it was
+	function gotoPage(param: 'balancesPage' | 'packsPage', target: number) {
 		const url = new URL(window.location.href);
-		url.searchParams.set('balancesPage', String(target));
+		url.searchParams.set(param, String(target));
 		goto(`${url.pathname}${url.search}`, { keepFocus: true });
 	}
 </script>
@@ -62,61 +65,55 @@
 			<StatCard label="Total this month" value={formatCurrency(data.summary.total, data.currency)} accent="plum" />
 		</div>
 
-		{#if data.packs.length > 0}
-			<div class="section-title">Packs</div>
-			<div class="balance-list">
-				{#each data.packs as pack (pack.id)}
-					<Card>
-						<div class="pack-row">
-							<span class="balance-name">{pack.clientName}</span>
-							<span class="pack-detail">
-								{pack.remaining} of {pack.sessionCount} sessions left
-							</span>
-						</div>
-					</Card>
-				{/each}
+		<div class="columns">
+			<div class="column">
+				<div class="section-title">Packs</div>
+				<div class="balance-list">
+					{#each data.packs as pack (pack.id)}
+						<Card>
+							<div class="pack-row">
+								<span class="balance-name">{pack.clientName}</span>
+								<span class="pack-detail">
+									{pack.remaining} of {pack.sessionCount} sessions left
+								</span>
+							</div>
+						</Card>
+					{/each}
+					{#if data.packs.length === 0}
+						<div class="empty">No active packs.</div>
+					{/if}
+				</div>
+				<Pager page={data.packsPage} totalPages={packsTotalPages} ongoto={(target) => gotoPage('packsPage', target)} />
 			</div>
-		{/if}
 
-		<div class="section-title">Who owes what</div>
-		<div class="balance-list">
-			{#each data.balances as b (b.key)}
-				<Card interactive={!!b.clientId}>
-					<!-- walk-in (no clientId) balances have no client history to drill into — the row is just the total -->
-					<button
-						type="button"
-						class="balance-row"
-						disabled={!b.clientId}
-						onclick={() => b.clientId && (openClientId = b.clientId)}
-					>
-						<span class="balance-name">{b.name}</span>
-						<span class="balance-owed">{formatCurrency(b.owed, data.currency)}</span>
-					</button>
-				</Card>
-			{/each}
-			{#if data.balances.length === 0}
-				<div class="empty">No outstanding balances.</div>
-			{/if}
-		</div>
-		{#if balancesTotalPages > 1}
-			<div class="pager">
-				<Button
-					variant="secondary"
-					size="sm"
-					onclick={() => {
-						if (data.balancesPage > 1) gotoBalancesPage(data.balancesPage - 1);
-					}}>Prev</Button
-				>
-				<span class="pager-label">Page {data.balancesPage} of {balancesTotalPages}</span>
-				<Button
-					variant="secondary"
-					size="sm"
-					onclick={() => {
-						if (data.balancesPage < balancesTotalPages) gotoBalancesPage(data.balancesPage + 1);
-					}}>Next</Button
-				>
+			<div class="column">
+				<div class="section-title">Who owes what</div>
+				<div class="balance-list">
+					{#each data.balances as b (b.key)}
+						<Card interactive={!!b.clientId}>
+							<!-- walk-in (no clientId) balances have no client history to drill into — the row is just the total -->
+							<button
+								type="button"
+								class="balance-row"
+								disabled={!b.clientId}
+								onclick={() => b.clientId && (openClientId = b.clientId)}
+							>
+								<span class="balance-name">{b.name}</span>
+								<span class="balance-owed">{formatCurrency(b.owed, data.currency)}</span>
+							</button>
+						</Card>
+					{/each}
+					{#if data.balances.length === 0}
+						<div class="empty">No outstanding balances.</div>
+					{/if}
+				</div>
+				<Pager
+					page={data.balancesPage}
+					totalPages={balancesTotalPages}
+					ongoto={(target) => gotoPage('balancesPage', target)}
+				/>
 			</div>
-		{/if}
+		</div>
 	</div>
 </div>
 
@@ -260,15 +257,24 @@
 		font-size: 14px;
 	}
 
-	.pager {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
+	.columns {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 20px;
+		align-items: start;
 	}
 
-	.pager-label {
-		font-size: 13px;
-		color: var(--text-muted);
+	.column {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		min-width: 0;
+	}
+
+	/* phones: packs on top, balances below */
+	@media (max-width: 640px) {
+		.columns {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

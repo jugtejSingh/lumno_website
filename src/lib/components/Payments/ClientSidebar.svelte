@@ -42,29 +42,6 @@
 		gap: 10px;
 	}
 
-	/* ponytail: stacked layout below 640px — rail becomes a horizontal strip */
-	@media (max-width: 640px) {
-		.client-sidebar {
-			width: auto;
-			border-right: none;
-			border-bottom: 2px dotted var(--beige-400);
-			padding-right: 0;
-			padding-bottom: 10px;
-		}
-
-		.client-list {
-			flex-direction: row;
-			flex-wrap: nowrap;
-			overflow-x: auto;
-			gap: 6px;
-		}
-
-		.client-item {
-			flex-shrink: 0;
-			white-space: nowrap;
-		}
-	}
-
 	.client-sidebar-title {
 		font-size: 13px;
 		font-weight: 700;
@@ -95,14 +72,50 @@
 		background: var(--coral-100);
 	}
 
+	/* tint + left accent bar (inset shadow, so no layout shift) */
 	.client-item.active {
-		background: var(--accent-primary);
-		box-shadow: 0 0 0 2px var(--outline), var(--shadow-sm);
-		color: var(--text-on-accent);
+		background: var(--coral-100);
+		box-shadow: inset 3px 0 0 var(--accent-primary);
+		border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+		color: var(--text-primary);
+		font-weight: 700;
 	}
 
 	.empty {
 		color: var(--text-muted);
 		font-size: 13px;
+	}
+
+	/* ponytail: stacked layout below 640px — rail becomes a horizontal strip.
+	   Must stay last: media queries add no specificity, so the base .client-list/
+	   .client-item rules above would otherwise win. */
+	@media (max-width: 640px) {
+		.client-sidebar {
+			width: auto;
+			border-right: none;
+			border-bottom: 2px dotted var(--beige-400);
+			padding-right: 0;
+			padding-bottom: 10px;
+		}
+
+		.client-list {
+			flex-direction: row;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			gap: 6px;
+		}
+
+		.client-item {
+			flex-shrink: 0;
+			white-space: nowrap;
+			border-radius: 999px;
+		}
+
+		.client-item.active {
+			background: var(--accent-primary);
+			box-shadow: none;
+			border-radius: 999px;
+			color: var(--text-on-accent);
+		}
 	}
 </style>

@@ -6,6 +6,7 @@
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import Dialog from '$lib/components/utils/Dialog.svelte';
+	import Pager from '$lib/components/utils/Pager.svelte';
 	import ClientForm from '$lib/components/Clients/ClientForm.svelte';
 	import type { ClientFieldValues } from '$lib/types/clientFields';
 	import { formatCurrency } from '$lib/format';
@@ -142,25 +143,7 @@
 			<div class="empty">No clients match that search.</div>
 		{/if}
 	</div>
-	{#if totalPages > 1}
-		<div class="pager">
-			<Button
-				variant="secondary"
-				size="sm"
-				onclick={() => {
-					if (page > 1) page -= 1;
-				}}>Prev</Button
-			>
-			<span class="pager-label">Page {page} of {totalPages}</span>
-			<Button
-				variant="secondary"
-				size="sm"
-				onclick={() => {
-					if (page < totalPages) page += 1;
-				}}>Next</Button
-			>
-		</div>
-	{/if}
+	<Pager {page} {totalPages} ongoto={(target) => (page = target)} />
 </div>
 
 <Dialog
@@ -180,6 +163,10 @@
 			};
 		}}
 	>
+		<div class="hint">
+			Your client fills in their own age, address, phone number and gender when they accept the
+			invite, so you don't need to add fields for those.
+		</div>
 		<ClientForm
 			bind:name={newName}
 			bind:email={newEmail}
@@ -338,18 +325,6 @@
 		font-size: 14px;
 	}
 
-	.pager {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
-	}
-
-	.pager-label {
-		font-size: 13px;
-		color: var(--text-muted);
-	}
-
 	.dialog-form {
 		display: flex;
 		flex-direction: column;
@@ -359,5 +334,10 @@
 	.form-error {
 		font-size: 13px;
 		color: var(--accent-danger, #c0392b);
+	}
+
+	.hint {
+		font-size: 13px;
+		color: var(--text-secondary);
 	}
 </style>

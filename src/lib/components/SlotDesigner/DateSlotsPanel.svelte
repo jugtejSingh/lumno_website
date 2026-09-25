@@ -126,7 +126,7 @@
 			{/if}
 		{/if}
 
-		<div class="actions">
+		<div class="actions day-actions">
 			<Button variant="secondary" size="sm" onclick={startEditing}>Edit this date</Button>
 			{#if isOff}
 				<form method="POST" action="?/clearDateOverride" use:enhance={onSaved}>
@@ -149,7 +149,9 @@
 </section>
 
 <style>
+	/* fills the rest of the pane so the day actions can sit at its bottom */
 	.date-slots {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
@@ -233,6 +235,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
+	}
+
+	.day-actions {
+		margin-top: auto;
+		justify-content: center;
 	}
 
 	.cap {

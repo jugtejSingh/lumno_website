@@ -21,6 +21,11 @@
 			email listing what they owe.
 		</li>
 		<li>
+			<strong>Rebook reminders</strong>: when a client hasn't booked their next session, a friendly
+			nudge 4 days after their last one, another at 11 days, then every 2 weeks until they book.
+			Only active clients get these, and they stop as soon as a new session is booked.
+		</li>
+		<li>
 			<strong>Google Meet links</strong>: added to online sessions and included in the booking email,
 			once Google Calendar is connected.
 		</li>

@@ -38,9 +38,22 @@
 	<p>Clients can only book the slots you build on the <a href="/calendar">Calendar</a>:</p>
 	<ul>
 		<li>
-			<strong>Weekly slots</strong>: set the slots for each day of the week. Each slot has its own
-			start and end time and is Online, In person, or Client picks (the client chooses when booking).
-			Use <strong>Copy to…</strong> to repeat a day across the week. A day with no slots is a day off.
+			<strong>Weekly slots</strong>: pick a day and press <strong>+ Add slot</strong>. Each slot has
+			its own start and end time and is Online, In person, or Client picks (the client chooses when
+			booking). Changes save as you make them. Use <strong>Copy to…</strong> to repeat a day across
+			the week. A day with no slots is a day off.
+		</li>
+		<li>
+			<strong>Max sessions</strong>: cap how many sessions can be booked on a day, even if more
+			slots are open.
+		</li>
+		<li>
+			<strong>Overlapping slots</strong>: two open slots can overlap. Once one is booked, the other
+			is hidden for that date.
+		</li>
+		<li>
+			<strong>Deleting an open slot</strong> keeps any sessions already booked in it. Clients just
+			can't book that time any more.
 		</li>
 		<li>
 			<strong>One date</strong>: click a day to give just that date its own slots, make it a day off,
@@ -56,6 +69,40 @@
 		</li>
 	</ul>
 	<p>Clients can book up to <strong>14 days</strong> ahead and only see slots that are still open.</p>
+
+	<h3>Reserving a slot for one client</h3>
+	<p>
+		For a client you see at the same time every week, set a weekly slot's dropdown from
+		<strong>Open to everyone</strong> to <strong>Reserved: their name</strong>. They're then booked
+		into that slot every week automatically, up to 14 days ahead, and no other client ever sees it.
+		Each of those sessions is invoiced like any other, or uses a pack credit if they have one.
+	</p>
+	<ul>
+		<li>Only Online or In person slots can be reserved, not Client picks.</li>
+		<li>A reserved slot can't overlap another slot on the same day.</li>
+		<li>
+			If a week can't be booked because something is already in that time, you're told how many
+			weeks were blocked.
+		</li>
+		<li>
+			<strong>Changing a reserved slot</strong> (its time, day or type, a different client, opening
+			it to everyone, or deleting it) deletes that client's future sessions on it, along with their
+			unpaid charges, and gives back any pack credits. No cancellation fee is charged. Past sessions
+			and any week the client cancelled or moved themselves are kept.
+		</li>
+		<li>
+			If the client moves one of these sessions from their portal, the new time becomes an ordinary
+			booking.
+		</li>
+	</ul>
+
+	<h3>A note for your clients</h3>
+	<p>
+		Under the calendar, <strong>Note for your clients</strong> is shown above the booking calendar in
+		every client's portal, for example "Payment must be made before the session starts". Your
+		cancellation and reschedule policies are already shown to clients, so there's no need to repeat
+		them here.
+	</p>
 
 	<h3>Google Meet links</h3>
 	<p>

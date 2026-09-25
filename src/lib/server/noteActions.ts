@@ -1,10 +1,9 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
 import { createNote, updateNote, privateNotesContext, type NoteVisibility } from '$lib/server/notes';
-import { fixNoteText, summarizeNoteText, summarizeNoteForClient, chatAboutClient, isOverAiBudget } from '$lib/server/ai';
+import { fixNoteText, summarizeNoteText, summarizeNoteForClient, chatAboutClient, aiAccessBlock } from '$lib/server/ai';
 
 // The six note actions, shared by /notes and /clients/[clientId] (both host
 // the same note-writing/AI UI, just for a different-scoped client list).
-const AI_LIMIT_MESSAGE = 'Monthly AI limit reached for this account. It resets next month.';
 const CHAT_WORD_LIMIT = 1000;
 
 function countWords(text: string): number {
@@ -82,8 +81,9 @@ export function noteActions() {
 			if (!body) {
 				return fail(400, { message: 'Write something before fixing it' });
 			}
-			if (await isOverAiBudget(therapistId)) {
-				return fail(429, { message: AI_LIMIT_MESSAGE });
+			const aiBlock = await aiAccessBlock(therapistId);
+			if (aiBlock) {
+				return fail(aiBlock.status, { message: aiBlock.message });
 			}
 
 			const fixed = await fixNoteText(therapistId, body);
@@ -100,8 +100,9 @@ export function noteActions() {
 			if (!body) {
 				return fail(400, { message: 'Write something before describing it' });
 			}
-			if (await isOverAiBudget(therapistId)) {
-				return fail(429, { message: AI_LIMIT_MESSAGE });
+			const aiBlock = await aiAccessBlock(therapistId);
+			if (aiBlock) {
+				return fail(aiBlock.status, { message: aiBlock.message });
 			}
 
 			const description = await summarizeNoteText(therapistId, body);
@@ -120,8 +121,9 @@ export function noteActions() {
 			if (!body) {
 				return fail(400, { message: 'Write something before sending it' });
 			}
-			if (await isOverAiBudget(therapistId)) {
-				return fail(429, { message: AI_LIMIT_MESSAGE });
+			const aiBlock = await aiAccessBlock(therapistId);
+			if (aiBlock) {
+				return fail(aiBlock.status, { message: aiBlock.message });
 			}
 
 			const shared = await summarizeNoteForClient(therapistId, body);
@@ -143,8 +145,9 @@ export function noteActions() {
 			if (!clientId || !question) {
 				return fail(400, { message: 'Ask something first' });
 			}
-			if (await isOverAiBudget(therapistId)) {
-				return fail(429, { message: AI_LIMIT_MESSAGE });
+			const aiBlock = await aiAccessBlock(therapistId);
+			if (aiBlock) {
+				return fail(aiBlock.status, { message: aiBlock.message });
 			}
 
 			let history: { role: 'user' | 'assistant'; content: string }[] = [];

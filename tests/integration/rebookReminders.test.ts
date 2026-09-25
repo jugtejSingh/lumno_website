@@ -5,7 +5,18 @@ import { client } from '$lib/server/db/schema';
 import { sendRebookReminders, sendPaymentReminders } from '$lib/server/reminderEmails';
 import { createAppointmentForTherapist } from '$lib/server/appointments';
 import { cancelPack, createPack } from '$lib/server/payments';
-import { resetDb, mkTherapist, mkClient, mkPack, mkSettings } from './helpers';
+import { createAppointmentForClient, rescheduleAppointmentForClient } from '$lib/server/availability';
+import { materialiseReservedSlots } from '$lib/server/recurringBookings';
+import {
+	resetDb,
+	mkTherapist,
+	mkClient,
+	mkPack,
+	mkSettings,
+	mkSlot,
+	mkAppointment,
+	dateAhead
+} from './helpers';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -163,6 +174,67 @@ describe('createAppointmentForTherapist — client.lastSessionAt', () => {
 		const afterSecond = await getClient(c.id);
 
 		expect(afterSecond.lastSessionAt).toEqual(afterFirst.lastSessionAt);
+	});
+});
+
+// A client whose last session was 5 days ago would get the stage-1 nudge. Each test books
+// them through a path other than createAppointmentForTherapist and checks the nudge is skipped.
+describe('sendRebookReminders skips clients who booked their next session', () => {
+	async function quietClient(therapistId: string) {
+		const c = await mkClient(therapistId, { email: 'client@example.com' });
+		await setLastSessionAt(c.id, new Date(Date.now() - 5 * DAY_MS));
+		return c;
+	}
+
+	it('a portal booking', async () => {
+		const t = await mkTherapist({ timezone: 'UTC' });
+		const c = await quietClient(t.id);
+		const target = dateAhead(3);
+		await mkSlot(t.id, { weekday: target.weekday });
+
+		const booked = await createAppointmentForClient(t.id, c.id, {
+			year: target.year,
+			month: target.month,
+			day: target.day,
+			startTime: '10:00'
+		});
+		expect('appointment' in booked).toBe(true);
+
+		await sendRebookReminders();
+		expect((await getClient(c.id)).rebookReminderStage).toBe(0);
+	});
+
+	it('a portal reschedule', async () => {
+		const t = await mkTherapist({ timezone: 'UTC' });
+		const c = await quietClient(t.id);
+		const from = dateAhead(3);
+		const to = dateAhead(5);
+		await mkSlot(t.id, { weekday: to.weekday });
+		// written straight to the table, so lastSessionAt is still 5 days ago
+		const old = await mkAppointment(t.id, c.id, { startAt: from.at(10), endAt: from.at(11) });
+
+		const moved = await rescheduleAppointmentForClient(t.id, c.id, old.id, {
+			year: to.year,
+			month: to.month,
+			day: to.day,
+			startTime: '10:00'
+		});
+		expect('appointment' in moved).toBe(true);
+
+		await sendRebookReminders();
+		expect((await getClient(c.id)).rebookReminderStage).toBe(0);
+	});
+
+	it('a weekly booking on a reserved slot', async () => {
+		const t = await mkTherapist({ timezone: 'UTC' });
+		const c = await quietClient(t.id);
+		await mkSlot(t.id, { weekday: dateAhead(3).weekday, reservedClientId: c.id });
+
+		const result = await materialiseReservedSlots();
+		expect(result.created).toBeGreaterThan(0);
+
+		await sendRebookReminders();
+		expect((await getClient(c.id)).rebookReminderStage).toBe(0);
 	});
 });
 

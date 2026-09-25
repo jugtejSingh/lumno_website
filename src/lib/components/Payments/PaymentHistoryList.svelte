@@ -4,6 +4,7 @@
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
 	import Badge from '$lib/components/utils/Badge.svelte';
+	import Pager from '$lib/components/utils/Pager.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { toast } from 'svelte-sonner';
 	import type { ClientPaymentHistoryRow, ClientPaymentTotals } from '$lib/types/payments';
@@ -30,6 +31,7 @@
 	let pageSize = $state(10);
 	let loading = $state(false);
 	let loadFailed = $state(false);
+	let listEl = $state<HTMLDivElement>();
 
 	const totalPages = $derived(Math.max(1, Math.ceil(total / pageSize)));
 
@@ -79,6 +81,14 @@
 	export function refresh() {
 		load();
 	}
+
+	// the pager lives at the bottom of the scroll box, so bring the new page in from its top row
+	function gotoPage(target: number) {
+		page = target;
+		if (listEl) {
+			listEl.scrollTop = 0;
+		}
+	}
 </script>
 
 {#snippet rowHead(p: ClientPaymentHistoryRow)}
@@ -105,7 +115,7 @@
 	{:else if rows.length === 0}
 		<div class="empty">No payment history yet.</div>
 	{:else}
-		<div class="history-list">
+		<div class="history-list" bind:this={listEl}>
 			{#each rows as p (p.id)}
 				{#if editable}
 					<!-- native disclosure: the edit fields only cost height once opened, so a
@@ -168,26 +178,7 @@
 					</div>
 				{/if}
 			{/each}
-		</div>
-	{/if}
-
-	{#if totalPages > 1}
-		<div class="pager">
-			<Button
-				variant="secondary"
-				size="sm"
-				onclick={() => {
-					if (page > 1) page -= 1;
-				}}>Prev</Button
-			>
-			<span class="pager-label">Page {page} of {totalPages}</span>
-			<Button
-				variant="secondary"
-				size="sm"
-				onclick={() => {
-					if (page < totalPages) page += 1;
-				}}>Next</Button
-			>
+			<Pager {page} {totalPages} ongoto={gotoPage} />
 		</div>
 	{/if}
 </div>
@@ -199,10 +190,19 @@
 		gap: 10px;
 	}
 
+	/* ponytail: fixed height ≈ 5 closed rows, not measured — an opened row eats into it */
 	.history-list {
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
+		max-height: 260px;
+		overflow-y: auto;
+		/* room for the buttons' offset shadow, which the scroll box would otherwise clip */
+		padding: 0 4px 6px 0;
+	}
+
+	.history-list > :global(*) {
+		flex-shrink: 0;
 	}
 
 	.row {
@@ -309,6 +309,11 @@
 	/* phones: date + amount on the first line, note + status under it, so nothing
 	   squashes and the whole row stays one tap target */
 	@media (max-width: 520px) {
+		/* rows wrap to two lines here, so ≈ 5 rows needs more room */
+		.history-list {
+			max-height: 400px;
+		}
+
 		.row-head {
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: 2px 10px;
@@ -334,19 +339,6 @@
 			width: 100%;
 			flex: 1 0 100%;
 		}
-	}
-
-	.pager {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
-		padding-top: 4px;
-	}
-
-	.pager-label {
-		font-size: 13px;
-		color: var(--text-muted);
 	}
 
 	.empty {

@@ -3,19 +3,33 @@ import { logError } from '$lib/server/log';
 import { db } from '$lib/server/db';
 import { aiUsage } from '$lib/server/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
-
-const MONTHLY_TOKEN_CAP = 2_000_000;
+import { usageLimit } from '$lib/server/billing';
 
 function currentYearMonth(): string {
 	return new Date().toISOString().slice(0, 7); // '2026-09'
 }
 
-export async function isOverAiBudget(therapistId: string): Promise<boolean> {
+export type AiBlock = { status: 403 | 429; message: string };
+
+// Why this therapist can't use AI right now, or null if they can. The monthly
+// token cap comes from their plan (THERAPIST_PLAN_USAGE.aiTokensPerMonth); a
+// plan without that key (free) gets no AI at all.
+export async function aiAccessBlock(therapistId: string): Promise<AiBlock | null> {
+	const monthlyCap = await usageLimit(therapistId, 'aiTokensPerMonth');
+	if (monthlyCap === null) {
+		return { status: 403, message: 'AI features are available on paid plans. Upgrade to use them.' };
+	}
+
 	const [row] = await db
 		.select({ tokensUsed: aiUsage.tokensUsed })
 		.from(aiUsage)
 		.where(and(eq(aiUsage.therapistId, therapistId), eq(aiUsage.yearMonth, currentYearMonth())));
-	return (row?.tokensUsed ?? 0) >= MONTHLY_TOKEN_CAP;
+	const tokensUsed = row?.tokensUsed ?? 0;
+	if (tokensUsed >= monthlyCap) {
+		return { status: 429, message: 'Monthly AI limit reached for this account. It resets next month.' };
+	}
+
+	return null;
 }
 
 async function recordTokenUsage(therapistId: string, tokens: number) {
@@ -50,17 +64,14 @@ async function callOpenRouter(
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				model: env.OPENROUTER_MODEL || 'deepseek/deepseek-v4.1-flash',
-				// Session notes are health data: zdr keeps routing to Zero Data Retention endpoints
-				// only, and data_collection 'deny' rules out any provider that trains on or stores
-				// prompts. DeepSeek's own endpoint isn't ZDR, so it's out; Wafer, Novita and Baseten
-				// are (Wafer confirmed directly, Novita/Baseten checked against
-				// openrouter.ai/api/v1/endpoints/zdr, 2026-09). If all three are down the request
-				// fails rather than falling back to a non-ZDR provider.
+				model: env.OPENROUTER_MODEL || 'z-ai/glm-5.3-flash',
+				// Tried in this order, then any other GLM-5.3 Flash host if all four are down.
+				// Deliberately NOT zdr: of these four only Baseten and Crusoe are on OpenRouter's ZDR
+				// list (checked 2026-09-25), so zdr: true would skip Together and DigitalOcean.
+				// data_collection 'deny' still rules out providers that train on prompts.
 				provider: {
-					order: ['Wafer', 'Novita', 'Baseten'],
+					order: ['together', 'baseten', 'digitalocean', 'crusoe'],
 					allow_fallbacks: true,
-					zdr: true,
 					data_collection: 'deny'
 				},
 				messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -130,8 +141,16 @@ export async function summarizeNoteForClient(
 	if (!raw) {
 		return null;
 	}
+	// Models sometimes wrap the JSON in a ```json fence or a line of preamble
+	// despite response_format, so parse only the outermost {...}.
+	const start = raw.indexOf('{');
+	const end = raw.lastIndexOf('}');
+	if (start === -1 || end < start) {
+		logError('ai.shareNote', new Error('AI reply had no JSON object'));
+		return null;
+	}
 	try {
-		const parsed = JSON.parse(raw);
+		const parsed = JSON.parse(raw.slice(start, end + 1));
 		if (typeof parsed.body !== 'string' || !parsed.body.trim()) {
 			return null;
 		}

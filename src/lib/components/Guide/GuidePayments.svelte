@@ -14,8 +14,8 @@
 	<h3>How invoices are created</h3>
 	<p>
 		Each booked session, whether you added it or the client booked it, creates an unpaid invoice at
-		that client's rate. For anything else (a report, a missed session, a pack of sessions paid up
-		front), press <strong>+ Add charge</strong> on <a href="/payments">Payments</a>, choose a client
+		that client's rate, unless it uses a pack credit (see below). For anything else (a report or a
+		missed session, for example), press <strong>+ Add charge</strong> on <a href="/payments">Payments</a>, choose a client
 		or type a name, and enter the amount and a note.
 	</p>
 
@@ -61,7 +61,10 @@
 	</p>
 
 	<h3>Cancellation and reschedule fees</h3>
-	<p>Two settings in <a href="/settings">Settings → Payment Setup</a> make up your policy:</p>
+	<p>
+		Cancelling and rescheduling each have their own policy in
+		<a href="/settings">Settings → Payment Setup</a>. For cancellations, two windows decide the fee:
+	</p>
 	<ul>
 		<li>
 			<strong>50% window</strong>: cancelling or moving within this long before the session costs
@@ -78,6 +81,35 @@
 		cancelling 10 hours ahead costs half, and cancelling an hour before costs the full rate. Fees are
 		added as invoices automatically, and you can edit or delete them like any other invoice.
 	</p>
+	<p>
+		Rescheduling is free unless you turn on <strong>Charge for rescheduling</strong>. It then gets
+		its own 50% and 100% windows, which work the same way but are set separately from the
+		cancellation ones. Clients see both policies in their portal.
+	</p>
+
+	<h3>Session packs</h3>
+	<p>
+		For a client who pays for several sessions up front, press <strong>+ Add pack</strong> on
+		<a href="/payments">Payments</a>. Choose the client, the number of sessions and the total price,
+		and tick <strong>Already paid</strong> if they've paid. Otherwise the pack's price shows as an
+		unpaid invoice. The pack can be used straight away either way.
+	</p>
+	<ul>
+		<li>A client can have one active pack at a time.</li>
+		<li>
+			Sessions the client books in their portal, and sessions on a slot reserved for them, use a pack
+			credit instead of creating an invoice. Sessions you add yourself on the Calendar don't use the
+			pack.
+		</li>
+		<li>
+			Cancelling or moving a pack session for free or inside the 50% window gives the credit back.
+			Inside the 100% window the credit is used up. Pack sessions never get a separate fee invoice.
+		</li>
+		<li>
+			When the pack runs out, the client's next sessions are invoiced at their normal rate. The
+			<strong>Packs</strong> list on Payments shows how many sessions each client has left.
+		</li>
+	</ul>
 
 	<h3>Blocking bookings until the balance is paid</h3>
 	<p>

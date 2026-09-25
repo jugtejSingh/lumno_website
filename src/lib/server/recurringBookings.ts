@@ -4,7 +4,7 @@ import { appointment, availabilitySlot, client, payment, therapist } from '$lib/
 import { getZonedDateParts, parseTimeOfDay, zonedDateToUTC } from '$lib/server/timezone';
 import { listDesignedDaysForMonth, type DesignedDay, type DesignedSlot } from '$lib/server/availabilitySlots';
 import { addCharge, completePackIfExhausted, getActivePackForClient, returnPackCredit } from '$lib/server/payments';
-import { attachMeetingLinkIfOnline, isOverlapError } from '$lib/server/appointments';
+import { attachMeetingLinkIfOnline, bumpLastSessionAt, isOverlapError } from '$lib/server/appointments';
 import { logError } from '$lib/server/log';
 
 // How far ahead a reserved slot is booked: the same two weeks a client can self-book.
@@ -203,8 +203,8 @@ async function bookCandidate(candidate: Candidate) {
 		let inserted;
 		try {
 			// savepoint: a failed insert would otherwise poison the enclosing transaction
-			const rows = await tx.transaction((savepoint) =>
-				savepoint
+			const rows = await tx.transaction(async (savepoint) => {
+				const insertedRows = await savepoint
 					.insert(appointment)
 					.values({
 						therapistId: candidate.therapistId,
@@ -215,8 +215,10 @@ async function bookCandidate(candidate: Candidate) {
 						packId,
 						slotId: candidate.slotId
 					})
-					.returning()
-			);
+					.returning();
+				await bumpLastSessionAt(savepoint, candidate.clientId, candidate.startAt);
+				return insertedRows;
+			});
 			inserted = rows[0];
 		} catch (err) {
 			if (isOverlapError(err)) {

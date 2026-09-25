@@ -12,6 +12,7 @@ import {
 } from '$lib/server/payments';
 import {
 	attachMeetingLinkIfOnline,
+	bumpLastSessionAt,
 	finishReschedule,
 	isOverlapError,
 	type RescheduleAppointmentResult
@@ -198,8 +199,8 @@ async function insertAppointmentForClient(
 	try {
 		// savepoint: postgres-js rethrows any failed query at the end of the enclosing
 		// transaction even if it was caught, so the trigger error must be contained here
-		const [row] = await executor.transaction((savepoint) =>
-			savepoint
+		const [row] = await executor.transaction(async (savepoint) => {
+			const inserted = await savepoint
 				.insert(appointment)
 				.values({
 					therapistId,
@@ -211,8 +212,10 @@ async function insertAppointmentForClient(
 					packId: extra.packId ?? null,
 					rescheduledFromId: extra.rescheduledFromId ?? null
 				})
-				.returning()
-		);
+				.returning();
+			await bumpLastSessionAt(savepoint, clientId, startAt);
+			return inserted;
+		});
 		return { appointment: row };
 	} catch (err) {
 		if (isOverlapError(err)) {

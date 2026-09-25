@@ -54,7 +54,7 @@
 			value={String(minute).padStart(2, '0')}
 			onchange={(e) => commit(hour12, Number(e.currentTarget.value), ampm)}
 		/>
-		<select class="field-input" value={ampm} onchange={(e) => commit(hour12, minute, e.currentTarget.value)}>
+		<select class="field-input ampm" value={ampm} onchange={(e) => commit(hour12, minute, e.currentTarget.value)}>
 			<option value="AM">AM</option>
 			<option value="PM">PM</option>
 		</select>
@@ -75,12 +75,16 @@
 		color: var(--text-secondary);
 	}
 
+	/* fills whatever width it's given and shrinks with it, so a narrow column never pushes AM/PM off-screen */
 	.time-row {
 		display: flex;
 		gap: 6px;
+		width: 100%;
 	}
 
 	.field-input {
+		flex: 1;
+		min-width: 0;
 		font-family: var(--font-body);
 		font-size: 14px;
 		color: var(--text-primary);
@@ -90,8 +94,25 @@
 		padding: 10px 12px;
 	}
 
+	select.field-input {
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+
 	.minute {
-		width: 60px;
+		flex: 0 0 60px;
+	}
+
+	/* never shrinks, so "AM"/"PM" is always readable; the hour select takes the squeeze */
+	.ampm {
+		flex: 0 0 auto;
+	}
+
+	/* iOS Safari zooms the page on focus for anything under 16px */
+	@media (max-width: 620px) {
+		.field-input {
+			font-size: 16px;
+		}
 	}
 
 	.field-input:focus {

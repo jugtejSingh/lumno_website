@@ -71,9 +71,11 @@
 		font-family: var(--font-body);
 	}
 
+	/* matches ClientSidebar: tint + left accent bar (inset shadow, so no layout shift) */
 	.row.active {
-		background: var(--coral-400);
-		box-shadow: 0 0 0 2px var(--outline), var(--shadow-sm);
+		background: var(--coral-100);
+		box-shadow: inset 3px 0 0 var(--accent-primary);
+		border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 	}
 
 	.row-info {
@@ -107,16 +109,40 @@
 			flex-direction: row;
 			flex-wrap: nowrap;
 			overflow-x: auto;
-			gap: 8px;
+			gap: 6px;
 		}
 
+		/* plain name pills, matching the payments / client-page ClientSidebar strip */
 		.row {
 			flex: 0 0 auto;
+			padding: 8px 10px;
+			border-radius: 999px;
+		}
+
+		.row :global(.avatar),
+		.row-summary {
+			display: none;
 		}
 
 		.row-info {
 			min-width: 0;
 			white-space: nowrap;
+		}
+
+		.row-name {
+			font-size: 13px;
+			font-weight: 600;
+			color: var(--text-secondary);
+		}
+
+		.row.active {
+			background: var(--accent-primary);
+			box-shadow: none;
+			border-radius: 999px;
+		}
+
+		.row.active .row-name {
+			color: var(--text-on-accent);
 		}
 	}
 </style>
