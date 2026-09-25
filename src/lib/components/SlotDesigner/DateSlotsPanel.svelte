@@ -121,29 +121,31 @@
 					</li>
 				{/each}
 			</ul>
-			{#if effectiveDay.maxSessions !== null}
-				<div class="cap">Max {effectiveDay.maxSessions} sessions this day</div>
-			{/if}
 		{/if}
 
-		<div class="actions day-actions">
-			<Button variant="secondary" size="sm" onclick={startEditing}>Edit this date</Button>
-			{#if isOff}
-				<form method="POST" action="?/clearDateOverride" use:enhance={onSaved}>
-					<input type="hidden" name="year" value={year} />
-					<input type="hidden" name="month" value={month} />
-					<input type="hidden" name="day" value={day} />
-					<Button type="submit" variant="secondary" size="sm">Turn this day on</Button>
-				</form>
-			{:else}
-				<form method="POST" action="?/saveDateOverride" use:enhance={onSaved}>
-					<input type="hidden" name="year" value={year} />
-					<input type="hidden" name="month" value={month} />
-					<input type="hidden" name="day" value={day} />
-					<input type="hidden" name="slots" value="[]" />
-					<Button type="submit" variant="secondary" size="sm">Turn this day off</Button>
-				</form>
+		<div class="footer">
+			{#if effectiveDay.slots.length > 0 && effectiveDay.maxSessions !== null}
+				<div class="cap">Max {effectiveDay.maxSessions} sessions this day</div>
 			{/if}
+			<div class="actions day-actions">
+				<Button variant="secondary" size="sm" onclick={startEditing}>Edit this date</Button>
+				{#if isOff}
+					<form method="POST" action="?/clearDateOverride" use:enhance={onSaved}>
+						<input type="hidden" name="year" value={year} />
+						<input type="hidden" name="month" value={month} />
+						<input type="hidden" name="day" value={day} />
+						<Button type="submit" variant="secondary" size="sm">Turn this day on</Button>
+					</form>
+				{:else}
+					<form method="POST" action="?/saveDateOverride" use:enhance={onSaved}>
+						<input type="hidden" name="year" value={year} />
+						<input type="hidden" name="month" value={month} />
+						<input type="hidden" name="day" value={day} />
+						<input type="hidden" name="slots" value="[]" />
+						<Button type="submit" variant="secondary" size="sm">Turn this day off</Button>
+					</form>
+				{/if}
+			</div>
 		</div>
 	{/if}
 </section>
@@ -214,6 +216,28 @@
 		color: var(--text-primary);
 	}
 
+	/* wide pane: equal-width grid so rows line up and a lone last chip doesn't stretch */
+	@media (min-width: 621px) {
+		.chips {
+			display: grid;
+			/* 230px fits the longest "10:00 AM – 10:50 AM  In person" on one line */
+			grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+			gap: 8px;
+		}
+
+		.chip {
+			align-items: center;
+			justify-content: space-between;
+			white-space: nowrap;
+			padding: 8px 12px;
+			font-size: 14px;
+		}
+
+		.chip-type {
+			font-size: 12px;
+		}
+	}
+
 	.chip[data-modality='online'] {
 		background: var(--citrus-400);
 	}
@@ -237,13 +261,22 @@
 		gap: 8px;
 	}
 
-	.day-actions {
+	/* cap + day actions sit together at the bottom of the pane */
+	.footer {
 		margin-top: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.day-actions {
 		justify-content: center;
 	}
 
 	.cap {
-		font-size: 12px;
+		text-align: center;
+		font-size: 14px;
+		font-weight: 700;
 		color: var(--text-secondary);
 	}
 

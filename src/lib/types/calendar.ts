@@ -1,6 +1,7 @@
 export type CalendarSession = {
 	id: string;
 	time: string;
+	endLabel: string; // end time in the same "2:00 PM" style as `time`
 	name: string;
 	color: string;
 	notes: string | null;

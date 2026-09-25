@@ -128,14 +128,15 @@ export const load: PageServerLoad = async (event) => {
 
 	const sessionsByDay: Record<number, CalendarSession[]> = {};
 	for (const appt of appointments) {
-		const time = new Intl.DateTimeFormat('en-US', {
+		const labelFormat = new Intl.DateTimeFormat('en-US', {
 			timeZone: therapist.timezone,
 			hour: 'numeric',
 			minute: '2-digit'
-		}).format(appt.startAt);
+		});
 		(sessionsByDay[appt.day] ??= []).push({
 			id: appt.id,
-			time,
+			time: labelFormat.format(appt.startAt),
+			endLabel: labelFormat.format(appt.endAt),
 			name: appt.clientName,
 			color: statusColor[appt.status] ?? modalityColor[appt.modality],
 			notes: appt.notes,
