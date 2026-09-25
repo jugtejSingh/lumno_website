@@ -285,7 +285,13 @@
 							<div class="row-sub">{inv.note ?? `Session with ${data.therapistName}`}</div>
 						</div>
 						<div class="amount">{inv.amount}</div>
-						<Badge tone="citrus">unpaid</Badge>
+						{#if inv.refund === null}
+							<Badge tone="citrus">unpaid</Badge>
+						{:else if inv.refund.done}
+							<Badge tone="success">refunded {inv.refund.amount}</Badge>
+						{:else}
+							<Badge tone="warning">refund {inv.refund.amount} pending</Badge>
+						{/if}
 						{#if inv.payable}
 							<form
 								method="POST"

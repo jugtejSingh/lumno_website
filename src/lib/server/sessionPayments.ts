@@ -202,13 +202,17 @@ async function recordReconcileException(
 		});
 }
 
-// Double charges the therapist needs to refund — a Razorpay capture that landed on
-// an invoice they'd already marked paid by hand. Shown as a banner on /payments
-// until dismissed.
+// Refunds the therapist owes, shown as a banner on /payments until dismissed:
+// 'already_paid' — a Razorpay capture on an invoice they'd already marked paid by hand;
+// 'cancel_refund' — a paid session was cancelled (detail = refund amount, see removeSessionChargeOnCancel).
+const REFUND_KINDS: Array<'already_paid' | 'cancel_refund'> = ['already_paid', 'cancel_refund'];
+
 export async function listDoubleCharges(therapistId: string) {
 	return db
 		.select({
 			id: razorpayReconcileException.id,
+			kind: razorpayReconcileException.kind,
+			detail: razorpayReconcileException.detail,
 			clientName: client.name,
 			customName: payment.customName,
 			amount: payment.amount,
@@ -220,7 +224,7 @@ export async function listDoubleCharges(therapistId: string) {
 		.where(
 			and(
 				eq(payment.therapistId, therapistId),
-				eq(razorpayReconcileException.kind, 'already_paid'),
+				inArray(razorpayReconcileException.kind, REFUND_KINDS),
 				isNull(razorpayReconcileException.resolvedAt)
 			)
 		)
@@ -235,7 +239,7 @@ export async function dismissDoubleCharge(therapistId: string, exceptionId: stri
 		.where(
 			and(
 				eq(razorpayReconcileException.id, exceptionId),
-				eq(razorpayReconcileException.kind, 'already_paid'),
+				inArray(razorpayReconcileException.kind, REFUND_KINDS),
 				inArray(
 					razorpayReconcileException.paymentId,
 					db.select({ id: payment.id }).from(payment).where(eq(payment.therapistId, therapistId))

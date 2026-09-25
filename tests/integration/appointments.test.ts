@@ -12,7 +12,7 @@ import {
 	parseDateParts,
 	parseTimeParts
 } from '$lib/server/appointments';
-import { addCharge } from '$lib/server/payments';
+import { addCharge, getClientPaymentTotals } from '$lib/server/payments';
 import { resetDb, mkTherapist, mkClient, mkPack, mkAppointment, mkSlot } from './helpers';
 
 let therapistId: string;
@@ -106,14 +106,34 @@ describe('cancelAppointment', () => {
 
 		const fees = await feeRows(a.id);
 		expect(fees).toHaveLength(1);
-		expect(fees[0]).toMatchObject({ amount: 1000, note: 'Late cancellation fee (100%)', status: 'unpaid' });
+		expect(fees[0]).toMatchObject({ amount: 1000, status: 'unpaid' });
+		expect(fees[0].note).toMatch(/^Late cancellation fee \(100%\) · .+ session · cancelled .+ by client$/);
 	});
 
 	it('partial tier (between 8h and 24h): a client cancelling is charged a 50% fee', async () => {
 		const a = await appt(hoursFromNow(12));
 		const res = await cancelAppointment(therapistId, a.id, clientId);
 		expect(res).toEqual({ outcome: { tier: 'partial', feeAmount: 500 } });
-		expect((await feeRows(a.id))[0]).toMatchObject({ amount: 500, note: 'Late cancellation fee (50%)' });
+		expect((await feeRows(a.id))[0]).toMatchObject({ amount: 500 });
+		expect((await feeRows(a.id))[0].note).toContain('Late cancellation fee (50%)');
+	});
+
+	it('the unpaid session charge is replaced by the fee, not billed on top of it', async () => {
+		const partial = await appt(hoursFromNow(12));
+		const full = await appt(hoursFromNow(2));
+		const free = await appt(hoursFromNow(48));
+		for (const a of [partial, full, free]) {
+			await addCharge(therapistId, { clientId, appointmentId: a.id, amount: 1000 });
+			await cancelAppointment(therapistId, a.id, clientId);
+		}
+
+		const partialRows = await feeRows(partial.id);
+		expect(partialRows).toHaveLength(1);
+		expect(partialRows[0].amount).toBe(500);
+		const fullRows = await feeRows(full.id);
+		expect(fullRows).toHaveLength(1);
+		expect(fullRows[0].amount).toBe(1000);
+		expect(await feeRows(free.id)).toHaveLength(0);
 	});
 
 	it('the therapist cancelling an upcoming session never charges the client, however late', async () => {
@@ -191,7 +211,8 @@ describe('cancelAppointment', () => {
 
 			const [row] = await db.select().from(appointment).where(eq(appointment.id, a.id));
 			expect(row.status).toBe('cancelled');
-			expect((await feeRows(a.id))[0]).toMatchObject({ amount: 1000, note: 'Late cancellation fee (100%)' });
+			expect((await feeRows(a.id))[0]).toMatchObject({ amount: 1000 });
+			expect((await feeRows(a.id))[0].note).toMatch(/Late cancellation fee \(100%\) .* by therapist$/);
 		});
 
 		it('manual free tier: cancels with no fee and returns the pack credit', async () => {
@@ -416,5 +437,68 @@ describe('parseTimeParts', () => {
 		expect(parseTimeParts('12')).toBeNull();
 		expect(parseTimeParts('')).toBeNull();
 		expect(parseTimeParts('ab:cd')).toBeNull();
+	});
+});
+
+// The client's owed balance end to end: each session is booked with its own unpaid charge
+// (as a real booking does), then cancelled or rescheduled at each policy tier.
+describe('balance after a client cancels or reschedules', () => {
+	async function owed() {
+		return (await getClientPaymentTotals(therapistId, clientId)).owed;
+	}
+
+	async function bookedSession(startAt: Date) {
+		const a = await appt(startAt);
+		await addCharge(therapistId, { clientId, appointmentId: a.id, amount: 1000 });
+		return a;
+	}
+
+	it('cancelling: free drops the whole charge, 50% drops half, 100% keeps it', async () => {
+		const free = await bookedSession(hoursFromNow(48));
+		const partial = await bookedSession(hoursFromNow(12));
+		const full = await bookedSession(hoursFromNow(2));
+		const untouched = await bookedSession(hoursFromNow(96));
+		expect(await owed()).toBe(4000);
+
+		await cancelAppointment(therapistId, free.id, clientId);
+		expect(await owed()).toBe(3000);
+
+		await cancelAppointment(therapistId, partial.id, clientId);
+		expect(await owed()).toBe(2500);
+
+		await cancelAppointment(therapistId, full.id, clientId);
+		expect(await owed()).toBe(2500);
+
+		expect((await feeRows(untouched.id))[0].amount).toBe(1000);
+	});
+
+	it('rescheduling: the session is still owed, plus 0% / 50% / 100% on top', async () => {
+		// three open 09:00 slots on three different days, 10–12 days out
+		const days: Date[] = [];
+		for (let i = 10; i <= 12; i++) {
+			const day = new Date(Date.now() + i * 86_400_000);
+			days.push(day);
+			await mkSlot(therapistId, { weekday: day.getUTCDay(), startTime: '09:00', endTime: '10:00' });
+		}
+		const free = await bookedSession(hoursFromNow(48));
+		const partial = await bookedSession(hoursFromNow(12));
+		const full = await bookedSession(hoursFromNow(2));
+		expect(await owed()).toBe(3000);
+
+		const moves: Array<[string, Date, number]> = [
+			[free.id, days[0], 3000],
+			[partial.id, days[1], 3500],
+			[full.id, days[2], 4500]
+		];
+		for (const [id, day, expected] of moves) {
+			const res = await rescheduleAppointmentForClient(therapistId, clientId, id, {
+				year: day.getUTCFullYear(),
+				month: day.getUTCMonth(),
+				day: day.getUTCDate(),
+				startTime: '09:00'
+			});
+			if (!('appointment' in res)) throw new Error(`expected success, got ${JSON.stringify(res)}`);
+			expect(await owed()).toBe(expected);
+		}
 	});
 });

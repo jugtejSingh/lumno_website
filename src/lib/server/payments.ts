@@ -1,7 +1,13 @@
-import { and, desc, eq, gte, inArray, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
 import type { PgUpdateSetSource } from 'drizzle-orm/pg-core';
 import { db, type DbOrTx } from '$lib/server/db';
-import { payment, paymentPack, appointment, client } from '$lib/server/db/schema';
+import {
+	payment,
+	paymentPack,
+	appointment,
+	client,
+	razorpayReconcileException
+} from '$lib/server/db/schema';
 
 // Callers that need pack-consumption or reschedule-link updates to be atomic with an
 // appointment insert/update pass their `db.transaction` callback's `tx` here instead of
@@ -88,6 +94,9 @@ export type ClientPaymentHistoryRow = {
 	createdAt: Date;
 	appointmentStartAt: Date | null;
 	appointmentModality: 'online' | 'in_person' | null;
+	// set while an unresolved cancel_refund flag sits on this (paid) row — see removeSessionChargeOnCancel
+	refundDue: number | null;
+	refundFlagId: string | null;
 };
 
 // The full paid + unpaid charge history for one client, newest first — backs the
@@ -109,14 +118,25 @@ export async function listPaymentsForClientPage(
 				status: payment.status,
 				createdAt: payment.createdAt,
 				appointmentStartAt: appointment.startAt,
-				appointmentModality: appointment.modality
+				appointmentModality: appointment.modality,
+				refundDue: sql<number | null>`(${razorpayReconcileException.detail})::int`,
+				refundFlagId: razorpayReconcileException.id
 			})
 			.from(payment)
 			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+			// unique on (paymentId, kind), so this never multiplies rows
+			.leftJoin(
+				razorpayReconcileException,
+				and(
+					eq(razorpayReconcileException.paymentId, payment.id),
+					eq(razorpayReconcileException.kind, 'cancel_refund'),
+					isNull(razorpayReconcileException.resolvedAt)
+				)
+			)
 			.where(where)
 			// unpaid first across the whole paginated set (false sorts before true in
-			// postgres), then newest first within each group
-			.orderBy(sql`${payment.status} <> 'unpaid'`, desc(payment.createdAt))
+			// postgres), then newest session first within each group (charge date when there's no session)
+			.orderBy(sql`${payment.status} <> 'unpaid'`, desc(sql`coalesce(${appointment.startAt}, ${payment.createdAt})`))
 			.limit(pageSize)
 			.offset((page - 1) * pageSize),
 		db.select({ count: sql<number>`count(*)::int` }).from(payment).where(where)
@@ -162,25 +182,55 @@ export async function getBalanceDueForClient(clientId: string): Promise<number> 
 			and(
 				eq(payment.clientId, clientId),
 				eq(payment.status, 'unpaid'),
-				or(isNull(payment.appointmentId), and(ne(appointment.status, 'cancelled'), lte(appointment.endAt, new Date())))
+				or(isNull(payment.appointmentId), eq(appointment.status, 'cancelled'), lte(appointment.endAt, new Date()))
 			)
 		);
 	return row?.owed ?? 0;
 }
 
-// The client-facing version of the above: clients only ever see what they still owe — a
-// paid charge is never shown — and an unpaid one only becomes visible once the session
-// it's for has actually happened; ad-hoc charges (no appointment) and cancelled sessions
-// don't wait on anything.
+// how long a refunded row stays in the client's list after the therapist marks it refunded
+const REFUNDED_VISIBLE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export type ClientVisiblePayment = {
+	id: string;
+	amount: number;
+	note: string | null;
+	createdAt: Date;
+	appointmentStartAt: Date | null;
+	status: 'unpaid' | 'paid';
+	// only on a paid row whose session was cancelled: what's owed back, and when it was sent
+	refundDue: number | null;
+	refundedAt: Date | null;
+};
+
+// The client-facing version of the above: what they still owe, plus refunds owed back to
+// them. An unpaid charge only becomes visible once the session it's for has actually
+// happened; ad-hoc charges (no appointment) and cancelled sessions don't wait on anything.
+// A paid charge is only shown while it carries a cancellation refund — pending, or marked
+// refunded within the last 30 days.
 export async function listVisiblePaymentsForClient(
 	clientId: string,
 	page: number,
 	pageSize: number
-): Promise<{ rows: Array<{ id: string; amount: number; note: string | null; createdAt: Date }>; total: number }> {
+): Promise<{ rows: ClientVisiblePayment[]; total: number }> {
+	const refundedCutoff = new Date(Date.now() - REFUNDED_VISIBLE_MS);
 	const where = and(
 		eq(payment.clientId, clientId),
-		eq(payment.status, 'unpaid'),
-		or(isNull(payment.appointmentId), and(ne(appointment.status, 'cancelled'), lte(appointment.endAt, new Date())))
+		or(
+			and(
+				eq(payment.status, 'unpaid'),
+				or(isNull(payment.appointmentId), eq(appointment.status, 'cancelled'), lte(appointment.endAt, new Date()))
+			),
+			and(
+				isNotNull(razorpayReconcileException.id),
+				or(isNull(razorpayReconcileException.resolvedAt), gte(razorpayReconcileException.resolvedAt, refundedCutoff))
+			)
+		)
+	);
+	// unique on (paymentId, kind), so this never multiplies rows
+	const refundFlag = and(
+		eq(razorpayReconcileException.paymentId, payment.id),
+		eq(razorpayReconcileException.kind, 'cancel_refund')
 	);
 
 	const [rows, [countRow]] = await Promise.all([
@@ -189,18 +239,25 @@ export async function listVisiblePaymentsForClient(
 				id: payment.id,
 				amount: payment.amount,
 				note: payment.note,
-				createdAt: payment.createdAt
+				createdAt: payment.createdAt,
+				appointmentStartAt: appointment.startAt,
+				status: payment.status,
+				refundDue: sql<number | null>`(${razorpayReconcileException.detail})::int`,
+				refundedAt: razorpayReconcileException.resolvedAt
 			})
 			.from(payment)
 			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+			.leftJoin(razorpayReconcileException, refundFlag)
 			.where(where)
-			.orderBy(desc(payment.createdAt))
+			// newest session first; charge date when there's no session
+			.orderBy(desc(sql`coalesce(${appointment.startAt}, ${payment.createdAt})`))
 			.limit(pageSize)
 			.offset((page - 1) * pageSize),
 		db
 			.select({ count: sql<number>`count(*)::int` })
 			.from(payment)
 			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+			.leftJoin(razorpayReconcileException, refundFlag)
 			.where(where)
 	]);
 
@@ -448,6 +505,45 @@ export async function payForReplacementSession(
 		{ clientId, appointmentId: newAppointment.id, amount: clientRow?.rate ?? 0 },
 		executor
 	);
+}
+
+// Cancelling a session: its own charge is the OLDEST row linked to it — anything later is a
+// fee (e.g. a late reschedule) that stays owed. An unpaid charge is deleted and the caller
+// adds the cancellation fee row in its place. A paid one is kept (it's the record of money
+// actually received) and flagged on /payments for a refund of paid − fee; the caller then
+// adds no fee row, since the fee is already covered by what was paid.
+// ponytail: deleting an unpaid charge with an open Razorpay order means a checkout completed
+// in the same moment lands on no row (webhook ignores it) — add a guard if that ever happens.
+export async function removeSessionChargeOnCancel(
+	appointmentId: string,
+	feeAmount: number,
+	executor: Executor = db
+): Promise<'removed' | 'paid' | 'none'> {
+	const [charge] = await executor
+		.select({ id: payment.id, status: payment.status, amount: payment.amount })
+		.from(payment)
+		.where(eq(payment.appointmentId, appointmentId))
+		.orderBy(asc(payment.createdAt))
+		.limit(1);
+	if (!charge) {
+		return 'none';
+	}
+
+	if (charge.status === 'unpaid') {
+		await executor.delete(payment).where(eq(payment.id, charge.id));
+		return 'removed';
+	}
+
+	const refund = charge.amount - feeAmount;
+	if (refund > 0) {
+		await executor
+			.insert(razorpayReconcileException)
+			.values({ paymentId: charge.id, kind: 'cancel_refund', detail: String(refund) })
+			.onConflictDoNothing({
+				target: [razorpayReconcileException.paymentId, razorpayReconcileException.kind]
+			});
+	}
+	return 'paid';
 }
 
 // A reschedule never mutates the old appointment row — this moves whatever was

@@ -101,6 +101,9 @@
 		{:else}
 			paid
 		{/if}
+		{#if p.refundDue}
+			<Badge tone="warning">refund {formatCurrency(p.refundDue, currency)}</Badge>
+		{/if}
 	</span>
 {/snippet}
 
@@ -154,6 +157,22 @@
 									>
 										<input type="hidden" name="paymentId" value={p.id} />
 										<Button type="submit" variant="primary" size="sm">Mark paid</Button>
+									</form>
+								{/if}
+								{#if p.refundFlagId}
+									<!-- same action as the /payments banner's Dismiss, so clearing either clears both -->
+									<form
+										method="POST"
+										action="?/dismissDoubleCharge"
+										use:enhance={() => {
+											return async ({ update }) => {
+												await update();
+												await load();
+											};
+										}}
+									>
+										<input type="hidden" name="exceptionId" value={p.refundFlagId} />
+										<Button type="submit" variant="primary" size="sm">Mark refunded</Button>
 									</form>
 								{/if}
 								<form
@@ -273,6 +292,9 @@
 		font-weight: 700;
 		color: var(--text-muted);
 		justify-self: end;
+		display: flex;
+		align-items: center;
+		gap: 6px;
 	}
 
 	.row-body {

@@ -51,7 +51,13 @@ export const load: PageServerLoad = async (event) => {
 		}
 	}
 
-	const doubleCharges: { id: string; name: string; amount: number; date: string }[] = [];
+	const doubleCharges: {
+		id: string;
+		kind: 'already_paid' | 'cancel_refund';
+		name: string;
+		amount: number;
+		date: string;
+	}[] = [];
 	for (const row of doubleChargeRows) {
 		let name = 'A client';
 		if (row.clientName) {
@@ -59,10 +65,18 @@ export const load: PageServerLoad = async (event) => {
 		} else if (row.customName) {
 			name = row.customName;
 		}
+		let kind: 'already_paid' | 'cancel_refund' = 'already_paid';
+		let amount = row.amount;
+		if (row.kind === 'cancel_refund') {
+			// detail holds the refund owed (paid − cancellation fee), not the full charge
+			kind = 'cancel_refund';
+			amount = Number(row.detail);
+		}
 		doubleCharges.push({
 			id: row.id,
+			kind,
 			name,
-			amount: row.amount,
+			amount,
 			date: row.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 		});
 	}

@@ -183,7 +183,8 @@ export const therapistRazorpayConnection = pgTable('therapist_razorpay_connectio
 export const razorpayReconcileExceptionKindEnum = pgEnum('razorpay_reconcile_exception_kind', [
 	'amount_mismatch', // captured amount != payment.amount
 	'unresolved_order', // order still unpaid on Razorpay's side well past checkout
-	'already_paid' // captured after the therapist had already marked it paid by hand — refund owed
+	'already_paid', // captured after the therapist had already marked it paid by hand — refund owed
+	'cancel_refund' // a paid session was cancelled; detail holds the refund owed (paid − fee) as a whole number
 ]);
 
 export const razorpayReconcileException = pgTable(

@@ -179,13 +179,23 @@ export const load: PageServerLoad = async (event) => {
 		});
 	}
 
-	const invoices = payments.rows.map((p) => ({
-		id: p.id,
-		date: p.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-		amount: formatCurrency(p.amount, currency),
-		note: p.note,
-		payable: portalPayEnabled
-	}));
+	const invoices = [];
+	for (const p of payments.rows) {
+		// a paid row is only listed because its session was cancelled and money is owed back
+		let refund: { amount: string; done: boolean } | null = null;
+		if (p.status === 'paid' && p.refundDue !== null) {
+			refund = { amount: formatCurrency(p.refundDue, currency), done: p.refundedAt !== null };
+		}
+		invoices.push({
+			id: p.id,
+			// the session's date when the charge is for one, otherwise when it was charged
+			date: (p.appointmentStartAt ?? p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+			amount: formatCurrency(p.amount, currency),
+			note: p.note,
+			payable: portalPayEnabled && p.status === 'unpaid',
+			refund
+		});
+	}
 	const paymentsTotal = payments.total;
 
 	const notes = sharedNotes.rows.map((n) => ({

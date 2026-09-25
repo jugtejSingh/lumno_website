@@ -46,13 +46,22 @@
 			<div class="double-charges" role="alert">
 				{#each data.doubleCharges as dc (dc.id)}
 					<div class="double-charge">
-						<span>
-							<strong>{dc.name}</strong> paid {formatCurrency(dc.amount, data.currency)} through Razorpay on
-							{dc.date} for an invoice you'd already marked paid. Refund it from your Razorpay dashboard.
-						</span>
+						{#if dc.kind === 'cancel_refund'}
+							<span>
+								On {dc.date}, <strong>{dc.name}</strong>'s already-paid session was cancelled.
+								Refund {formatCurrency(dc.amount, data.currency)} to them.
+							</span>
+						{:else}
+							<span>
+								<strong>{dc.name}</strong> paid {formatCurrency(dc.amount, data.currency)} through Razorpay on
+								{dc.date} for an invoice you'd already marked paid. Refund it from your Razorpay dashboard.
+							</span>
+						{/if}
 						<form method="POST" action="?/dismissDoubleCharge" use:enhance>
 							<input type="hidden" name="exceptionId" value={dc.id} />
-							<Button type="submit" variant="secondary" size="sm">Dismiss</Button>
+							<Button type="submit" variant="secondary" size="sm">
+								{#if dc.kind === 'cancel_refund'}Mark refunded{:else}Dismiss{/if}
+							</Button>
 						</form>
 					</div>
 				{/each}

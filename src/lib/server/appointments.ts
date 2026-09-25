@@ -15,6 +15,7 @@ import {
 	addCharge,
 	moveFinancialLinksOnReschedule,
 	payForReplacementSession,
+	removeSessionChargeOnCancel,
 	returnPackCredit
 } from '$lib/server/payments';
 import { createMeetEvent, patchMeetEventTime, deleteMeetEvent } from '$lib/server/googleCalendar';
@@ -493,6 +494,33 @@ async function resolveOutcomeFor(
 		: resolvePolicyOutcome(appt.startAt, settings, rate);
 }
 
+// e.g. "Late cancellation fee (50%) · Oct 12, 4:00 PM session · cancelled Sep 26, 2:05 PM by client",
+// in the therapist's timezone
+async function cancellationFeeNote(
+	therapistId: string,
+	sessionStartAt: Date,
+	tier: ChangeTier,
+	byClient: boolean,
+	executor: DbOrTx
+): Promise<string> {
+	const [row] = await executor
+		.select({ timezone: therapist.timezone })
+		.from(therapist)
+		.where(eq(therapist.id, therapistId));
+	const format = new Intl.DateTimeFormat('en-US', {
+		timeZone: row?.timezone ?? 'Asia/Kolkata',
+		month: 'short',
+		day: 'numeric',
+		hour: 'numeric',
+		minute: '2-digit'
+	});
+	let who = 'therapist';
+	if (byClient) {
+		who = 'client';
+	}
+	return `${feeNote('cancellation', tier)} · ${format.format(sessionStartAt)} session · cancelled ${format.format(new Date())} by ${who}`;
+}
+
 export type CancelAppointmentResult =
 	{ outcome: PolicyOutcome } | { error: 'not_found' | 'charge_required' };
 
@@ -563,18 +591,22 @@ export async function cancelAppointment(
 			await returnPackCredit(appt.packId, tx);
 		}
 
-		// a pack session never gets a fee row: the credit is the penalty (consumed at 100%)
-		if (outcome.tier !== 'free' && !appt.packId) {
-			await addCharge(
-				therapistId,
-				{
-					...(appt.clientId ? { clientId: appt.clientId } : { customName: appt.customName! }),
-					appointmentId,
-					amount: outcome.feeAmount,
-					note: feeNote('cancellation', outcome.tier)
-				},
-				tx
-			);
+		// a pack session never has a charge or fee row: the credit is the penalty (consumed at 100%)
+		if (!appt.packId) {
+			const charge = await removeSessionChargeOnCancel(appointmentId, outcome.feeAmount, tx);
+			// a paid charge already covers the fee — the refund flag handles the difference
+			if (outcome.tier !== 'free' && charge !== 'paid') {
+				await addCharge(
+					therapistId,
+					{
+						...(appt.clientId ? { clientId: appt.clientId } : { customName: appt.customName! }),
+						appointmentId,
+						amount: outcome.feeAmount,
+						note: await cancellationFeeNote(therapistId, appt.startAt, outcome.tier, !!clientId, tx)
+					},
+					tx
+				);
+			}
 		}
 	});
 
