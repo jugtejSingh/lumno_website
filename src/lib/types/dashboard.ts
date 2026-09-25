@@ -6,6 +6,7 @@ export type DashboardStat = {
 };
 
 export type UpcomingSession = {
+	id: string;
 	name: string;
 	next: string;
 	status: string;

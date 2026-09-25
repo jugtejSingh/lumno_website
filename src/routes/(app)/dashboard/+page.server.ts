@@ -2,7 +2,7 @@ import { and, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { appointment, client, clientNote } from '$lib/server/db/schema';
-import { getZonedDateParts } from '$lib/server/timezone';
+import { getZonedDateParts, zonedDayBounds } from '$lib/server/timezone';
 import { listOutstandingBalancesByClient } from '$lib/server/payments';
 import { formatCurrency } from '$lib/format';
 import type { DashboardStat, UpcomingSession } from '$lib/types/dashboard';
@@ -61,9 +61,13 @@ async function listNotesOverdueThisWeek(
 	start: Date,
 	end: Date,
 	timezone: string
-): Promise<{ name: string; when: string }[]> {
+): Promise<{ id: string; name: string; when: string }[]> {
 	const rows = await db
-		.select({ name: sql<string>`coalesce(${client.name}, ${appointment.customName})`, startAt: appointment.startAt })
+		.select({
+			id: appointment.id,
+			name: sql<string>`coalesce(${client.name}, ${appointment.customName})`,
+			startAt: appointment.startAt
+		})
 		.from(appointment)
 		.leftJoin(clientNote, eq(clientNote.appointmentId, appointment.id))
 		.leftJoin(client, eq(appointment.clientId, client.id))
@@ -77,7 +81,7 @@ async function listNotesOverdueThisWeek(
 			)
 		)
 		.orderBy(appointment.startAt);
-	return rows.map((row) => ({ name: row.name, when: formatUpcoming(row.startAt, timezone) }));
+	return rows.map((row) => ({ id: row.id, name: row.name, when: formatUpcoming(row.startAt, timezone) }));
 }
 
 export const load: PageServerLoad = async (event) => {
@@ -94,20 +98,28 @@ export const load: PageServerLoad = async (event) => {
 	const thisWeekStart = weekStart(now);
 	const nextWeekStart = addDays(thisWeekStart, 7);
 	const lastWeekStart = addDays(thisWeekStart, -7);
+	const todayParts = getZonedDateParts(now, timezone);
+	const today = zonedDayBounds(todayParts.year, todayParts.month, todayParts.day, timezone);
 
 	const [
+		todayCount,
 		sessionsThisWeek,
 		sessionsLastWeek,
 		notesOverdueThisWeek,
 		outstandingBalances,
 		upcomingRows
 	] = await Promise.all([
+		countAppointmentsInRange(therapistId, today.start, today.end),
 		countAppointmentsInRange(therapistId, thisWeekStart, nextWeekStart),
 		countAppointmentsInRange(therapistId, lastWeekStart, thisWeekStart),
 		listNotesOverdueThisWeek(therapistId, thisWeekStart, nextWeekStart, timezone),
 		listOutstandingBalancesByClient(therapistId),
 		db
-			.select({ name: sql<string>`coalesce(${client.name}, ${appointment.customName})`, startAt: appointment.startAt })
+			.select({
+				id: appointment.id,
+				name: sql<string>`coalesce(${client.name}, ${appointment.customName})`,
+				startAt: appointment.startAt
+			})
 			.from(appointment)
 			.leftJoin(client, eq(appointment.clientId, client.id))
 			.where(
@@ -132,6 +144,7 @@ export const load: PageServerLoad = async (event) => {
 	];
 
 	const upcoming: UpcomingSession[] = upcomingRows.map((row) => ({
+		id: row.id,
 		name: row.name,
 		next: formatUpcoming(row.startAt, timezone),
 		status: 'confirmed',
@@ -141,7 +154,7 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		therapistName: user.name,
-		todayCount: upcoming.filter((s) => s.next.startsWith('Today')).length,
+		todayCount,
 		stats,
 		notesOverdueThisWeek,
 		upcoming

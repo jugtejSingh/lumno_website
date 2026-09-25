@@ -33,7 +33,7 @@
 	<div>
 		<div class="section-title">Upcoming sessions</div>
 		<div class="session-list">
-			{#each data.upcoming as session (session.name)}
+			{#each data.upcoming as session (session.id)}
 				<Card interactive>
 					<div class="session-row">
 						<Avatar name={session.name} />
@@ -59,7 +59,7 @@
 		<div class="overdue-empty">No overdue notes this week.</div>
 	{:else}
 		<div class="overdue-list">
-			{#each data.notesOverdueThisWeek as session (session.name + session.when)}
+			{#each data.notesOverdueThisWeek as session (session.id)}
 				<div class="overdue-row">
 					<span class="overdue-name">{session.name}</span>
 					<span class="overdue-when">{session.when}</span>
