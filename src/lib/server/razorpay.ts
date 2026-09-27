@@ -88,13 +88,24 @@ export function planNumberFor(razorpayPlanId: string): number {
 	return 0;
 }
 
-// notes carries { therapistId } so the webhook can resolve the holder.
-export async function createSubscription(planNumber: number, notes: { therapistId: string }) {
+// notes carries { therapistId } so the webhook can resolve the holder, plus an
+// optional referral flag and the referrer's id (see docs/referall.md) it just
+// passes through — the webhook reads referrerTherapistId back out once the
+// sub activates, so the referral isn't committed until then.
+// startAt (unix seconds) defers the first charge — used for the referral free
+// month: checkout still runs and collects the mandate, Razorpay just doesn't
+// bill until then.
+export async function createSubscription(
+	planNumber: number,
+	notes: { therapistId: string; referral?: '1'; referrerTherapistId?: string },
+	startAt?: number
+) {
 	return razorpay().subscriptions.create({
 		plan_id: planIdFor(planNumber),
 		total_count: TOTAL_COUNT,
 		customer_notify: 1,
 		expire_by: Math.floor(Date.now() / 1000) + 1800,
+		...(startAt !== undefined ? { start_at: startAt } : {}),
 		notes
 	});
 }
@@ -102,6 +113,13 @@ export async function createSubscription(planNumber: number, notes: { therapistI
 // Always cancel-at-cycle-end (see design doc — there is no "cancel now").
 export async function cancelSubscription(id: string) {
 	return razorpay().subscriptions.cancel(id, true);
+}
+
+// Full refund of one payment — used to give the referrer their free month
+// (docs/referall.md): there's no "skip a cycle" API on a live subscription, so
+// we let it charge and refund it instead.
+export async function refundPayment(paymentId: string) {
+	return razorpay().payments.refund(paymentId, {});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

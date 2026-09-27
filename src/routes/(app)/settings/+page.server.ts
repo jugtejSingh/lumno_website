@@ -6,6 +6,7 @@ import { therapist } from '$lib/server/db/schema';
 import { auth } from '$lib/server/auth';
 import { getOrCreateSubscription } from '$lib/server/billing';
 import { getReferralProfile, updateReferralProfile } from '$lib/server/referrals';
+import { hasUnclaimedCredit } from '$lib/server/billingReferrals';
 import {
 	getNotificationSettings,
 	updateNotificationSettings,
@@ -51,7 +52,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		razorpayHealth,
 		manualPayRow,
 		bookingRules,
-		clientFieldHeadings
+		clientFieldHeadings,
+		referralCreditOwed
 	] = await Promise.all([
 		getReferralProfile(therapistId),
 		getNotificationSettings(therapistId),
@@ -64,7 +66,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		connectionHealth(therapistId),
 		getManualPayDetails(therapistId),
 		getBookingRules(therapistId),
-		getClientFieldHeadings(therapistId)
+		getClientFieldHeadings(therapistId),
+		hasUnclaimedCredit(therapistId)
 	]);
 
 	let qrUrl: string | null = null;
@@ -80,7 +83,10 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		plan: subscription.plan,
 		status: subscription.status,
 		cancelScheduled: subscription.cancelScheduled,
-		currentEnd: subscription.currentEnd
+		currentEnd: subscription.currentEnd,
+		// this therapist referred someone who's paid once — their next charge
+		// gets refunded (docs/referall.md)
+		referralCreditOwed
 	};
 
 	const hourOptions = CHANGE_WINDOW_HOURS_OPTIONS.map((hours) => ({

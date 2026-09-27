@@ -8,6 +8,7 @@ import {
 import { cancelSubscription, planNumberFor, verifyWebhookSignature } from '$lib/server/razorpay';
 import { revokeConnectionByAccountId } from '$lib/server/razorpayConnection';
 import { handleSessionInvoicePaid } from '$lib/server/sessionPayments';
+import { settleReferralOnActivation, refundReferralCredit } from '$lib/server/billingReferrals';
 import { logError, logInfo } from '$lib/server/log';
 
 // Just the fields we read out of a Razorpay subscription webhook payload.
@@ -23,7 +24,7 @@ interface RazorpayWebhookPayload {
 				plan_id: string;
 				customer_id: string;
 				current_end: number | null;
-				notes?: { therapistId?: string };
+				notes?: { therapistId?: string; referral?: string; referrerTherapistId?: string };
 			};
 		};
 		payment?: {
@@ -38,6 +39,11 @@ interface RazorpayWebhookPayload {
 }
 
 const ACTIVE_EVENTS = ['subscription.activated', 'subscription.charged'];
+// A referral sub sits in `authenticated` for its whole deferred-start free
+// month (see docs/referall.md) — treat that as active too, but ONLY when
+// notes.referral marks it, so a normal sub's authenticated event (which fires
+// before its real activation) can't grant access early.
+const REFERRAL_AUTHENTICATED_EVENT = 'subscription.authenticated';
 // pending fires while Razorpay is still retrying a failed charge, before it
 // gives up and halts — collapsed with halted since neither behaves differently
 // from the other (see subscription.status comment in billing.schema.ts).
@@ -131,9 +137,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		event: payload.event
 	};
 
+	const isReferralAuthenticated =
+		payload.event === REFERRAL_AUTHENTICATED_EVENT && subEntity.notes?.referral === '1';
+
 	let processed = false;
 
-	if (ACTIVE_EVENTS.includes(payload.event)) {
+	if (ACTIVE_EVENTS.includes(payload.event) || isReferralAuthenticated) {
 		let oldSubId: string | null;
 		({ processed, oldSubId } = await handleWebhookEvent({ ...base, plan, status: 'active' }));
 		// New sub is confirmed active — retire the previous live sub, if any.
@@ -144,6 +153,39 @@ export const POST: RequestHandler = async ({ request }) => {
 				// best effort — DB is already updated regardless, but a sub left live on
 				// Razorpay would keep charging, so this has to be visible in the logs.
 				logError('webhook.razorpay.cancelOldSub', err, { therapistId, oldSubId });
+			}
+		}
+		if (processed && isReferralAuthenticated) {
+			// The referee's deferred-start sub just activated — this is what earns
+			// the referrer their month (see docs/referall.md), not the eventual
+			// first real charge. A therapist never involved in a referral just
+			// no-ops (no referrerTherapistId in notes).
+			const referrerTherapistId = subEntity.notes?.referrerTherapistId;
+			if (referrerTherapistId) {
+				try {
+					await settleReferralOnActivation(referrerTherapistId, therapistId);
+				} catch (err) {
+					// The razorpay_event row above is already committed, so a retry of
+					// this webhook will dedupe and never re-run this — log for manual
+					// reconciliation rather than losing the referral silently.
+					logError('webhook.razorpay.settleReferralOnActivation', err, {
+						referrerTherapistId,
+						therapistId
+					});
+				}
+			}
+		}
+		if (processed && payload.event === 'subscription.charged') {
+			// Referrer side only: if they have a credit owed, this charge is the
+			// one it cancels out. A therapist with no credit just no-ops.
+			if (payEntity) {
+				try {
+					await refundReferralCredit(therapistId, payEntity.id);
+				} catch (err) {
+					// Credit is already claimed (see claimReferralCredit) — log for
+					// manual reconciliation rather than leaving it silently stuck.
+					logError('webhook.razorpay.refundReferralCredit', err, { therapistId });
+				}
 			}
 		}
 	} else if (PAST_DUE_EVENTS.includes(payload.event)) {

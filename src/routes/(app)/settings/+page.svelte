@@ -729,6 +729,12 @@
 						{/if}
 					</div>
 				</div>
+					{#if data.billing.referralCreditOwed}
+						<div class="referral-credit-note">
+							You referred a therapist who's paid their first month — this month's charge will be
+							refunded (referral).
+						</div>
+					{/if}
 			</div>
 		</div>
 	</Card>
@@ -1009,5 +1015,14 @@
 	.plan-actions {
 		display: flex;
 		gap: 8px;
+	}
+
+	.referral-credit-note {
+		font-size: 13px;
+		color: var(--text-secondary);
+		background: var(--surface-canvas);
+		border: 2px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		padding: 8px 12px;
 	}
 </style>

@@ -13,7 +13,11 @@ import {
 	planIdFor,
 	razorpayKeyId
 } from '$lib/server/razorpay';
+import { checkReferralEligibility } from '$lib/server/billingReferrals';
 import { logError } from '$lib/server/log';
+
+// Deferred-start free month for a referral (see docs/referall.md).
+const REFERRAL_FREE_MONTH_SECONDS = 30 * 24 * 60 * 60;
 
 // A pending sub id is reused only while comfortably inside Razorpay's 30-minute
 // expire_by window (subscriptions.create) — otherwise it's treated as expired
@@ -27,7 +31,9 @@ const PENDING_FRESH_MS = 25 * 60 * 1000;
 async function createOrReusePendingSub(
 	therapistId: string,
 	planNumber: number,
-	subscription: Awaited<ReturnType<typeof getOrCreateSubscription>>
+	subscription: Awaited<ReturnType<typeof getOrCreateSubscription>>,
+	deferStart = false,
+	referrerTherapistId?: string
 ): Promise<string> {
 	const pending = subscription.pendingSubId;
 	const planId = planIdFor(planNumber);
@@ -36,12 +42,15 @@ async function createOrReusePendingSub(
 		Date.now() - subscription.pendingSince.getTime() < PENDING_FRESH_MS;
 
 	// Reuse — a fresh pending sub for this exact plan already exists (refresh,
-	// back-button, second tab). Create nothing on Razorpay.
+	// back-button, second tab). Create nothing on Razorpay. Never reuse when a
+	// deferred start is required: an existing pending sub was minted without
+	// the referral start_at, so reusing it would silently drop the free month.
 	if (
 		pending &&
 		pending !== CREATING_SENTINEL &&
 		subscription.pendingPlanId === planId &&
-		pendingFresh
+		pendingFresh &&
+		!deferStart
 	) {
 		return pending;
 	}
@@ -67,7 +76,16 @@ async function createOrReusePendingSub(
 
 	let newSub;
 	try {
-		newSub = await createSubscription(planNumber, { therapistId });
+		if (deferStart) {
+			const startAt = Math.floor(Date.now() / 1000) + REFERRAL_FREE_MONTH_SECONDS;
+			newSub = await createSubscription(
+				planNumber,
+				{ therapistId, referral: '1', referrerTherapistId },
+				startAt
+			);
+		} else {
+			newSub = await createSubscription(planNumber, { therapistId });
+		}
 	} catch (err) {
 		logError('subscribe.createSubscription', err, { therapistId, planNumber });
 		// Release the slot so the therapist can retry immediately, not in 60s.
@@ -113,7 +131,7 @@ async function changePlan(
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const therapistId = locals.therapistId!;
-	let body: { plan?: unknown };
+	let body: { plan?: unknown; referrerEmail?: unknown };
 	try {
 		body = await request.json();
 	} catch {
@@ -136,6 +154,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 	}
 
+	// Referrals are first-subscriptions only — a therapist who has ever had a
+	// razorpaySubscriptionId (re-subscribing after cancel/past_due) doesn't
+	// qualify as a referee. A referrer must already be on a paid plan
+	// (checkReferralEligibility enforces this), so their own credit is always
+	// resolved by refunding a later charge (see refundReferralCredit) — never here.
+	let deferStart = false;
+	let referrerTherapistId: string | null = null;
+	if (!subscription.razorpaySubscriptionId && typeof body.referrerEmail === 'string' && body.referrerEmail) {
+		const eligibility = await checkReferralEligibility(therapistId, body.referrerEmail);
+		if (!eligibility.ok) {
+			error(422, eligibility.reason);
+		}
+		referrerTherapistId = eligibility.referrerTherapistId;
+		deferStart = true;
+	}
+
 	// The halted subscription still exists on Razorpay's side (with an unpaid
 	// invoice). Retire it before creating the replacement so it isn't left
 	// dangling — a UPI mandate can't be rebound, so there's no "resume" path.
@@ -151,6 +185,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 	}
 
-	const subId = await createOrReusePendingSub(therapistId, planNumber, subscription);
+	const subId = await createOrReusePendingSub(
+		therapistId,
+		planNumber,
+		subscription,
+		deferStart,
+		referrerTherapistId ?? undefined
+	);
 	return json({ subscriptionId: subId, key: razorpayKeyId() });
 };

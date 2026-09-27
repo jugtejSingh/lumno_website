@@ -14,7 +14,8 @@ import {
 	availabilitySlot,
 	organization,
 	subscription,
-	clientNote
+	clientNote,
+	referral
 } from '$lib/server/db/schema';
 import type { WeeklyDay } from '$lib/types/slots';
 
@@ -22,6 +23,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const TABLES = [
 	'client_note',
+	'referral',
 	'razorpay_event',
 	'razorpay_reconcile_exception',
 	'therapist_razorpay_connection',
@@ -225,6 +227,18 @@ export async function mkSubscription(overrides: Partial<typeof subscription.$inf
 			razorpaySubscriptionId: `sub_${randomUUID().slice(0, 12)}`,
 			...overrides
 		})
+		.returning();
+	return row;
+}
+
+export async function mkReferral(
+	referrerTherapistId: string,
+	refereeTherapistId: string,
+	overrides: Partial<typeof referral.$inferInsert> = {}
+) {
+	const [row] = await db
+		.insert(referral)
+		.values({ referrerTherapistId, refereeTherapistId, ...overrides })
 		.returning();
 	return row;
 }

@@ -3,6 +3,7 @@
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Card from '$lib/components/utils/Card.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
+	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -20,12 +21,39 @@
 		const buy = page.url.searchParams.get('buy');
 		if (buy && buy in PLAN_NAME_TO_TIER) {
 			replaceState('/pricing', {});
-			choosePlan(PLAN_NAME_TO_TIER[buy]);
+			openPlanFlow(PLAN_NAME_TO_TIER[buy]);
 		}
 	});
 
 	function blockedDowngrade() {
 		toast.error("Cancel your current plan in Settings first — you can't downgrade here.");
+	}
+
+	// Referral only applies to a first subscription — anyone already past Free
+	// skips the dialog and goes straight to checkout, same as before.
+	function openPlanFlow(tier: number) {
+		if (data.currentTier === 0) {
+			modalEmail = '';
+			pendingTier = tier;
+			return;
+		}
+		choosePlan(tier);
+	}
+
+	function confirmWithReferral() {
+		const tier = pendingTier;
+		pendingTier = null;
+		if (tier !== null) {
+			choosePlan(tier, modalEmail);
+		}
+	}
+
+	function confirmWithoutReferral() {
+		const tier = pendingTier;
+		pendingTier = null;
+		if (tier !== null) {
+			choosePlan(tier);
+		}
 	}
 
 	// ponytail: placeholder display copy — the amount actually charged comes
@@ -101,10 +129,19 @@
 		active_subscription_exists: 'Your subscription is mid-change — try again in a moment.',
 		subscription_in_progress: 'A checkout is already in progress — try again in a moment.',
 		subscription_creation_failed: 'Could not start checkout. Try again.',
-		invalid_plan: 'That plan is not available.'
+		invalid_plan: 'That plan is not available.',
+		referrer_not_found: "We couldn't find a therapist with that email.",
+		self_referral: "You can't refer yourself.",
+		referrer_not_paid: 'That therapist needs an active paid plan for a referral to work.',
+		referrer_already_referred: 'That therapist has already used their one referral.',
+		referee_already_referred: "You've already been referred once — this only works the first time."
 	};
 
 	let loadingTier = $state<number | null>(null);
+	// Only meaningful on a first subscription — see docs/referall.md. Set to a
+	// tier to open the referral dialog before checkout; null closes it.
+	let pendingTier = $state<number | null>(null);
+	let modalEmail = $state('');
 
 	function loadCheckoutScript(): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -120,13 +157,16 @@
 		});
 	}
 
-	async function choosePlan(tier: number) {
+	async function choosePlan(tier: number, referrerEmail?: string) {
 		loadingTier = tier;
 		try {
 			const res = await fetch('/subscribe', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ plan: tier })
+				body: JSON.stringify({
+					plan: tier,
+					...(referrerEmail?.trim() ? { referrerEmail: referrerEmail.trim() } : {})
+				})
 			});
 			// Logged out: hooks 302'd us to /login. Remember the plan, send them to
 			// register; the root layout bounces back here with ?buy= once they're in.
@@ -200,7 +240,7 @@
 									<Button variant="secondary" onclick={blockedDowngrade}>Choose Free</Button>
 								{/if}
 							{:else}
-								<Button variant="primary" onclick={() => choosePlan(plan.tier)}>
+								<Button variant="primary" onclick={() => openPlanFlow(plan.tier)}>
 									{#if loadingTier === plan.tier}
 										Loading…
 									{:else if data.currentTier === null}
@@ -224,6 +264,28 @@
 
 	<Footer />
 </div>
+
+<Dialog open={pendingTier !== null} title="Refer a colleague?" onclose={() => (pendingTier = null)}>
+	<div class="referral-modal">
+		<p class="referral-copy">
+			You can refer someone once for a free month, and get referred once yourself. The referrer
+			needs to already be on a paid plan for this to work.
+		</p>
+		<label for="referrer-email">Referred by (email)</label>
+		<input
+			id="referrer-email"
+			type="email"
+			placeholder="colleague@example.com"
+			bind:value={modalEmail}
+		/>
+		<div class="referral-actions">
+			<Button variant="primary" onclick={confirmWithReferral} disabled={!modalEmail.trim()}>
+				Use referral
+			</Button>
+			<Button variant="secondary" onclick={confirmWithoutReferral}>Continue without</Button>
+		</div>
+	</div>
+</Dialog>
 
 <style>
 	.page {
@@ -264,6 +326,41 @@
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 		gap: 28px;
 		align-items: start;
+	}
+
+	.referral-modal {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.referral-copy {
+		font-size: 14px;
+		color: var(--text-secondary);
+		margin: 0;
+	}
+
+	.referral-modal label {
+		font-size: 13px;
+		color: var(--text-secondary);
+	}
+
+	.referral-modal input {
+		font: inherit;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 10px 12px;
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		color: var(--text-primary);
+	}
+
+	.referral-actions {
+		display: flex;
+		gap: 8px;
+		justify-content: flex-end;
+		margin-top: 4px;
 	}
 
 	.ai-note {

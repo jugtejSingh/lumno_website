@@ -87,3 +87,34 @@ export const razorpayEvent = pgTable(
 	},
 	(table) => [uniqueIndex('razorpay_event_signature_uidx').on(table.signature)]
 );
+
+// "You both get a month free". One row per referral, created at checkout when
+// the referee types a referrer email. referrerTherapistId/refereeTherapistId
+// are each unique — lifetime cap of 1 on both sides, so nobody can refer twice
+// or be referred twice. Max benefit for any one person: 2 free months (once as
+// referee, once as referrer). See docs/referall.md.
+export const referral = pgTable(
+	'referral',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => randomUUID()),
+		referrerTherapistId: text('referrer_therapist_id')
+			.notNull()
+			.references(() => therapist.id, { onDelete: 'cascade' }),
+		refereeTherapistId: text('referee_therapist_id')
+			.notNull()
+			.references(() => therapist.id, { onDelete: 'cascade' }),
+		// set when the referee's first real charge lands, which is when the referrer earns the month
+		qualifiedAt: timestamp('qualified_at'),
+		// set when the referrer's month is used up (refund issued, or deferred start given)
+		redeemedAt: timestamp('redeemed_at'),
+		// the refunded Razorpay payment, for audit
+		redeemedPaymentId: text('redeemed_payment_id'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		uniqueIndex('referral_referrerTherapistId_uidx').on(table.referrerTherapistId),
+		uniqueIndex('referral_refereeTherapistId_uidx').on(table.refereeTherapistId)
+	]
+);
