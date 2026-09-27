@@ -734,6 +734,13 @@
 							You referred a therapist who's paid their first month — this month's charge will be
 							refunded (referral).
 						</div>
+					{:else if data.billing.plan !== 0 && data.billing.status === 'active'}
+						<div class="referral-credit-note">
+							Refer a colleague for a free month: share your email ({data.user.email}) and have
+							them enter it as "Referred by" when they buy their first-ever plan. You'll get a free
+							month once their first payment goes through, and they get their first month free.
+							One referral per account, lifetime.
+						</div>
 					{/if}
 			</div>
 		</div>

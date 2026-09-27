@@ -268,8 +268,10 @@
 <Dialog open={pendingTier !== null} title="Refer a colleague?" onclose={() => (pendingTier = null)}>
 	<div class="referral-modal">
 		<p class="referral-copy">
-			You can refer someone once for a free month, and get referred once yourself. The referrer
-			needs to already be on a paid plan for this to work.
+			If a colleague referred you, enter their email below and you'll both get a free month —
+			your first month free now, and a free month for them once your first payment goes through.
+			This only works if it's your first-ever subscription, and your colleague must already be on
+			a paid plan.
 		</p>
 		<label for="referrer-email">Referred by (email)</label>
 		<input
