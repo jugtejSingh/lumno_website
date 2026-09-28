@@ -24,7 +24,11 @@ import { putObject, deleteObject, signedUrl } from '$lib/server/storage';
 import { randomUUID } from 'node:crypto';
 import { connectionHealth, revokeConnection } from '$lib/server/razorpayConnection';
 import { isGoogleCalendarConnected } from '$lib/server/googleCalendar';
-import { CHANGE_WINDOW_HOURS_OPTIONS, formatHours } from '$lib/server/paymentPolicy';
+import {
+	CHANGE_WINDOW_HOURS_OPTIONS,
+	MIN_BOOKING_NOTICE_HOURS_OPTIONS,
+	formatHours
+} from '$lib/server/paymentPolicy';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { logError } from '$lib/server/log';
 import {
@@ -94,6 +98,11 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		label: formatHours(hours)
 	}));
 
+	const minNoticeOptions = MIN_BOOKING_NOTICE_HOURS_OPTIONS.map((hours) => ({
+		hours,
+		label: hours === 0 ? 'No minimum' : formatHours(hours)
+	}));
+
 	const razorpay = {
 		health: razorpayHealth,
 		currencySupported: therapist.currency === 'INR',
@@ -117,6 +126,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		billing,
 		googleConnected,
 		hourOptions,
+		minNoticeOptions,
 		razorpay,
 		calendarError,
 		timezone: therapist.timezone,
@@ -245,9 +255,15 @@ export const actions: Actions = {
 				return fail(400, { message: 'Pick a valid limit for upcoming sessions' });
 			}
 		}
+		const minBookingNoticeHoursRaw = form.get('minBookingNoticeHours')?.toString() ?? '';
+		const minBookingNoticeHours = Number(minBookingNoticeHoursRaw);
+		if (!MIN_BOOKING_NOTICE_HOURS_OPTIONS.includes(minBookingNoticeHours)) {
+			return fail(400, { message: 'Pick a valid minimum booking notice' });
+		}
 		const bookingRules = {
 			requireZeroBalance: form.get('requireZeroBalance') === 'on',
-			maxUpcomingBookingsPerClient
+			maxUpcomingBookingsPerClient,
+			minBookingNoticeHours
 		};
 
 		// ---- client field headings ----

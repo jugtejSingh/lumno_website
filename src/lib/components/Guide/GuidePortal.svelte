@@ -36,6 +36,11 @@
 			You can also cap <strong>Upcoming Sessions Per Client</strong> at 1, 2 or 3, so no one books
 			out your whole fortnight ahead of time.
 		</p>
+		<p>
+			And you can set a <strong>Minimum Booking Notice</strong>, from 1 hour up to 7 days. With a
+			4-hour notice, for example, a client can't book an 8pm slot after 4pm that same day — it just
+			won't show as an option anymore.
+		</p>
 	</GuideCallout>
 
 	<h3>What clients see in their portal</h3>

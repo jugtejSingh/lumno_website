@@ -121,6 +121,7 @@
 			? ''
 			: String(initial.bookingRules.maxUpcomingBookingsPerClient)
 	);
+	let minBookingNoticeHours = $state(initial.bookingRules.minBookingNoticeHours);
 
 	// ---- payments ----
 	let freeChangeWindowHours = $state(initial.payments.freeChangeWindowHours);
@@ -184,6 +185,7 @@
 			sendRebookReminderEmails,
 			requireZeroBalance,
 			maxUpcomingBookingsPerClient,
+			minBookingNoticeHours,
 			freeChangeWindowHours,
 			partialChangeWindowHours,
 			rescheduleChargesEnabled,
@@ -478,6 +480,23 @@
 					<option value="1">1 session</option>
 					<option value="2">2 sessions</option>
 					<option value="3">3 sessions</option>
+				</select>
+			</label>
+			<label class="field">
+				<span class="field-label">
+					Minimum Booking Notice<InfoTip
+						label="Minimum Booking Notice"
+						text="How far ahead of a slot's start time a client must book it. With 4 hours, a client can't book an 8pm slot after 4pm the same day."
+					/>
+				</span>
+				<select
+					class="field-input"
+					name="minBookingNoticeHours"
+					bind:value={minBookingNoticeHours}
+				>
+					{#each data.minNoticeOptions as o (o.hours)}
+						<option value={o.hours}>{o.label}</option>
+					{/each}
 				</select>
 			</label>
 		</div>

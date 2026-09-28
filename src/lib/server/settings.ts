@@ -7,13 +7,15 @@ import { therapistSettings } from '$lib/server/db/schema';
 export type BookingRules = {
 	requireZeroBalance: boolean;
 	maxUpcomingBookingsPerClient: number | null; // null = no limit
+	minBookingNoticeHours: number; // 0 = no minimum
 };
 
 export async function getBookingRules(therapistId: string): Promise<BookingRules> {
 	const [row] = await db
 		.select({
 			requireZeroBalance: therapistSettings.requireZeroBalance,
-			maxUpcomingBookingsPerClient: therapistSettings.maxUpcomingBookingsPerClient
+			maxUpcomingBookingsPerClient: therapistSettings.maxUpcomingBookingsPerClient,
+			minBookingNoticeHours: therapistSettings.minBookingNoticeHours
 		})
 		.from(therapistSettings)
 		.where(eq(therapistSettings.therapistId, therapistId));

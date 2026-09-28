@@ -49,6 +49,7 @@ export async function listAvailabilityForMonth(
 		.from(therapist)
 		.where(eq(therapist.id, therapistId));
 	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
+	const { minBookingNoticeHours } = await getBookingRules(therapistId);
 
 	// Slots are handcrafted by the therapist (availabilitySlots.ts); the therapist's own
 	// manual bookings (createAppointmentForTherapist) can still use any start/end.
@@ -73,6 +74,7 @@ export async function listAvailabilityForMonth(
 	]);
 
 	const now = new Date();
+	const noticeCutoff = new Date(now.getTime() + minBookingNoticeHours * 60 * 60 * 1000);
 	const windowEnd = new Date(now.getTime() + BOOKING_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 	const slotsByDay: Record<number, AvailableSlot[]> = {};
 
@@ -113,7 +115,7 @@ export async function listAvailabilityForMonth(
 			const slotEnd = zonedDateToUTC(year, month, day, endHour, endMinute, timezone);
 
 			const blocked =
-				slotStart <= now ||
+				slotStart <= noticeCutoff ||
 				slotStart > windowEnd ||
 				dayAppointments.some((a) => slotStart < a.endAt && slotEnd > a.startAt);
 

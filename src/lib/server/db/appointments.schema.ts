@@ -76,7 +76,10 @@ export const therapistSettings = pgTable('therapist_settings', {
 		.default([]),
 	// free text the therapist writes on their Calendar page, shown read-only to clients
 	// on the portal booking calendar (e.g. "payment is due before the session starts")
-	bookingNote: text('booking_note')
+	bookingNote: text('booking_note'),
+	// how far ahead of a slot's start time a client must book it, e.g. 4 = can't book a
+	// slot starting less than 4 hours from now. 0 = no minimum (bookable up to start time)
+	minBookingNoticeHours: integer('min_booking_notice_hours').notNull().default(0)
 });
 
 // A date the therapist hand-edited. Its slots (availabilitySlot.overrideDate) fully replace

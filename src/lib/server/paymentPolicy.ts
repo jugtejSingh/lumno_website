@@ -120,6 +120,9 @@ export function formatReschedulePolicy(settings: PaymentSettings): string {
 // Standard set of notice windows offered in the settings UI dropdown, shortest to longest.
 export const CHANGE_WINDOW_HOURS_OPTIONS = [0, 1, 2, 4, 8, 12, 24, 48, 72, 168];
 
+// Minimum-booking-notice options offered in the settings UI dropdown, shortest to longest.
+export const MIN_BOOKING_NOTICE_HOURS_OPTIONS = [0, 1, 2, 4, 6, 8, 12, 24, 48, 96, 168];
+
 export function formatHours(hours: number): string {
 	if (hours === 0) {
 		return '0 hours';

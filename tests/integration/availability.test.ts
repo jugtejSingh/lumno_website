@@ -376,6 +376,23 @@ describe('booking rules', () => {
 		await addCharge(therapistId, { clientId, amount: 1000 });
 		expect((await book('09:00')).error).toBe('balance_due');
 	});
+
+	// `target` (the whole target day) is always 4-6 days out from "now", whatever time of
+	// day the suite runs — 168h (7 days) notice is guaranteed to be longer than that gap, so
+	// this doesn't depend on the exact time the test happens to run at.
+	it('hides every slot on a day once minBookingNoticeHours covers it', async () => {
+		await mkSettings(therapistId, { minBookingNoticeHours: 168 });
+		expect((await listAvailabilityForMonth(therapistId, y, m))[d]).toBeUndefined();
+	});
+
+	it('rejects booking a slot inside the notice window even when requested directly', async () => {
+		await mkSettings(therapistId, { minBookingNoticeHours: 168 });
+		expect(await book('09:00')).toEqual({ error: 'unavailable' });
+	});
+
+	it('minBookingNoticeHours of 0 (the default) blocks nothing extra', async () => {
+		expect((await listAvailabilityForMonth(therapistId, y, m))[d]).toHaveLength(3);
+	});
 });
 
 describe('therapist timezone', () => {

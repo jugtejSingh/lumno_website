@@ -27,8 +27,9 @@
 		</li>
 		<li>
 			<strong>Pick your booking rules.</strong> In <a href="/settings">Settings → Booking Rules</a>,
-			decide whether clients who owe you money can still book, and how many upcoming sessions one
-			client can hold at a time.
+			decide whether clients who owe you money can still book, how many upcoming sessions one
+			client can hold at a time, and the minimum notice they must give before a session's start
+			time.
 		</li>
 		<li>
 			<strong>Set your cancellation policy.</strong> In
