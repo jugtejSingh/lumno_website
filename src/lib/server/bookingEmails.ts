@@ -15,6 +15,10 @@ type AppointmentEmailExtra = {
 	previousStartAt?: Date;
 };
 
+function capitalise(text: string): string {
+	return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function formatWhen(at: Date, timezone: string): string {
 	return new Intl.DateTimeFormat('en-US', {
 		timeZone: timezone,
@@ -99,5 +103,66 @@ export async function sendAppointmentEmail(
 		await sendEmail(row.clientEmail, subject, html, { text, replyTo: row.therapistEmail });
 	} catch (err) {
 		logError('bookingEmails.send', err, { kind, appointmentId });
+	}
+}
+
+// Confirmation for a guest booking (label: "session", "discovery call"), sent to the guest's own email (there is no client row to
+// join). Deliberately not gated on sendBookingEmails: the guest gave their email for exactly
+// this message, and it carries the Meet link. Never throws, same contract as above.
+export async function sendGuestBookingEmail(appointmentId: string, guestEmail: string,
+	label = 'session'
+): Promise<void> {
+	try {
+		const [row] = await db
+			.select({
+				startAt: appointment.startAt,
+				modality: appointment.modality,
+				meetLink: appointment.meetLink,
+				guestName: appointment.customName,
+				therapistName: user.name,
+				therapistEmail: user.email,
+				timezone: therapist.timezone
+			})
+			.from(appointment)
+			.innerJoin(therapist, eq(appointment.therapistId, therapist.id))
+			.innerJoin(user, eq(therapist.userId, user.id))
+			.where(eq(appointment.id, appointmentId));
+		if (!row) return;
+
+		const when = formatWhen(row.startAt, row.timezone);
+		const modalityText = row.modality === 'online' ? 'Online' : 'In person';
+		const greetingName = row.guestName ?? 'there';
+
+		let cta: { text: string; url: string } | undefined;
+		if (row.modality === 'online' && row.meetLink) {
+			cta = { text: 'Join call', url: row.meetLink };
+		}
+
+		// online but no Meet link (therapist hasn't connected Google): say the link comes separately
+		const linkPending = row.modality === 'online' && !row.meetLink;
+		const pendingNote = 'Your therapist will send you the joining link separately.';
+
+		let bodyHtml = `<p>Hi ${escapeHtml(greetingName)}, your ${escapeHtml(label)} with ${escapeHtml(row.therapistName)} is confirmed for ${when} (${modalityText}).</p>`;
+		let text = `Hi ${greetingName}, your ${label} with ${row.therapistName} is confirmed for ${when} (${modalityText}).`;
+		if (row.meetLink) {
+			text += ` Join here: ${row.meetLink}`;
+		}
+		if (linkPending) {
+			bodyHtml += `<p>${pendingNote}</p>`;
+			text += ` ${pendingNote}`;
+		}
+
+		const html = wrapEmail({
+			heading: `${capitalise(label)} confirmed`,
+			bodyHtml,
+			cta,
+			footerNote: `Sent on behalf of ${row.therapistName}. Reply to this email to reach them directly.`
+		});
+		await sendEmail(guestEmail, `Your ${label} is booked`, html, {
+			text,
+			replyTo: row.therapistEmail
+		});
+	} catch (err) {
+		logError('bookingEmails.discoveryCall', err, { appointmentId });
 	}
 }

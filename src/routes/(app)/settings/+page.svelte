@@ -9,6 +9,8 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import InfoTip from '$lib/components/utils/InfoTip.svelte';
 	import ClientFieldsSettings from '$lib/components/Settings/ClientFieldsSettings.svelte';
+	import OutreachSettings from '$lib/components/Settings/OutreachSettings.svelte';
+	import GoogleCalendarSettings from '$lib/components/Settings/GoogleCalendarSettings.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
 	import { invalidateAll } from '$app/navigation';
@@ -785,11 +787,13 @@
 	{/if}
 </form>
 
-{#if !data.googleConnected}
-	<form class="connect-form" method="POST" action="?/connectGoogleCalendar">
-		<Button type="submit" variant="secondary">Connect Google Calendar</Button>
-	</form>
-{/if}
+<div class="outreach">
+	<OutreachSettings token={data.outreach.token} expiresAt={data.outreach.expiresAt} />
+</div>
+
+<div class="outreach">
+	<GoogleCalendarSettings connected={data.googleConnected} />
+</div>
 
 <style>
 	.settings {
@@ -821,9 +825,9 @@
 		padding: clamp(13px, 3.6vw, 20px) clamp(30px, 10vw, 64px);
 	}
 
-	.connect-form {
+	.outreach {
 		max-width: 640px;
-		margin: 16px auto 0;
+		margin: 24px auto 0;
 	}
 
 	.header {

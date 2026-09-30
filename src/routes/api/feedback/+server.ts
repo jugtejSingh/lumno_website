@@ -2,9 +2,9 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
 import { feedbackRatelimit } from '$lib/server/rateLimit';
+import { isValidEmail } from '$lib/isValidEmail';
 
 const SUPPORT_EMAIL = 'support@lumno.in';
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function readField(body: Record<string, unknown>, name: string, maxLength: number): string {
 	const value = body[name];
@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 		email = locals.user.email;
 	} else {
 		email = readField(body, 'email', 254);
-		if (!EMAIL_PATTERN.test(email)) {
+		if (!isValidEmail(email)) {
 			error(400, 'email is not a valid email address');
 		}
 	}

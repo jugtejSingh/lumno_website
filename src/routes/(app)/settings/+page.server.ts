@@ -29,8 +29,10 @@ import {
 	MIN_BOOKING_NOTICE_HOURS_OPTIONS,
 	formatHours
 } from '$lib/server/paymentPolicy';
+import { getOutreachState, generateOutreachLink, disableOutreach } from '$lib/server/outreach';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { logError } from '$lib/server/log';
+import { disconnectGoogle } from '$lib/server/accountManagement';
 import {
 	getClientFieldHeadings,
 	parseClientFieldHeadings,
@@ -57,7 +59,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		manualPayRow,
 		bookingRules,
 		clientFieldHeadings,
-		referralCreditOwed
+		referralCreditOwed,
+		outreach
 	] = await Promise.all([
 		getReferralProfile(therapistId),
 		getNotificationSettings(therapistId),
@@ -71,7 +74,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		getManualPayDetails(therapistId),
 		getBookingRules(therapistId),
 		getClientFieldHeadings(therapistId),
-		hasUnclaimedCredit(therapistId)
+		hasUnclaimedCredit(therapistId),
+		getOutreachState(therapistId)
 	]);
 
 	let qrUrl: string | null = null;
@@ -123,6 +127,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		manualPay,
 		bookingRules,
 		clientFieldHeadings,
+		outreach,
 		billing,
 		googleConnected,
 		hourOptions,
@@ -349,6 +354,25 @@ export const actions: Actions = {
 		return redirect(303, '/settings?payments=disconnected');
 	},
 
+	// Turn on / make a new discovery-call link. Both replace any existing token, so the old
+	// link stops working immediately. Separate from "save": these apply instantly.
+	generateOutreach: async ({ locals }) => {
+		await generateOutreachLink(locals.therapistId!);
+	},
+
+	disableOutreach: async ({ locals }) => {
+		await disableOutreach(locals.therapistId!);
+	},
+
+	disconnectGoogleCalendar: async ({ locals }) => {
+		const result = await disconnectGoogle(locals.user!.id);
+		if ('error' in result) {
+			return fail(400, {
+				message: 'Google is your only way to sign in. Set a password first, then disconnect.'
+			});
+		}
+		return { disconnected: true };
+	},
 	connectGoogleCalendar: async (event) => {
 		let url: string | undefined;
 		try {

@@ -79,7 +79,11 @@ export const therapistSettings = pgTable('therapist_settings', {
 	bookingNote: text('booking_note'),
 	// how far ahead of a slot's start time a client must book it, e.g. 4 = can't book a
 	// slot starting less than 4 hours from now. 0 = no minimum (bookable up to start time)
-	minBookingNoticeHours: integer('min_booking_notice_hours').notNull().default(0)
+	minBookingNoticeHours: integer('min_booking_notice_hours').notNull().default(0),
+	// public discovery-call page (/outreach/<token>). No token = page off. The link stops
+	// working at outreachExpiresAt (7 days after it was generated); regenerating replaces it.
+	outreachToken: text('outreach_token').unique(),
+	outreachExpiresAt: timestamp('outreach_expires_at', { withTimezone: true })
 });
 
 // A date the therapist hand-edited. Its slots (availabilitySlot.overrideDate) fully replace

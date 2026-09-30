@@ -64,6 +64,13 @@ export const auth = betterAuth({
 			await db.update(user).set({ verificationEmailSentAt: new Date() }).where(eq(user.id, authUser.id));
 		}
 	},
+	account: {
+		accountLinking: {
+			// A therapist connecting Google Calendar from Settings may use a different Google
+			// account than their login email. Only applies to linking while already logged in.
+			allowDifferentEmails: true
+		}
+	},
 	socialProviders: {
 		google: {
 			clientId: env.CLIENT_ID,

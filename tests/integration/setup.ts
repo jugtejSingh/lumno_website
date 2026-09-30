@@ -15,7 +15,8 @@ vi.mock('$lib/server/googleCalendar', () => ({
 	deleteMeetEvent: vi.fn(async () => {})
 }));
 vi.mock('$lib/server/bookingEmails', () => ({
-	sendAppointmentEmail: vi.fn(async () => {})
+	sendAppointmentEmail: vi.fn(async () => {}),
+	sendGuestBookingEmail: vi.fn(async () => {})
 }));
 
 // Per-worker: load .env and force every $lib/server/db import onto the test DB

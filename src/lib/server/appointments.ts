@@ -78,7 +78,9 @@ export async function bumpLastSessionAt(executor: DbOrTx, clientId: string, star
 // of this file so callers can sequence it after other statements on the same tx/db handle.
 export async function attachMeetingLinkIfOnline(
 	appt: typeof appointment.$inferSelect,
-	executor: DbOrTx = db
+	executor: DbOrTx = db,
+	// a discovery-call guest has no client row, so their email comes from the caller
+	guestEmail?: string
 ): Promise<typeof appointment.$inferSelect> {
 	if (appt.modality !== 'online' || appt.googleEventId) return appt;
 	// A Meet link for a session that's already over is useless to the client — most commonly
@@ -107,7 +109,7 @@ export async function attachMeetingLinkIfOnline(
 		summary: `Therapy session: ${therapistRow.therapistName} & ${clientRow?.name ?? appt.customName ?? 'client'}`,
 		startAt: appt.startAt,
 		endAt: appt.endAt,
-		attendeeEmail: clientRow?.email
+		attendeeEmail: clientRow?.email ?? guestEmail
 	});
 	if (!meetEvent) return appt;
 

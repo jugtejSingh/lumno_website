@@ -26,6 +26,7 @@
 	// form draft: deliberately seeded from the initial prop value only
 	let clientId = $state(untrack(() => clients[0]?.id ?? ''));
 	let customName = $state('');
+	let email = $state('');
 	let rate = $state('');
 	let startTime = $state('09:00');
 	let endTime = $state('10:00');
@@ -81,6 +82,10 @@
 		<label class="field">
 			<span class="field-label">Name</span>
 			<input class="field-input" type="text" name="customName" bind:value={customName} />
+		</label>
+		<label class="field">
+			<span class="field-label">Email (optional, sends them a confirmation)</span>
+			<input class="field-input" type="email" name="email" bind:value={email} />
 		</label>
 		<label class="field">
 			<span class="field-label">Rate (optional)</span>

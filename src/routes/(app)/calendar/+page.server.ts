@@ -10,7 +10,8 @@ import {
 	attachMeetingLinkIfOnline,
 	markPastAppointmentsCompleted
 } from '$lib/server/appointments';
-import { sendAppointmentEmail } from '$lib/server/bookingEmails';
+import { sendAppointmentEmail, sendGuestBookingEmail } from '$lib/server/bookingEmails';
+import { isValidEmail } from '$lib/isValidEmail';
 import { listClients } from '$lib/server/clients';
 import { parseMonthParam } from '$lib/server/dateParams';
 import { db } from '$lib/server/db';
@@ -347,6 +348,7 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const clientId = formData.get('clientId')?.toString() ?? '';
 		const customName = formData.get('customName')?.toString().trim() ?? '';
+		const guestEmail = formData.get('email')?.toString().trim() ?? '';
 		const rateRaw = formData.get('rate')?.toString().trim() || '';
 		const notes = formData.get('notes')?.toString().trim() || null;
 		const startTime = formData.get('startTime')?.toString() ?? '';
@@ -355,6 +357,9 @@ export const actions: Actions = {
 
 		if (!customName && !clientId) {
 			return fail(400, { message: 'Pick a client or enter a name' });
+		}
+		if (customName && guestEmail && !isValidEmail(guestEmail)) {
+			return fail(400, { message: 'That email address is not valid' });
 		}
 		const date = parseDateParts(formData);
 		if (!date) {
@@ -418,8 +423,15 @@ export const actions: Actions = {
 
 		// Both best-effort: Meet link creation logs and returns null on failure, and
 		// the email helper swallows its own errors.
-		await attachMeetingLinkIfOnline(created);
-		await sendAppointmentEmail(created.id, 'confirmed');
+		await attachMeetingLinkIfOnline(created, db, guestEmail || undefined);
+		if (customName) {
+			// one-off walk-in: the address isn't stored, so this is the only email they get
+			if (guestEmail) {
+				await sendGuestBookingEmail(created.id, guestEmail);
+			}
+		} else {
+			await sendAppointmentEmail(created.id, 'confirmed');
+		}
 	},
 
 	cancelAppointment: async (event) => {

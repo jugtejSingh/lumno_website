@@ -17,7 +17,7 @@ import {
 	isOverlapError,
 	type RescheduleAppointmentResult
 } from '$lib/server/appointments';
-import { sendAppointmentEmail } from '$lib/server/bookingEmails';
+import { sendAppointmentEmail, sendGuestBookingEmail } from '$lib/server/bookingEmails';
 
 // clients can only book within the next 2 weeks
 const BOOKING_WINDOW_DAYS = 14;
@@ -156,7 +156,8 @@ export type BookSlotResult = {
 // the session already has its financial links, they just move, see moveFinancialLinksOnReschedule).
 async function insertAppointmentForClient(
 	therapistId: string,
-	clientId: string,
+	// null for a discovery call: a guest with no client row, named by extra.customName
+	clientId: string | null,
 	input: {
 		year: number;
 		month: number;
@@ -164,7 +165,12 @@ async function insertAppointmentForClient(
 		startTime: string;
 		modality?: 'online' | 'in_person';
 	},
-	extra: { packId?: string | null; rescheduledFromId?: string | null } = {},
+	extra: {
+		packId?: string | null;
+		rescheduledFromId?: string | null;
+		customName?: string;
+		notes?: string;
+	} = {},
 	executor: DbOrTx = db
 ): Promise<
 	| { appointment: typeof appointment.$inferSelect }
@@ -207,15 +213,18 @@ async function insertAppointmentForClient(
 				.values({
 					therapistId,
 					clientId,
+					customName: clientId ? null : (extra.customName ?? null),
 					startAt,
 					endAt,
 					modality,
-					notes: null,
+					notes: extra.notes ?? null,
 					packId: extra.packId ?? null,
 					rescheduledFromId: extra.rescheduledFromId ?? null
 				})
 				.returning();
-			await bumpLastSessionAt(savepoint, clientId, startAt);
+			if (clientId) {
+				await bumpLastSessionAt(savepoint, clientId, startAt);
+			}
 			return inserted;
 		});
 		return { appointment: row };
@@ -305,6 +314,47 @@ export async function createAppointmentForClient(
 
 	const withMeetLink = await attachMeetingLinkIfOnline(result.appointment);
 	await sendAppointmentEmail(withMeetLink.id, 'confirmed');
+	return { appointment: withMeetLink };
+}
+
+export type DiscoveryCallInput = {
+	year: number;
+	month: number;
+	day: number;
+	startTime: string;
+	modality?: 'online' | 'in_person';
+	name: string;
+	email: string;
+	phone: string;
+	message: string;
+};
+
+// A stranger booking from the public outreach page. Same slot check as a client booking,
+// but no client row, no charge and none of the client booking rules. What they told us
+// lands in the appointment notes; the guest email is only used for the Meet invite and the
+// confirmation, never stored as a client.
+export async function createDiscoveryCall(
+	therapistId: string,
+	input: DiscoveryCallInput
+): Promise<BookSlotResult> {
+	const noteLines = ['Discovery call', `Email: ${input.email}`];
+	if (input.phone) {
+		noteLines.push(`Phone: ${input.phone}`);
+	}
+	if (input.message) {
+		noteLines.push('', input.message);
+	}
+
+	const inserted = await insertAppointmentForClient(therapistId, null, input, {
+		customName: input.name,
+		notes: noteLines.join('\n')
+	});
+	if ('error' in inserted) {
+		return inserted;
+	}
+
+	const withMeetLink = await attachMeetingLinkIfOnline(inserted.appointment, db, input.email);
+	await sendGuestBookingEmail(withMeetLink.id, input.email, 'discovery call');
 	return { appointment: withMeetLink };
 }
 
