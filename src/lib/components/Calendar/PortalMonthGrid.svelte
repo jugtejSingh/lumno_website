@@ -28,6 +28,11 @@
 	}
 </script>
 
+<p class="mobile-legend">
+	<span class="legend-swatch"></span>
+	Days in this colour are available. Tap one to see the times for that day.
+</p>
+
 <div class="grid">
 	{#each weekdayLabels as wd (wd)}
 		<div class="weekday">{wd}</div>
@@ -66,8 +71,35 @@
 		gap: 8px;
 	}
 
+	/* only shown on mobile, where the per-day labels are hidden */
+	.mobile-legend {
+		display: none;
+		align-items: center;
+		gap: 8px;
+		margin: 0 0 10px;
+		font-size: 13px;
+		color: var(--text-secondary);
+	}
+
+	.legend-swatch {
+		flex-shrink: 0;
+		width: 14px;
+		height: 14px;
+		border-radius: 4px;
+		background: var(--coral-300);
+		border: 2px solid var(--coral-600);
+	}
+
 	/* ponytail: 7 columns can't get narrower, so tighten cells on small screens */
 	@media (max-width: 640px) {
+		.mobile-legend {
+			display: flex;
+		}
+
+		.cell-hint {
+			display: none;
+		}
+
 		.grid {
 			gap: 3px;
 		}
@@ -123,7 +155,7 @@
 	}
 
 	.cell.available {
-		background: var(--coral-100);
+		background: var(--coral-300);
 		border-color: var(--coral-600);
 		cursor: pointer;
 	}
