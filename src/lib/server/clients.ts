@@ -71,52 +71,89 @@ export async function getClient(therapistId: string, clientId: string) {
 	return row ?? null;
 }
 
-export async function addClient(therapistId: string, input: NewClientInput, origin: string) {
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Runs fn in a transaction that holds a row lock on the therapist, so concurrent
+// cap checks for the same therapist take turns instead of all reading the same
+// stale count. Other therapists are unaffected.
+// The plan limit is read BEFORE the transaction opens: usageLimit uses the shared pool, so
+// reading it while queued transactions hold every connection would deadlock.
+async function withTherapistLock<T>(
+	therapistId: string,
+	fn: (tx: Tx, isAtLimit: () => Promise<boolean>) => Promise<T>
+): Promise<T> {
 	const limit = await usageLimit(therapistId, 'clients');
-	const [{ count }] = await db
-		.select({ count: sql<number>`count(*)::int` })
-		.from(client)
-		.where(and(eq(client.therapistId, therapistId), isNull(client.deactivatedAt)));
-	if (limit !== null && count >= limit) {
-		return { error: 'limit_reached' as const };
-	}
+	return db.transaction(async (tx) => {
+		await tx.execute(sql`select id from ${therapist} where ${therapist.id} = ${therapistId} for update`);
 
-	const [therapistUser] = await db
-		.select({ email: user.email, name: user.name })
-		.from(therapist)
-		.innerJoin(user, eq(therapist.userId, user.id))
-		.where(eq(therapist.id, therapistId));
-	if (therapistUser && therapistUser.email.toLowerCase() === input.email.toLowerCase()) {
-		return { error: 'self' as const };
-	}
+		// true when the therapist's plan has no room for another active client
+		async function isAtLimit(): Promise<boolean> {
+			const [{ count }] = await tx
+				.select({ count: sql<number>`count(*)::int` })
+				.from(client)
+				.where(and(eq(client.therapistId, therapistId), isNull(client.deactivatedAt)));
+			return limit !== null && count >= limit;
+		}
 
-	const [existing] = await db
-		.select()
-		.from(client)
-		.where(
-			and(eq(client.therapistId, therapistId), eq(sql`lower(${client.email})`, input.email.toLowerCase()))
-		);
-	if (existing) {
-		return { error: 'duplicate' as const };
-	}
+		return fn(tx, isAtLimit);
+	});
+}
 
+export async function addClient(therapistId: string, input: NewClientInput, origin: string) {
 	const inviteToken = randomUUID();
-	const [row] = await db
-		.insert(client)
-		.values({
-			therapistId,
-			...input,
-			status: 'paused',
-			inviteToken,
-			inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS)
-		})
-		.returning();
 
+	const result = await withTherapistLock(therapistId, async (tx, isAtLimit) => {
+		if (await isAtLimit()) {
+			return { error: 'limit_reached' as const };
+		}
+
+		const [therapistUser] = await tx
+			.select({ email: user.email, name: user.name })
+			.from(therapist)
+			.innerJoin(user, eq(therapist.userId, user.id))
+			.where(eq(therapist.id, therapistId));
+		if (therapistUser && therapistUser.email.toLowerCase() === input.email.toLowerCase()) {
+			return { error: 'self' as const };
+		}
+
+		const [existing] = await tx
+			.select()
+			.from(client)
+			.where(
+				and(eq(client.therapistId, therapistId), eq(sql`lower(${client.email})`, input.email.toLowerCase()))
+			);
+		if (existing) {
+			return { error: 'duplicate' as const };
+		}
+
+		const [row] = await tx
+			.insert(client)
+			.values({
+				therapistId,
+				...input,
+				status: 'paused',
+				inviteToken,
+				inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS)
+			})
+			.returning();
+		return { row, therapistUser: therapistUser! };
+	});
+
+	if ('error' in result) {
+		return { error: result.error };
+	}
+
+	// email goes out after commit so a slow send never holds the lock.
+	// therapistUser is always found — therapist.userId is a required FK
 	const inviteUrl = buildInviteUrl(origin, inviteToken);
-	// therapistUser is always found here — therapist.userId is a required FK, checked above
-	const emailSent = await sendInvite(input.email, inviteUrl, therapistUser!.name, therapistUser!.email);
+	const emailSent = await sendInvite(
+		input.email,
+		inviteUrl,
+		result.therapistUser.name,
+		result.therapistUser.email
+	);
 
-	return { client: row, inviteUrl, emailSent };
+	return { client: result.row, inviteUrl, emailSent };
 }
 
 export async function resendInvite(therapistId: string, clientId: string, origin: string) {
@@ -158,28 +195,25 @@ export async function deleteClient(therapistId: string, clientId: string) {
 // reactivates them, but only if there's cap room — same limit addClient enforces, so a
 // therapist can't dodge the cap by parking clients as 'left' and pulling them back later.
 export async function setClientStatus(therapistId: string, clientId: string, status: ClientStatus) {
-	const [current] = await db
-		.select({ status: client.status })
-		.from(client)
-		.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
-	if (!current) return { error: 'not_found' as const };
-
-	if (current.status === 'left' && status !== 'left') {
-		const limit = await usageLimit(therapistId, 'clients');
-		const [{ count }] = await db
-			.select({ count: sql<number>`count(*)::int` })
+	return withTherapistLock(therapistId, async (tx, isAtLimit) => {
+		const [current] = await tx
+			.select({ status: client.status })
 			.from(client)
-			.where(and(eq(client.therapistId, therapistId), isNull(client.deactivatedAt)));
-		if (limit !== null && count >= limit) {
-			return { error: 'limit_reached' as const };
-		}
-	}
+			.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
+		if (!current) return { error: 'not_found' as const };
 
-	await db
-		.update(client)
-		.set({ status, deactivatedAt: status === 'left' ? new Date() : null })
-		.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
-	return {};
+		if (current.status === 'left' && status !== 'left') {
+			if (await isAtLimit()) {
+				return { error: 'limit_reached' as const };
+			}
+		}
+
+		await tx
+			.update(client)
+			.set({ status, deactivatedAt: status === 'left' ? new Date() : null })
+			.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
+		return {};
+	});
 }
 
 export type ClientUpdateInput = {
@@ -191,35 +225,32 @@ export type ClientUpdateInput = {
 };
 
 export async function updateClient(therapistId: string, clientId: string, input: ClientUpdateInput) {
-	const [current] = await db
-		.select({ status: client.status })
-		.from(client)
-		.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
-	if (!current) return { error: 'not_found' as const };
-
-	if (current.status === 'left' && input.status !== 'left') {
-		const limit = await usageLimit(therapistId, 'clients');
-		const [{ count }] = await db
-			.select({ count: sql<number>`count(*)::int` })
+	return withTherapistLock(therapistId, async (tx, isAtLimit) => {
+		const [current] = await tx
+			.select({ status: client.status })
 			.from(client)
-			.where(and(eq(client.therapistId, therapistId), isNull(client.deactivatedAt)));
-		if (limit !== null && count >= limit) {
-			return { error: 'limit_reached' as const };
-		}
-	}
+			.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
+		if (!current) return { error: 'not_found' as const };
 
-	await db
-		.update(client)
-		.set({
-			name: input.name,
-			customFields: input.customFields,
-			tags: input.tags,
-			rate: input.rate,
-			status: input.status,
-			deactivatedAt: input.status === 'left' ? new Date() : null
-		})
-		.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
-	return {};
+		if (current.status === 'left' && input.status !== 'left') {
+			if (await isAtLimit()) {
+				return { error: 'limit_reached' as const };
+			}
+		}
+
+		await tx
+			.update(client)
+			.set({
+				name: input.name,
+				customFields: input.customFields,
+				tags: input.tags,
+				rate: input.rate,
+				status: input.status,
+				deactivatedAt: input.status === 'left' ? new Date() : null
+			})
+			.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
+		return {};
+	});
 }
 
 export async function getInviteByToken(token: string) {
