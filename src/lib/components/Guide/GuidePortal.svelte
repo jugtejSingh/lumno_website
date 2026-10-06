@@ -41,9 +41,18 @@
 			4-hour notice, for example, a client can't book an 8pm slot after 4pm that same day — it just
 			won't show as an option anymore.
 		</p>
+		<p>
+			<strong>How Far Ahead Clients Can Book</strong> sets how far ahead clients see slots: 1 week,
+			2 weeks, 3 weeks or 1 month (2 weeks by default).
+		</p>
 	</GuideCallout>
 
 	<h3>What clients see in their portal</h3>
+	<p>
+		The portal has its own pages: <strong>Home</strong>, <strong>Calendar</strong>,
+		<strong>Payments</strong>, <strong>Notes</strong>, <strong>Resources</strong> and
+		<strong>Your details</strong>. Session and payment reminder emails link straight to it.
+	</p>
 	<ul>
 		<li>
 			<strong>Their upcoming sessions</strong>, with a Google Meet link for online ones, plus

@@ -15,10 +15,10 @@
 			<strong>Booking emails</strong>: when a session is booked, moved or cancelled, whether the client
 			did it or you did.
 		</li>
-		<li><strong>Session reminders</strong>: an email 24 hours before each session.</li>
+		<li><strong>Session reminders</strong>: an email 24 hours before each session, with a link to the client's portal.</li>
 		<li>
 			<strong>Payment reminders</strong>: at most once a week, clients with an unpaid balance get an
-			email listing what they owe.
+			email listing what they owe, with a link to their portal.
 		</li>
 		<li>
 			<strong>Rebook reminders</strong>: when a client hasn't booked their next session, a friendly

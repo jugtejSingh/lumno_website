@@ -73,11 +73,18 @@
 	<h3>Reserving a slot for one client</h3>
 	<p>
 		For a client you see at the same time every week, set a weekly slot's dropdown from
-		<strong>Open to everyone</strong> to <strong>Reserved: their name</strong>. They're then booked
-		into that slot automatically (every week, 2 weeks or 4 weeks), booked as far ahead as your booking window, and no other client ever sees it.
-		Each of those sessions is invoiced like any other, or uses a pack credit if they have one.
+		<strong>Open to everyone</strong> to <strong>Reserved</strong>. In the
+		<strong>Reserve this slot</strong> box, search for the client and choose how often they come:
+		every week, every 2 weeks or every 4 weeks. They're then booked into that slot automatically,
+		and no other client ever sees it. Each of those sessions is invoiced like any other, or uses a
+		pack credit if they have one.
 	</p>
 	<ul>
+		<li>
+			Sessions are booked as far ahead as your booking window, plus one day, so they're already in
+			your calendar before that day opens to other clients.
+		</li>
+		<li>To open the slot back up, use <strong>Release</strong> in the same box.</li>
 		<li>Only Online or In person slots can be reserved, not Client picks.</li>
 		<li>A reserved slot can't overlap another slot on the same day.</li>
 		<li>
