@@ -77,7 +77,7 @@
 	<h3>Resources</h3>
 	<p>
 		On the Resources tab, add a file (PDF, PNG, JPEG or WebP, under 20 MB) or a link, give it a
-		name and a tag such as Worksheet / homework, Reading or Assessment. The client sees it in their
+		name and a tag such as Worksheet / follow-up, Reading or Assessment. The client sees it in their
 		portal and can add their own there too, for example a prescription or a medical report.
 	</p>
 

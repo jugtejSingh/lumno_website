@@ -9,7 +9,7 @@
 	// request origin rather than hardcoded to one domain.
 	const SITE_TITLE = 'Lumno — Why juggle five apps when one will do?';
 	const SITE_DESCRIPTION =
-		'Lumno runs the admin side of a solo therapy practice: online booking on your real availability, automatic session and payment reminders, invoicing and card payments, session notes sent to clients, and a client portal — all in one place.';
+		'Lumno runs the admin side of a solo practice: online booking on your real availability, automatic session and payment reminders, invoicing and card payments, session notes sent to clients, and a client portal — all in one place.';
 	const ogImage = $derived(`${page.url.origin}/brand/og-image.png`);
 </script>
 

@@ -31,7 +31,7 @@ test.describe('login', () => {
 		const therapist = await seedTherapist(request);
 		await login(page, 'Client', therapist.email);
 		await expect(page.locator('.form-error')).toHaveText(
-			'This account has no client profile. Ask your therapist for an invite.'
+			'This account has no client profile. Ask your practitioner for an invite.'
 		);
 	});
 

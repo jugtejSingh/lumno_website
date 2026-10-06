@@ -35,7 +35,7 @@ function updateClient(fields: Record<string, string>, asTherapistId = therapistI
 
 function saveSettings(fields: Record<string, string | string[]>) {
 	return settingsActions.save(
-		mkEvent({ locals: { therapistId }, fields: { name: 'Dr Test', freeChangeWindowHours: '24', timezone: 'Europe/London', ...fields } }) as never
+		mkEvent({ locals: { therapistId }, fields: { name: 'Dr Test', freeChangeWindowHours: '24', bookingWindowDays: '14', timezone: 'Europe/London', ...fields } }) as never
 	);
 }
 

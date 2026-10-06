@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	<title>Become a therapist — Lumno</title>
+	<title>Become a practitioner — Lumno</title>
 </svelte:head>
 
 <div class="page">
@@ -25,9 +25,9 @@
 					This link is invalid or has already been used. Try registering again.
 				</div>
 			{:else}
-				<div class="form-title">Add a therapist profile</div>
+				<div class="form-title">Add a practitioner profile</div>
 				<div class="form-subtitle">
-					This confirms you own this email. Confirm to add a therapist practice to your account —
+					This confirms you own this email. Confirm to add a practice to your account —
 					you can fill in your bio, photo, and specialties afterward in settings.
 				</div>
 				{#if form?.message}

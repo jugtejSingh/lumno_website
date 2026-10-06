@@ -29,11 +29,11 @@ async function loadValidInvite(token: string) {
 const INVALID_REASONS = {
 	not_found: {
 		title: 'Invite not found',
-		body: "This invite link isn't valid. Check the link in your email, or ask your therapist to send a new one."
+		body: "This invite link isn't valid. Check the link in your email, or ask your practitioner to send a new one."
 	},
 	expired: {
 		title: 'Invite expired',
-		body: 'This invite link has expired. Ask your therapist to resend it and use the new link.'
+		body: 'This invite link has expired. Ask your practitioner to resend it and use the new link.'
 	},
 	already_joined: {
 		title: 'Invite already used',

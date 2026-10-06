@@ -8,12 +8,12 @@
 	{id}
 	{number}
 	title="Community"
-	intro="A directory of other therapists on the app, so that when someone needs a different fit you have a colleague to refer them to, and colleagues can find you too. It's in beta."
+	intro="A directory of other practitioners on the app, so that when someone needs a different fit you have a colleague to refer them to, and colleagues can find you too. It's in beta."
 >
 	<h3>Finding a colleague</h3>
 	<p>
 		On <a href="/community">Community</a>, search by name or specialty and click a card to read the
-		therapist's full profile.
+		practitioner's full profile.
 	</p>
 
 	<h3>Your own card</h3>
@@ -24,6 +24,6 @@
 	</p>
 	<p>
 		Clients never see the Community page or your card. The session rate there is only shown to other
-		therapists and doesn't change what any client pays.
+		practitioners and doesn't change what any client pays.
 	</p>
 </GuideSection>

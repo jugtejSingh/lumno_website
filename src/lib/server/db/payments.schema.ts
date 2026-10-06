@@ -127,6 +127,7 @@ export const payment = pgTable(
 			.notNull()
 	},
 	(table) => [
+		index('payment_therapistId_createdAt_idx').on(table.therapistId, table.createdAt),
 		index('payment_clientId_idx').on(table.clientId),
 		index('payment_appointmentId_idx').on(table.appointmentId),
 		index('payment_packId_idx').on(table.packId),

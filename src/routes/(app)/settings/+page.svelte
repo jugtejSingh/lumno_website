@@ -11,8 +11,9 @@
 	import ClientFieldsSettings from '$lib/components/Settings/ClientFieldsSettings.svelte';
 	import OutreachSettings from '$lib/components/Settings/OutreachSettings.svelte';
 	import GoogleCalendarSettings from '$lib/components/Settings/GoogleCalendarSettings.svelte';
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { enhance } from '$lib/enhance';
+	import { BOOKING_WINDOW_CHOICES } from '$lib/bookingSchedule';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import type { PageData, ActionData } from './$types';
@@ -28,7 +29,7 @@
 				'Automated Session & Payment Emails',
 				'Notes Sent To Clients Automatically',
 				'Payment Collection & Invoicing',
-				'Therapist Community — Refer Clients To Colleagues'
+				'Practitioner Community — Refer Clients To Colleagues'
 			]
 		},
 		1: {
@@ -124,6 +125,7 @@
 			: String(initial.bookingRules.maxUpcomingBookingsPerClient)
 	);
 	let minBookingNoticeHours = $state(initial.bookingRules.minBookingNoticeHours);
+	let bookingWindowDays = $state(initial.bookingRules.bookingWindowDays);
 
 	// ---- payments ----
 	let freeChangeWindowHours = $state(initial.payments.freeChangeWindowHours);
@@ -188,6 +190,7 @@
 			requireZeroBalance,
 			maxUpcomingBookingsPerClient,
 			minBookingNoticeHours,
+			bookingWindowDays,
 			freeChangeWindowHours,
 			partialChangeWindowHours,
 			rescheduleChargesEnabled,
@@ -225,12 +228,29 @@
 		newTag = '';
 	}
 
+	// the message from fail() when it belongs to this field, otherwise nothing
+	function errorFor(field: string): string {
+		if (form?.field === field) {
+			return form.message;
+		}
+		return '';
+	}
+
+	// after a failed save, bring the first red error into view
+	async function scrollToError() {
+		await tick();
+		document
+			.querySelector('.settings .field-error, .settings .form-error')
+			?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
+
 	function updatePassword() {
 		password = '';
 	}
 </script>
 
 <form
+	id="settings-form"
 	class="settings"
 	method="POST"
 	action="?/save"
@@ -239,9 +259,12 @@
 		// the Disconnect button posts to ?/disconnectRazorpay via formaction — same
 		// form, different action, so "Saved" must not flash for it
 		const isSave = action.search === '?/save';
-		return async ({ update }) => {
+		return async ({ update, result }) => {
 			await update({ reset: false });
-			if (isSave) {
+			if (isSave && result.type === 'failure') {
+				await scrollToError();
+			}
+			if (isSave && result.type !== 'failure') {
 				// update({ reset: false }) leaves the inputs (file input included)
 				// exactly as posted, so what's on screen is now what's saved
 				savedValues = currentValues();
@@ -255,7 +278,8 @@
 		<div class="title">Settings</div>
 	</div>
 
-	{#if form?.message}
+	<!-- errors tied to a field show under that field instead -->
+	{#if form?.message && !form.field}
 		<div class="form-error">{form.message}</div>
 	{/if}
 	{#if data.calendarError}
@@ -298,7 +322,7 @@
 			<div class="section-title">
 				Community Profile<InfoTip
 					label="Community Profile"
-					text="This is your card on the Community page, where other therapists on the app can find you and refer clients. Your clients never see it."
+					text="This is your card on the Community page, where other practitioners on the app can find you and refer clients. Your clients never see it."
 				/>
 			</div>
 			<div class="name-row">
@@ -308,6 +332,7 @@
 						label="Name"
 						name="name"
 						info="Shown on your community card, and in the emails and calendar invites your clients get."
+						error={errorFor('name')}
 						bind:value={name}
 					/>
 				</div>
@@ -316,7 +341,7 @@
 				<div class="field-label">
 					Specialties (optional)<InfoTip
 						label="Specialties"
-						text="Tags on your community card so other therapists know who to send your way. Add the approaches you practise (e.g. CBT, psychodynamic, EMDR), specialist areas (e.g. sex therapy, couples), the concerns you help with (e.g. anxiety, trauma) and practical details (e.g. online, sliding scale)."
+						text="Tags on your community card so other practitioners know who to send your way. Add the services you offer (e.g. consultations, coaching, workshops), specialist areas (e.g. beginners, teams), the problems you help with and practical details (e.g. online, sliding scale)."
 					/>
 				</div>
 				<div class="tag-row">
@@ -332,8 +357,8 @@
 			<Textarea
 				label="Bio"
 				name="bio"
-				placeholder="A few sentences other therapists will see"
-				info="A few sentences other therapists read when deciding whether to refer someone to you."
+				placeholder="A few sentences other practitioners will see"
+				info="A few sentences other practitioners read when deciding whether to refer someone to you."
 				bind:value={bio}
 				rows={3}
 			/>
@@ -347,7 +372,7 @@
 				<Input
 					label="Location"
 					name="location"
-					info="Where you practise. Helps therapists refer clients who need in-person sessions nearby."
+					info="Where you practise. Helps practitioners refer clients who need in-person sessions nearby."
 					bind:value={location}
 				/>
 			</div>
@@ -361,7 +386,7 @@
 				<Input
 					label="Session Rate"
 					name="sessionRate"
-					info="Shown to other therapists only if &quot;Show My Session Rate&quot; is on. It doesn't change what any client pays; each client's rate is set on their own profile."
+					info="Shown to other practitioners only if &quot;Show My Session Rate&quot; is on. It doesn't change what any client pays; each client's rate is set on their own profile."
 					bind:value={rate}
 				/>
 			</div>
@@ -373,12 +398,12 @@
 			<div class="section-title">Community Visibility</div>
 			<Switch
 				label="List Me in the Community"
-				info="On: other therapists can find you. Off: you're hidden from the list. Your clients aren't affected either way."
+				info="On: other practitioners can find you. Off: you're hidden from the list. Your clients aren't affected either way."
 				bind:checked={visible}
 			/>
 			<div class="helper">
 				{#if visible}
-					You're visible to other therapists on the Community page. Turn this off any time to
+					You're visible to other practitioners on the Community page. Turn this off any time to
 					disappear from that list.
 				{:else}
 					You're hidden from the Community page. Turn this on when you're open to taking referrals.
@@ -460,6 +485,7 @@
 						<option value={tz}>{tz}</option>
 					{/each}
 				</select>
+				{#if errorFor('timezone')}<span class="field-error">{errorFor('timezone')}</span>{/if}
 			</label>
 			<Switch
 				label="Block portal bookings while a client owes you money"
@@ -483,6 +509,7 @@
 					<option value="2">2 sessions</option>
 					<option value="3">3 sessions</option>
 				</select>
+				{#if errorFor('maxUpcomingBookingsPerClient')}<span class="field-error">{errorFor('maxUpcomingBookingsPerClient')}</span>{/if}
 			</label>
 			<label class="field">
 				<span class="field-label">
@@ -500,6 +527,21 @@
 						<option value={o.hours}>{o.label}</option>
 					{/each}
 				</select>
+				{#if errorFor('minBookingNoticeHours')}<span class="field-error">{errorFor('minBookingNoticeHours')}</span>{/if}
+			</label>
+			<label class="field">
+				<span class="field-label">
+					How Far Ahead Clients Can Book<InfoTip
+						label="How Far Ahead Clients Can Book"
+						text="Clients see slots up to this far ahead. Sessions for clients with a reserved slot are booked to the same distance, a day early, so they're in your calendar before the day opens to everyone else."
+					/>
+				</span>
+				<select class="field-input" name="bookingWindowDays" bind:value={bookingWindowDays}>
+					{#each BOOKING_WINDOW_CHOICES as choice (choice.days)}
+						<option value={choice.days}>{choice.label}</option>
+					{/each}
+				</select>
+				{#if errorFor('bookingWindowDays')}<span class="field-error">{errorFor('bookingWindowDays')}</span>{/if}
 			</label>
 		</div>
 	</Card>
@@ -609,6 +651,7 @@
 						<option value={o.hours}>{o.label}</option>
 					{/each}
 				</select>
+				{#if errorFor('freeChangeWindowHours')}<span class="field-error">{errorFor('freeChangeWindowHours')}</span>{/if}
 			</label>
 			<label class="field">
 				<span class="field-label">
@@ -627,6 +670,7 @@
 						<option value={o.hours}>{o.label}</option>
 					{/each}
 				</select>
+				{#if errorFor('partialChangeWindowHours')}<span class="field-error">{errorFor('partialChangeWindowHours')}</span>{/if}
 			</label>
 
 			<Switch
@@ -651,6 +695,7 @@
 							<option value={o.hours}>{o.label}</option>
 						{/each}
 					</select>
+				{#if errorFor('rescheduleFreeChangeWindowHours')}<span class="field-error">{errorFor('rescheduleFreeChangeWindowHours')}</span>{/if}
 				</label>
 				<label class="field">
 					<span class="field-label">
@@ -669,6 +714,7 @@
 							<option value={o.hours}>{o.label}</option>
 						{/each}
 					</select>
+				{#if errorFor('reschedulePartialChangeWindowHours')}<span class="field-error">{errorFor('reschedulePartialChangeWindowHours')}</span>{/if}
 				</label>
 			{/if}
 
@@ -698,6 +744,7 @@
 					accept="image/png,image/jpeg,image/webp"
 					onchange={(e) => (qrFileName = e.currentTarget.files?.[0]?.name ?? '')}
 				/>
+				{#if errorFor('payQrImage')}<span class="field-error">{errorFor('payQrImage')}</span>{/if}
 			</label>
 			<Textarea
 				label="Bank / UPI Details"
@@ -752,7 +799,7 @@
 				</div>
 					{#if data.billing.referralCreditOwed}
 						<div class="referral-credit-note">
-							You referred a therapist who's paid their first month — this month's charge will be
+							You referred a practitioner who's paid their first month — this month's charge will be
 							refunded (referral).
 						</div>
 					{:else if data.billing.plan !== 0 && data.billing.status === 'active'}
@@ -932,6 +979,11 @@
 		border: 2px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
+	}
+
+	.field-error {
+		font-size: 12px;
+		color: var(--danger, #b3261e);
 	}
 
 	.form-error {

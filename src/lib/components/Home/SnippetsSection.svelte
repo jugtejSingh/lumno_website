@@ -93,13 +93,13 @@
 					<Tag color="sage">dated</Tag>
 				</div>
 				<p class="note-text">
-					Client reports improved mood and steadier sleep. Anxiety trending down. Continued
-					stress related to workplace dynamics with supervisor. Assigned breathing exercise as
+					Client is doing better and making good progress, currently around 6/10. Some more
+					practice is still needed. Reviewed last week's material again. Assigned exercises as
 					homework.
 				</p>
 				<div class="note-homework">
 					<span class="note-homework-label">Homework</span>
-					Practice the 4-7-8 breathing exercise nightly before bed.
+					Repeat this week's exercises daily and note how each one goes.
 				</div>
 			</Card>
 		</div>

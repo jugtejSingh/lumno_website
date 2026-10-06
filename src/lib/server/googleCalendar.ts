@@ -58,6 +58,7 @@ export async function createMeetEvent(
 			conferenceDataVersion: 1,
 			requestBody: {
 				summary: input.summary,
+				description: '',
 				start: { dateTime: input.startAt.toISOString() },
 				end: { dateTime: input.endAt.toISOString() },
 				attendees: input.attendeeEmail ? [{ email: input.attendeeEmail }] : undefined,

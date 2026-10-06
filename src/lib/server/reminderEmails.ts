@@ -81,17 +81,22 @@ async function sendSessionReminderBatch(
 		try {
 			const when = formatWhen(row.startAt, row.timezone);
 			const modalityText = row.modality === 'online' ? 'Online' : 'In person';
-			const cta =
-				row.modality === 'online' && row.meetLink
-					? { text: 'Join session', url: row.meetLink }
-					: undefined;
+			const portalUrl = `${env.ORIGIN}/portal`;
+			// Online sessions keep "Join session" as the button (it's what they need at session
+			// time) and get the portal as a body link; everything else gets the portal button.
+			let cta = { text: 'Open Lumno', url: portalUrl };
+			let portalLine = '';
+			if (row.modality === 'online' && row.meetLink) {
+				cta = { text: 'Join session', url: row.meetLink };
+				portalLine = `<p><a href="${portalUrl}">Open your Lumno portal</a></p>`;
+			}
 			const html = wrapEmail({
 				heading: 'Upcoming session reminder',
-				bodyHtml: `<p>Reminder: your session with ${escapeHtml(row.therapistName)} is at ${when} (${modalityText}).</p>`,
+				bodyHtml: `<p>Reminder: your session with ${escapeHtml(row.therapistName)} is at ${when} (${modalityText}).</p>${portalLine}`,
 				cta,
 				footerNote: `Sent on behalf of ${row.therapistName}. Reply to this email to reach them directly.`
 			});
-			const text = `Reminder: your session with ${row.therapistName} is at ${when} (${modalityText}).${row.meetLink ? ` Join here: ${row.meetLink}` : ''}`;
+			const text = `Reminder: your session with ${row.therapistName} is at ${when} (${modalityText}).${row.meetLink ? ` Join here: ${row.meetLink}` : ''} Portal: ${portalUrl}`;
 			await sendEmail(row.clientEmail, 'Upcoming session reminder', html, {
 				text,
 				replyTo: row.therapistEmail
@@ -187,13 +192,17 @@ export async function sendPaymentReminders(): Promise<void> {
 		if (!row.clientEmail || row.owed <= 0) continue;
 		try {
 			const amount = formatCurrency(row.owed, row.currency);
+			const url = `${env.ORIGIN}/portal`;
 			const html = wrapEmail({
 				heading: 'Payment reminder',
 				bodyHtml: `<p>You have an outstanding balance of ${amount} with ${escapeHtml(row.therapistName)}.</p>`,
+				cta: { text: 'Open Lumno', url },
 				footerNote: `Sent on behalf of ${row.therapistName}. Reply to this email to reach them directly.`
 			});
 			await sendEmail(row.clientEmail, 'Payment reminder', html, {
-				text: `You have an outstanding balance of ${amount} with ${row.therapistName}.`,
+				text: `You have an outstanding balance of ${amount} with ${row.therapistName}.
+
+${url}`,
 				replyTo: row.therapistEmail
 			});
 			await db

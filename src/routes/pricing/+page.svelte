@@ -72,7 +72,7 @@
 			name: 'Free',
 			price: 'Free',
 			period: '',
-			blurb: 'For therapists starting their careers — a small gift from us.',
+			blurb: 'For practitioners starting their careers — a small gift from us.',
 			features: [
 				'Up to 10 clients',
 				'Unlimited appointments',
@@ -80,7 +80,7 @@
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing (0% commission)',
-				'Therapist community — refer clients to colleagues',
+				'Practitioner community — refer clients to colleagues',
 				'No AI features'
 			]
 		},
@@ -97,7 +97,7 @@
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing (0% commission)',
-				'Therapist community — refer clients to colleagues',
+				'Practitioner community — refer clients to colleagues',
 				'AI: fix note wording, one-line summaries',
 				'AI: client-safe recap sent to the client, ask-about-a-client chat',
 				'Good limits for AI use'
@@ -116,7 +116,7 @@
 				'Automated email reminders for sessions & payments',
 				'Notes sent to clients automatically',
 				'Payment collection & invoicing (0% commission)',
-				'Therapist community — refer clients to colleagues',
+				'Practitioner community — refer clients to colleagues',
 				'AI: fix note wording, one-line summaries',
 				'AI: client-safe recap sent to the client, ask-about-a-client chat',
 				'Very high limits for AI use'
@@ -130,10 +130,10 @@
 		subscription_in_progress: 'A checkout is already in progress — try again in a moment.',
 		subscription_creation_failed: 'Could not start checkout. Try again.',
 		invalid_plan: 'That plan is not available.',
-		referrer_not_found: "We couldn't find a therapist with that email.",
+		referrer_not_found: "We couldn't find a practitioner with that email.",
 		self_referral: "You can't refer yourself.",
-		referrer_not_paid: 'That therapist needs an active paid plan for a referral to work.',
-		referrer_already_referred: 'That therapist has already used their one referral.',
+		referrer_not_paid: 'That practitioner needs an active paid plan for a referral to work.',
+		referrer_already_referred: 'That practitioner has already used their one referral.',
 		referee_already_referred: "You've already been referred once — this only works the first time."
 	};
 
@@ -203,7 +203,7 @@
 
 <svelte:head>
 	<title>Pricing — Lumno</title>
-	<meta name="description" content="Simple, transparent pricing for therapists running their practice on Lumno." />
+	<meta name="description" content="Simple, transparent pricing for practitioners running their practice on Lumno." />
 </svelte:head>
 
 <div class="page">

@@ -8,7 +8,7 @@
 
 <section class="hero">
 	<div class="hero-copy">
-		<div class="eyebrow">For solo therapists</div>
+		<div class="eyebrow">For solo practitioners</div>
 		<h1 class="display">Why juggle five apps <span class="italic-accent">when one will do?</span></h1>
 		<p class="lede">
 			Bookings, payments, cancellations and reminders — Lumno handles all of it in one place.

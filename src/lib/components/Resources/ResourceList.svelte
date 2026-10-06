@@ -34,7 +34,7 @@
 			return 'Added by you';
 		}
 		if (uploadedBy === 'therapist') {
-			return 'Added by your therapist';
+			return 'Added by your practitioner';
 		}
 		return 'Added by client';
 	}

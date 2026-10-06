@@ -7,17 +7,19 @@
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 	import { enhance } from '$lib/enhance';
+	import { page } from '$app/state';
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	let feedbackOpen = $state(false);
 
 	const links = [
-		{ href: '#calendar', label: 'Calendar' },
-		{ href: '#payments', label: 'Payments' },
-		{ href: '#notes', label: 'Notes' },
-		{ href: '#resources', label: 'Resources' },
-		{ href: '#details', label: 'Your details' }
+		{ href: '/portal', label: 'Home' },
+		{ href: '/portal/calendar', label: 'Calendar' },
+		{ href: '/portal/payments', label: 'Payments' },
+		{ href: '/portal/notes', label: 'Notes' },
+		{ href: '/portal/resources', label: 'Resources' },
+		{ href: '/portal/details', label: 'Your details' }
 	];
 </script>
 
@@ -26,7 +28,7 @@
 		<div class="sidebar-logo"><Logo /></div>
 		{#each links as link (link.href)}
 			<a href={link.href} class="sidebar-link">
-				<SidebarNavItem label={link.label} />
+				<SidebarNavItem label={link.label} active={page.url.pathname === link.href} />
 			</a>
 		{/each}
 		<div class="sidebar-spacer"></div>

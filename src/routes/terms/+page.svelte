@@ -15,13 +15,13 @@
 		<p class="updated">Last updated: September 6, 2026</p>
 
 		<p>
-			These terms govern use of Lumno, practice-management software for therapists. By creating
+			These terms govern use of Lumno, practice-management software for practitioners. By creating
 			an account you agree to them.
 		</p>
 
 		<h2>The service</h2>
 		<p>
-			Lumno provides scheduling, payments, reminders, and note-taking tools for solo therapy
+			Lumno provides scheduling, payments, reminders, and note-taking tools for solo
 			practices. We may change or discontinue features and will do our best to give notice of
 			material changes.
 		</p>
@@ -51,7 +51,7 @@
 		<h2>Disclaimer & liability</h2>
 		<p>
 			Lumno is provided "as is" without warranties of any kind. Lumno is not a substitute for
-			clinical judgment, licensing compliance, or professional record-keeping requirements — you
+			professional judgment, licensing compliance, or professional record-keeping requirements — you
 			remain responsible for those. To the extent permitted by law, our liability is limited to
 			the amount you paid us in the twelve months before a claim.
 		</p>

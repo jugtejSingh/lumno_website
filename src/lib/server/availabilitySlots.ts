@@ -26,6 +26,7 @@ export function toDateKey(year: number, month: number, day: number): string {
 function toDesignedSlot(row: {
 	id?: string;
 	reservedClientId?: string | null;
+	reservedEveryWeeks?: number;
 	startTime: string;
 	endTime: string;
 	modality: SlotModality;
@@ -40,6 +41,9 @@ function toDesignedSlot(row: {
 	}
 	if (row.reservedClientId !== undefined) {
 		slot.reservedClientId = row.reservedClientId;
+	}
+	if (row.reservedEveryWeeks !== undefined) {
+		slot.reservedEveryWeeks = row.reservedEveryWeeks;
 	}
 	return slot;
 }
@@ -124,6 +128,7 @@ export async function getSlotDesign(therapistId: string, year: number, month: nu
 			.select({
 				id: availabilitySlot.id,
 				reservedClientId: availabilitySlot.reservedClientId,
+				reservedEveryWeeks: availabilitySlot.reservedEveryWeeks,
 				weekday: availabilitySlot.weekday,
 				startTime: availabilitySlot.startTime,
 				endTime: availabilitySlot.endTime,

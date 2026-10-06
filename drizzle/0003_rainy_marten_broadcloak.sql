@@ -1,0 +1,1 @@
+CREATE INDEX "payment_therapistId_createdAt_idx" ON "payment" USING btree ("therapist_id","created_at");

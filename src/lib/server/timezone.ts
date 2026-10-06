@@ -6,6 +6,33 @@
 // thin wrapper around it. Month is 0-indexed everywhere here, matching the
 // rest of the codebase's plain `new Date(year, month, day)` convention.
 
+/**
+ * True for any IANA zone Intl can format with. Intl.supportedValuesOf('timeZone') only lists
+ * canonical names (it has Asia/Calcutta, not Asia/Kolkata, and no UTC), so it can't be used
+ * as the allow-list.
+ */
+export function isValidTimeZone(timeZone: string): boolean {
+	if (timeZone === '') {
+		return false;
+	}
+	try {
+		new Intl.DateTimeFormat('en-US', { timeZone });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/** Options for the timezone dropdown, always including the saved value so it can be selected. */
+export function timeZoneOptions(current: string): string[] {
+	const options = Intl.supportedValuesOf('timeZone');
+	if (!options.includes(current)) {
+		options.push(current);
+		options.sort();
+	}
+	return options;
+}
+
 function getOffsetMinutes(date: Date, timeZone: string): number {
 	const parts = Object.fromEntries(
 		new Intl.DateTimeFormat('en-US', {

@@ -15,27 +15,27 @@
 		<p class="updated">Last updated: September 9, 2026</p>
 
 		<p>
-			Lumno ("we", "us") provides practice-management software for therapists. This policy
-			explains what we collect and how we use it. It covers the therapist accounts that sign up
+			Lumno ("we", "us") provides practice-management software for practitioners. This policy
+			explains what we collect and how we use it. It covers the practitioner accounts that sign up
 			for Lumno and the clients they book through it.
 		</p>
 
 		<h2>What we collect</h2>
 		<p>
-			Account details (name, email) for therapists who sign up. Appointment, client, and note
-			data that a therapist enters or that their clients submit through booking. Payment
+			Account details (name, email) for practitioners who sign up. Appointment, client, and note
+			data that a practitioner enters or that their clients submit through booking. Payment
 			metadata from our payment processor — we do not store card numbers ourselves. If a
-			therapist connects Google Calendar, we access only calendar events needed to create and
+			practitioner connects Google Calendar, we access only calendar events needed to create and
 			manage appointments and Meet links.
 		</p>
 
 		<h2>Google user data</h2>
 		<p>
-			Connecting Google Calendar is optional. When a therapist connects it, we request the
+			Connecting Google Calendar is optional. When a practitioner connects it, we request the
 			<code>calendar.events</code> scope only. We use it to create, update, and delete the
-			calendar events and Google Meet links for that therapist's own appointments, and for nothing
+			calendar events and Google Meet links for that practitioner's own appointments, and for nothing
 			else. We do not read other events, contacts, email, or any other Google data. We store the
-			OAuth tokens needed to do this on the therapist's behalf; the therapist can revoke access at
+			OAuth tokens needed to do this on the practitioner's behalf; the practitioner can revoke access at
 			any time from Settings or from their Google account permissions page, and we delete the tokens
 			when they do.
 		</p>
@@ -53,8 +53,8 @@
 		<p>
 			To run the core features of the product: scheduling, reminders, payments, and notes. To
 			send transactional emails (booking confirmations, reminders). We do not sell client or
-			therapist data, and we do not use client notes for any purpose beyond displaying them back
-			to the therapist who wrote them. We do not run analytics, tracking, or advertising, and we
+			practitioner data, and we do not use client notes for any purpose beyond displaying them back
+			to the practitioner who wrote them. We do not run analytics, tracking, or advertising, and we
 			collect no data beyond what is needed to provide the service.
 		</p>
 
@@ -74,8 +74,8 @@
 				client, note, and OAuth token data is stored.
 			</li>
 			<li>
-				<strong>Google</strong> — only when a therapist connects Google Calendar, we send that
-				therapist's appointment times and attendee details to Google to create calendar events
+				<strong>Google</strong> — only when a practitioner connects Google Calendar, we send that
+				practitioner's appointment times and attendee details to Google to create calendar events
 				and Meet links.
 			</li>
 			<li>
@@ -96,9 +96,9 @@
 		<p>
 			All data is encrypted in transit using HTTPS/TLS, and encrypted at rest by our database
 			host. Google OAuth tokens are stored server-side, are never exposed to the browser, and are
-			deleted when the therapist disconnects Google Calendar. Access to production systems is
+			deleted when the practitioner disconnects Google Calendar. Access to production systems is
 			limited to the people who operate Lumno and is protected by authentication and access
-			controls. Client notes and appointment details are visible only to the therapist who owns
+			controls. Client notes and appointment details are visible only to the practitioner who owns
 			that account; we do not access this data except as needed to provide support or maintain
 			the service. We never share, transfer, or disclose sensitive data for advertising,
 			profiling, or model training.
@@ -106,7 +106,7 @@
 
 		<h2>Data retention & deletion</h2>
 		<p>
-			Data is kept for as long as the account is active. Therapists can request deletion of their
+			Data is kept for as long as the account is active. Practitioners can request deletion of their
 			account and associated data by contacting us.
 		</p>
 

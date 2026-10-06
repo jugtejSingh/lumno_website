@@ -84,10 +84,10 @@
 			label: 'Notes',
 			client: 'Priya Nair',
 			rawNote:
-				'client seemed better today. anxiety down. sleep ok now. talked about work stress again, mentioned boss issue. gave breathing exercise hw',
+				'client doing better today. progress good. still needs more practice, around 6/10 now. went over last weeks stuff again. gave some exercises hw',
 			cleanedNote:
-				'Client reports improved mood and steadier sleep. Anxiety trending down. Continued stress related to workplace dynamics with supervisor. Assigned breathing exercise as homework.',
-			homework: 'Practice the 4-7-8 breathing exercise nightly before bed.'
+				'Client is doing better and making good progress, currently around 6/10. Some more practice is still needed. Reviewed last week\'s material again. Assigned exercises as homework.',
+			homework: 'Repeat this week\'s exercises daily and note how each one goes.'
 		}
 	];
 

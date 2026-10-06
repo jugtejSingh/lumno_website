@@ -11,6 +11,7 @@ import {
 	markPastAppointmentsCompleted
 } from '$lib/server/appointments';
 import { sendAppointmentEmail, sendGuestBookingEmail } from '$lib/server/bookingEmails';
+import { RESERVED_EVERY_WEEKS_OPTIONS } from '$lib/bookingSchedule';
 import { isValidEmail } from '$lib/isValidEmail';
 import { listClients } from '$lib/server/clients';
 import { parseMonthParam } from '$lib/server/dateParams';
@@ -270,7 +271,13 @@ export const actions: Actions = {
 		if (clientIdRaw !== '') {
 			clientId = clientIdRaw;
 		}
-		return slotChangeResponse(await reserveSlot(therapistId, slotId, clientId));
+		// a missing value means weekly, which is what every reservation was before frequencies
+		const everyWeeksRaw = formData.get('everyWeeks')?.toString() ?? '1';
+		const everyWeeks = Number(everyWeeksRaw);
+		if (!RESERVED_EVERY_WEEKS_OPTIONS.includes(everyWeeks)) {
+			return fail(400, { message: 'Pick weekly, every 2 weeks or every 4 weeks' });
+		}
+		return slotChangeResponse(await reserveSlot(therapistId, slotId, clientId, everyWeeks));
 	},
 
 	saveWeekDay: async (event) => {

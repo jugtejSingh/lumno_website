@@ -98,10 +98,10 @@ async function callOpenRouter(
 // content. Kept to grammar/clarity/flow so a therapist can trust the output
 // without re-reading every sentence against the original.
 const FIX_SYSTEM_PROMPT =
-	"You clean up a therapist's session note. Fix grammar, spelling, and punctuation, and improve clarity and flow. You may elaborate on what's already written to make it read more naturally, but never invent new facts, symptoms, events, or details that aren't already in the note — only work with what's given. Reply with only the fixed note text, no preamble or commentary.";
+	"You clean up a practitioner's session note. Fix grammar, spelling, and punctuation, and improve clarity and flow. You may elaborate on what's already written to make it read more naturally, but never invent new facts, symptoms, events, or details that aren't already in the note — only work with what's given. Reply with only the fixed note text, no preamble or commentary.";
 
 const DESCRIBE_SYSTEM_PROMPT =
-	"Summarize a therapist's session note in one short plain-text sentence (under 15 words) so it can label a collapsed card in a list. Never invent facts not already in the note. Reply with only the sentence, no preamble or commentary.";
+	"Summarize a practitioner's session note in one short plain-text sentence (under 15 words) so it can label a collapsed card in a list. Never invent facts not already in the note. Reply with only the sentence, no preamble or commentary.";
 
 export async function fixNoteText(therapistId: string, body: string): Promise<string | null> {
 	return callOpenRouter('ai.fixNote', FIX_SYSTEM_PROMPT, therapistId, [{ role: 'user', content: body }]);
@@ -116,13 +116,13 @@ export async function summarizeNoteText(therapistId: string, body: string): Prom
 // The private note is clinical data. What goes back to the client is only the
 // overarching topics and any homework — no observations about them, no
 // diagnostic language, no quotes, nothing the therapist wrote *about* them.
-const SHARE_SYSTEM_PROMPT = `You turn a therapist's private session note into a short message the CLIENT will read in their portal.
+const SHARE_SYSTEM_PROMPT = `You turn a practitioner's private session note into a short message the CLIENT will read in their portal.
 
 Include only:
 - the main topics the session covered, named warmly and at a high level
-- any homework, exercises, or practices to do before next time
+- any follow-ups, exercises, or practices to do before next time
 
-Never include: clinical observations, assessments, diagnoses, risk notes, the therapist's impressions of the client, direct quotes, or any sensitive personal detail from the note. When in doubt, leave it out. Never invent anything that is not in the note. Write to the client as "you", in plain, warm language. Markdown is allowed for a short homework list.
+Never include: professional observations, assessments, diagnoses, risk notes, the practitioner's impressions of the client, direct quotes, or any sensitive personal detail from the note. When in doubt, leave it out. Never invent anything that is not in the note. Write to the client as "you", in plain, warm language. Markdown is allowed for a short follow-up list.
 
 Reply with only a JSON object, no preamble:
 {"description": "one plain-text sentence under 15 words labelling the message", "body": "the message to the client"}`;
@@ -165,7 +165,7 @@ export async function summarizeNoteForClient(
 	}
 }
 
-const CHAT_SYSTEM_PROMPT_PREFIX = `You help a therapist think through a specific client's case using only their private session notes, given below. Answer the therapist's questions about this client based on the notes. Never invent facts not in the notes — say so if the notes don't cover something asked. Markdown is allowed in your replies (lists, bold, headings).
+const CHAT_SYSTEM_PROMPT_PREFIX = `You help a practitioner think through a specific client's case using only their private session notes, given below. Answer the practitioner's questions about this client based on the notes. Never invent facts not in the notes — say so if the notes don't cover something asked. Markdown is allowed in your replies (lists, bold, headings).
 
 --- PRIVATE NOTES ---
 `;

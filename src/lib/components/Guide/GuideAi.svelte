@@ -35,7 +35,7 @@
 	<h3>Chat: ask about a client</h3>
 	<p>
 		Press <strong>Chat</strong> in a client's notes to ask questions such as "what did we agree on
-		for homework last month?". Answers come only from that client's private notes. The chat isn't
+		as follow-ups last month?". Answers come only from that client's private notes. The chat isn't
 		saved: closing it or reloading the page starts it over.
 	</p>
 

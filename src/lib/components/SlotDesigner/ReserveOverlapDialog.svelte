@@ -3,7 +3,7 @@
 	import Button from '$lib/components/utils/Button.svelte';
 
 	// Shown before reserving a slot for a client who already holds another reserved slot. The
-	// reservation books the next two weeks straight away, so the client would be booked at both
+	// reservation books the sessions inside the booking window straight away, so the client would be booked at both
 	// times, and sessions already booked at the old time are never cancelled automatically.
 	let {
 		clientName,

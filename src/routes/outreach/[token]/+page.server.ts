@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 	const month = parseMonthParam(url.searchParams.get('month'), now);
 
 	return {
-		therapistName: therapistRow?.name ?? 'your therapist',
+		therapistName: therapistRow?.name ?? 'your practitioner',
 		year,
 		month,
 		slotsByDay: await listAvailabilityForMonth(therapistId, year, month)

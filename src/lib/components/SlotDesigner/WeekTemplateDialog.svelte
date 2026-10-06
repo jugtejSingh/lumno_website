@@ -70,7 +70,7 @@
 	});
 </script>
 
-<Dialog open={true} title="Your weekly slots" width="clamp(320px, 70vw, 720px)" flush {onclose}>
+<Dialog open={true} title="Your weekly slots" width="clamp(320px, 94vw, 980px)" flush {onclose}>
 	<div class="week-form">
 		<DayRail days={dayOrder} {week} bind:selected />
 

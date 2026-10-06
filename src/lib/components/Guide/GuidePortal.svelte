@@ -59,7 +59,7 @@
 			left, they're warned it'll be charged before they confirm.
 		</li>
 		<li>
-			<strong>A calendar of open slots</strong> for the next 14 days. It only shows times that are
+			<strong>A calendar of open slots</strong> for as far ahead as you allow in Settings. It only shows times that are
 			free. It never shows <em>why</em> a time is taken, so one client can't work out anything about
 			another client's sessions.
 		</li>
@@ -68,7 +68,7 @@
 			<strong>Pay now</strong> button if you've connected Razorpay.
 		</li>
 		<li>
-			<strong>Notes &amp; homework</strong> you've chosen to share with them. Your private notes are
+			<strong>Notes &amp; follow-ups</strong> you've chosen to share with them. Your private notes are
 			never shown.
 		</li>
 		<li>

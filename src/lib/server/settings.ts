@@ -8,6 +8,7 @@ export type BookingRules = {
 	requireZeroBalance: boolean;
 	maxUpcomingBookingsPerClient: number | null; // null = no limit
 	minBookingNoticeHours: number; // 0 = no minimum
+	bookingWindowDays: number; // how far ahead clients can book; reserved sessions are booked to match
 };
 
 export async function getBookingRules(therapistId: string): Promise<BookingRules> {
@@ -15,7 +16,8 @@ export async function getBookingRules(therapistId: string): Promise<BookingRules
 		.select({
 			requireZeroBalance: therapistSettings.requireZeroBalance,
 			maxUpcomingBookingsPerClient: therapistSettings.maxUpcomingBookingsPerClient,
-			minBookingNoticeHours: therapistSettings.minBookingNoticeHours
+			minBookingNoticeHours: therapistSettings.minBookingNoticeHours,
+			bookingWindowDays: therapistSettings.bookingWindowDays
 		})
 		.from(therapistSettings)
 		.where(eq(therapistSettings.therapistId, therapistId));

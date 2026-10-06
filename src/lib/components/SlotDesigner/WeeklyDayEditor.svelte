@@ -155,7 +155,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 10px;
-		padding: 18px;
+		padding: 14px 16px;
 	}
 
 	.day-scroll {
@@ -164,8 +164,8 @@
 		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
-		padding: 0 18px 18px;
+		gap: 10px;
+		padding: 0 16px 14px;
 	}
 
 	.day-name {

@@ -20,14 +20,14 @@ function buildUpgradeUrl(origin: string, token: string) {
 async function sendUpgradeEmail(email: string, url: string) {
 	await sendEmail(
 		email,
-		'Set up your therapist practice',
+		'Set up your practitioner practice',
 		wrapEmail({
-			heading: 'Set up your therapist practice',
-			bodyHtml: `<p>Someone asked to add a therapist practice to your Lumno account. If this was you, click the button below to finish setting it up.</p>`,
+			heading: 'Set up your practitioner practice',
+			bodyHtml: `<p>Someone asked to add a practitioner practice to your Lumno account. If this was you, click the button below to finish setting it up.</p>`,
 			cta: { text: 'Set up practice', url },
 			footerNote: "If this wasn't you, ignore this email — nothing will change."
 		}),
-		{ text: `Set up your therapist practice on Lumno:\n${url}` }
+		{ text: `Set up your practitioner practice on Lumno:\n${url}` }
 	);
 }
 

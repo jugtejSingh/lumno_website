@@ -1,18 +1,29 @@
-import { and, eq, gt, gte, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import { db, type DbOrTx } from '$lib/server/db';
-import { appointment, availabilitySlot, client, payment, therapist } from '$lib/server/db/schema';
+import {
+	appointment,
+	availabilitySlot,
+	client,
+	payment,
+	therapist,
+	therapistSettings
+} from '$lib/server/db/schema';
 import { getZonedDateParts, parseTimeOfDay, zonedDateToUTC } from '$lib/server/timezone';
+import { bookingWindowEnd } from '$lib/server/bookingWindow';
+import { isTooSoonAfterLastHold } from '$lib/bookingSchedule';
 import { listDesignedDaysForMonth, type DesignedDay, type DesignedSlot } from '$lib/server/availabilitySlots';
 import { addCharge, completePackIfExhausted, getActivePackForClient, returnPackCredit } from '$lib/server/payments';
 import { attachMeetingLinkIfOnline, bumpLastSessionAt, isOverlapError } from '$lib/server/appointments';
 import { logError } from '$lib/server/log';
 
-// How far ahead a reserved slot is booked: the same two weeks a client can self-book.
-const BOOK_AHEAD_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_DAYS = 7;
+// the longest gap between two sessions of one reserved slot (every 4 weeks)
+const MAX_EVERY_WEEKS = 4;
 
 type Candidate = {
 	slotId: string;
+	everyWeeks: number;
 	therapistId: string;
 	clientId: string;
 	clientRate: number | null;
@@ -41,7 +52,11 @@ function findDesignedSlot(day: DesignedDay | undefined, startTime: string, endTi
 }
 
 /**
- * Books the next two weeks of every weekly slot that is reserved for a client (or just `slotId`).
+ * Books every weekly slot that is reserved for a client (or just `slotId`) as far ahead as the
+ * therapist's booking window, plus one day, so a reserved session is already in the calendar
+ * (and counted against the daily cap) before its day opens to other clients. A slot repeating
+ * every 2 or 4 weeks skips dates that fall too soon after its last session (see
+ * isTooSoonAfterLastHold), so its first session is the next matching weekday and the rest follow.
  * Safe to run any number of times: a week is only ever created once, and a week the therapist
  * or client cancelled or rescheduled keeps its old row, so it is never booked again.
  *
@@ -55,7 +70,6 @@ function findDesignedSlot(day: DesignedDay | undefined, startTime: string, endTi
  */
 export async function materialiseReservedSlots(options: { slotId?: string } = {}): Promise<MaterialiseResult> {
 	const now = new Date();
-	const windowEnd = new Date(now.getTime() + BOOK_AHEAD_DAYS * DAY_MS);
 
 	const conditions = [
 		isNotNull(availabilitySlot.reservedClientId),
@@ -76,11 +90,14 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 			weekday: availabilitySlot.weekday,
 			startTime: availabilitySlot.startTime,
 			endTime: availabilitySlot.endTime,
-			timezone: therapist.timezone
+			everyWeeks: availabilitySlot.reservedEveryWeeks,
+			timezone: therapist.timezone,
+			windowDays: therapistSettings.bookingWindowDays
 		})
 		.from(availabilitySlot)
 		.innerJoin(client, eq(client.id, availabilitySlot.reservedClientId))
 		.innerJoin(therapist, eq(therapist.id, availabilitySlot.therapistId))
+		.innerJoin(therapistSettings, eq(therapistSettings.therapistId, availabilitySlot.therapistId))
 		.where(and(...conditions));
 
 	const designCache = new Map<string, Record<number, DesignedDay>>();
@@ -96,15 +113,21 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 	}
 
 	const candidates: Candidate[] = [];
+	let latestWindowEnd = now;
 	for (const slot of reserved) {
 		const today = getZonedDateParts(now, slot.timezone);
+		// one day beyond what clients can see, so the session exists before its day opens
+		const windowEnd = bookingWindowEnd(now, slot.timezone, slot.windowDays + 1);
+		if (windowEnd > latestWindowEnd) {
+			latestWindowEnd = windowEnd;
+		}
 		const [hour, minute] = parseTimeOfDay(slot.startTime);
 		const [endHour, endMinute] = parseTimeOfDay(slot.endTime);
 		const startLabel = slot.startTime.slice(0, 5);
 		const endLabel = slot.endTime.slice(0, 5);
 
 		// a calendar date's weekday doesn't depend on timezone, so plain UTC date maths is safe here
-		for (let offset = 0; offset <= BOOK_AHEAD_DAYS + 1; offset++) {
+		for (let offset = 0; offset <= slot.windowDays + 2; offset++) {
 			const date = new Date(Date.UTC(today.year, today.month, today.day + offset));
 			if (date.getUTCDay() !== slot.weekday) {
 				continue;
@@ -115,7 +138,7 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 
 			const startAt = zonedDateToUTC(year, month, day, hour, minute, slot.timezone);
 			const endAt = zonedDateToUTC(year, month, day, endHour, endMinute, slot.timezone);
-			if (startAt <= now || startAt > windowEnd) {
+			if (startAt <= now || startAt >= windowEnd) {
 				continue;
 			}
 
@@ -128,6 +151,7 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 
 			candidates.push({
 				slotId: slot.slotId,
+				everyWeeks: slot.everyWeeks,
 				therapistId: slot.therapistId,
 				clientId: slot.clientId,
 				clientRate: slot.clientRate,
@@ -155,11 +179,42 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 		.select({ clientId: appointment.clientId, startAt: appointment.startAt })
 		.from(appointment)
 		.where(
-			and(inArray(appointment.clientId, clientIds), gte(appointment.startAt, now), lte(appointment.startAt, windowEnd))
+			and(
+				inArray(appointment.clientId, clientIds),
+				gte(appointment.startAt, now),
+				lt(appointment.startAt, latestWindowEnd)
+			)
 		);
 	const taken = new Set<string>();
 	for (const row of existing) {
 		taken.add(`${row.clientId}|${row.startAt.getTime()}`);
+	}
+
+	// every earlier session of each every-2/4-weeks slot, so its next date can be worked out
+	const everyNWeeksSlotIds: string[] = [];
+	for (const candidate of candidates) {
+		if (candidate.everyWeeks > 1 && !everyNWeeksSlotIds.includes(candidate.slotId)) {
+			everyNWeeksSlotIds.push(candidate.slotId);
+		}
+	}
+	const holdsBySlot = new Map<string, Date[]>();
+	if (everyNWeeksSlotIds.length > 0) {
+		const lookbackStart = new Date(now.getTime() - MAX_EVERY_WEEKS * WEEK_DAYS * DAY_MS);
+		const earlier = await db
+			.select({ slotId: appointment.slotId, startAt: appointment.startAt })
+			.from(appointment)
+			.where(
+				and(
+					inArray(appointment.slotId, everyNWeeksSlotIds),
+					gte(appointment.startAt, lookbackStart),
+					lt(appointment.startAt, latestWindowEnd)
+				)
+			);
+		for (const row of earlier) {
+			const holds = holdsBySlot.get(row.slotId!) ?? [];
+			holds.push(row.startAt);
+			holdsBySlot.set(row.slotId!, holds);
+		}
 	}
 
 	let created = 0;
@@ -170,11 +225,17 @@ export async function materialiseReservedSlots(options: { slotId?: string } = {}
 		if (taken.has(key)) {
 			continue;
 		}
+		const slotHolds = holdsBySlot.get(candidate.slotId) ?? [];
+		if (isTooSoonAfterLastHold(candidate.startAt, slotHolds, candidate.everyWeeks)) {
+			continue;
+		}
 		try {
 			const booked = await bookCandidate(candidate);
 			if (booked) {
 				created++;
 				taken.add(key);
+				slotHolds.push(candidate.startAt);
+				holdsBySlot.set(candidate.slotId, slotHolds);
 			} else {
 				blocked++;
 			}

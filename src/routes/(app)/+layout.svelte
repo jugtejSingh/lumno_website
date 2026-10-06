@@ -134,7 +134,9 @@
 			display: none;
 		}
 
-		.app-content {
+		/* .app-shell prefix so this beats the base .app-content rule further down;
+		   otherwise .app-content stays a scroll container and sticky never pins */
+		.app-shell .app-content {
 			overflow-y: visible;
 		}
 	}

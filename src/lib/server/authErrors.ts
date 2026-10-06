@@ -33,7 +33,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 		'That Google account is already connected to a different Lumno account.',
 	signup_disabled: 'Sign-ups are not open right now.',
 	// ours, not better-auth's: set by /login/google/callback when "Client" was picked
-	no_client_profile: 'This account has no client profile. Ask your therapist for an invite.'
+	no_client_profile: 'This account has no client profile. Ask your practitioner for an invite.'
 };
 
 // Reads ?error= / ?error_description= off a page URL; null when there is none.

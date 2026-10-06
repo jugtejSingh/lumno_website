@@ -64,7 +64,7 @@
 			<Badge tone="warning">Beta</Badge>
 		</div>
 		<div class="subtitle">
-			Your personal therapist community — find a colleague for a client who needs a different fit
+			Your personal practitioner community — find a colleague for a client who needs a different fit
 		</div>
 	</div>
 
@@ -121,7 +121,7 @@
 	{/if}
 
 	<div class="footnote">
-		Only therapists who've opted in appear here. Manage your own visibility in Settings.
+		Only practitioners who've opted in appear here. Manage your own visibility in Settings.
 	</div>
 </div>
 

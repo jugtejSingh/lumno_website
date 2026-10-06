@@ -1,0 +1,1 @@
+CREATE INDEX "appointment_packId_idx" ON "appointment" USING btree ("pack_id");

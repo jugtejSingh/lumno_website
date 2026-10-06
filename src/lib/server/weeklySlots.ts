@@ -174,17 +174,24 @@ export async function deleteSlot(therapistId: string, slotId: string): Promise<{
 	return {};
 }
 
-/** Holds a weekly slot for one client every week, or releases it with null. */
+/**
+ * Holds a weekly slot for one client, every `everyWeeks` weeks (1, 2 or 4), or releases it with
+ * null. Changing the client or the frequency deletes the future holds and books them afresh.
+ */
 export async function reserveSlot(
 	therapistId: string,
 	slotId: string,
-	clientId: string | null
+	clientId: string | null,
+	everyWeeks: number = 1
 ): Promise<SlotChangeResult> {
 	const slot = await findWeeklySlot(therapistId, slotId);
 	if (!slot) {
 		return { error: 'slot_not_found' };
 	}
-	if (slot.reservedClientId === clientId) {
+	if (clientId === null) {
+		everyWeeks = 1;
+	}
+	if (slot.reservedClientId === clientId && slot.reservedEveryWeeks === everyWeeks) {
 		return {};
 	}
 
@@ -207,7 +214,10 @@ export async function reserveSlot(
 
 	const deleted = await db.transaction(async (tx) => {
 		const holds = await deleteFutureHolds(tx, slotId);
-		await tx.update(availabilitySlot).set({ reservedClientId: clientId }).where(eq(availabilitySlot.id, slotId));
+		await tx
+			.update(availabilitySlot)
+			.set({ reservedClientId: clientId, reservedEveryWeeks: everyWeeks })
+			.where(eq(availabilitySlot.id, slotId));
 		return holds;
 	});
 	await detachAll(deleted);

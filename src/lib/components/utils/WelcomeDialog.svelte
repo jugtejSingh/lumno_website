@@ -23,7 +23,7 @@
 <Dialog open={open && !dismissed} title="Welcome to your space" onclose={dismiss}>
 	<div class="welcome">
 		<p>
-			Our idea is simple: to provide therapists with a space where they can manage everything
+			Our idea is simple: to provide practitioners with a space where they can manage everything
 			related to their practice, all in one place. Our goal is to keep improving, giving you the
 			flexibility you want.
 		</p>

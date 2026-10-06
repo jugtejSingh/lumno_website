@@ -9,7 +9,7 @@ test('home page renders the hero and CTA', async ({ page }) => {
 test('login page renders both roles and the login form', async ({ page }) => {
 	await page.goto('/login');
 	await expect(page).toHaveTitle(/Log in/);
-	await expect(page.getByRole('button', { name: 'Therapist' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Practitioner' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Client' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
 });

@@ -97,7 +97,12 @@ export async function gotoHydrated(page: Page, path: string) {
 
 export async function login(page: Page, role: 'Therapist' | 'Client', email: string, password = PASSWORD) {
 	await gotoHydrated(page, '/login');
-	await page.getByRole('button', { name: role, exact: true }).click();
+	// the role pill label for Therapist is now "Practitioner"
+	let buttonName: string = role;
+	if (role === 'Therapist') {
+		buttonName = 'Practitioner';
+	}
+	await page.getByRole('button', { name: buttonName, exact: true }).click();
 	await page.getByLabel('Email').fill(email);
 	await page.getByLabel('Password').fill(password);
 	await loginSubmitButton(page).click();

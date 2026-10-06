@@ -80,6 +80,9 @@ export const therapistSettings = pgTable('therapist_settings', {
 	// how far ahead of a slot's start time a client must book it, e.g. 4 = can't book a
 	// slot starting less than 4 hours from now. 0 = no minimum (bookable up to start time)
 	minBookingNoticeHours: integer('min_booking_notice_hours').notNull().default(0),
+	// how many days ahead a client can book, and how far ahead reserved sessions are booked
+	// (recurringBookings.ts). 7 / 14 / 21 / 28 (see BOOKING_WINDOW_DAYS_OPTIONS)
+	bookingWindowDays: integer('booking_window_days').notNull().default(14),
 	// public discovery-call page (/outreach/<token>). No token = page off. The link stops
 	// working at outreachExpiresAt (7 days after it was generated); regenerating replaces it.
 	outreachToken: text('outreach_token').unique(),
@@ -131,7 +134,10 @@ export const availabilitySlot = pgTable(
 		// books it ahead (recurringBookings.ts); null = an ordinary open slot
 		reservedClientId: text('reserved_client_id').references(() => client.id, {
 			onDelete: 'set null'
-		})
+		}),
+		// how often the reserved client's session repeats: 1 = every week, 2 = every 2 weeks,
+		// 4 = every 4 weeks. Only meaningful while reservedClientId is set.
+		reservedEveryWeeks: integer('reserved_every_weeks').notNull().default(1)
 	},
 	(table) => [
 		index('availabilitySlot_therapistId_idx').on(table.therapistId),
@@ -153,6 +159,7 @@ export const availabilitySlot = pgTable(
 		),
 		check('availabilitySlot_weekday_range', sql`${table.weekday} between 0 and 6`),
 		check('availabilitySlot_end_after_start', sql`${table.endTime} > ${table.startTime}`),
+		check('availabilitySlot_reserved_every_weeks', sql`${table.reservedEveryWeeks} in (1, 2, 4)`),
 		check(
 			'availabilitySlot_reserved_template_only',
 			sql`${table.reservedClientId} is null or ${table.weekday} is not null`
@@ -208,6 +215,8 @@ export const appointment = pgTable(
 		index('appointment_therapistId_startAt_idx').on(table.therapistId, table.startAt),
 		index('appointment_clientId_startAt_idx').on(table.clientId, table.startAt),
 		index('appointment_slotId_idx').on(table.slotId),
+		// getPackConsumedCount counts a pack's appointments on every portal load for a client with a pack
+		index('appointment_packId_idx').on(table.packId),
 		check(
 			'appointment_client_xor_customName',
 			sql`(${table.clientId} is not null)::int + (${table.customName} is not null)::int = 1`

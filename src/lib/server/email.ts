@@ -48,7 +48,7 @@ export function wrapEmail(opts: {
 		</td></tr>
 		<tr><td style="padding:20px 32px 28px;border-top:1px solid ${BORDER};margin-top:8px;font-size:12px;line-height:1.5;color:${MUTED};">
 			${footerHtml}
-			<p style="margin:0;">Lumno &mdash; scheduling, payments, and notes for therapy practices.</p>
+			<p style="margin:0;">Lumno &mdash; scheduling, payments, and notes for independent practices.</p>
 		</td></tr>
 	</table>
 </div>`.trim();

@@ -67,11 +67,11 @@
 			{#if accountRemoved}
 				<div class="banner banner-bad">
 					Your account is no longer linked to a profile — please log in again or contact your
-					therapist.
+					practitioner.
 				</div>
 			{/if}
 			{#if therapistReady}
-				<div class="banner">Your therapist profile is ready. Log in to get started.</div>
+				<div class="banner">Your practitioner profile is ready. Log in to get started.</div>
 			{/if}
 
 			<div class="card-head">
@@ -81,7 +81,7 @@
 
 			<div class="role-pill">
 				<button type="button" class="pill-btn" class:active={isTherapist} onclick={selectTherapist}
-					>Therapist</button
+					>Practitioner</button
 				>
 				<button type="button" class="pill-btn" class:active={!isTherapist} onclick={selectClient}
 					>Client</button
@@ -126,7 +126,7 @@
 						</div>
 					{:else}
 						<div class="switch-line">
-							If your account doesn't exist, ask your therapist to send you an invite.
+							If your account doesn't exist, ask your practitioner to send you an invite.
 						</div>
 					{/if}
 				</form>
@@ -149,8 +149,8 @@
 						<Input
 							label="Specialties (optional, comma-separated)"
 							name="tags"
-							info="Shown on your community card so other therapists know who to send your way. Add the approaches you practise (e.g. CBT, psychodynamic, EMDR), specialist areas (e.g. sex therapy, couples), the concerns you help with (e.g. anxiety, trauma) and practical details (e.g. online, sliding scale). You can change these later in Settings."
-							placeholder="CBT, Sex therapy, Anxiety, Online"
+							info="Shown on your community card so other practitioners know who to send your way. Add the services you offer (e.g. consultations, coaching, workshops), specialist areas (e.g. beginners, teams), the problems you help with and practical details (e.g. online, sliding scale). You can change these later in Settings."
+							placeholder="Consultations, Coaching, Workshops, Online"
 						/>
 						{#if form?.message}
 							<div class="form-error">{form.message}</div>

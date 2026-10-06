@@ -29,6 +29,8 @@ import {
 	MIN_BOOKING_NOTICE_HOURS_OPTIONS,
 	formatHours
 } from '$lib/server/paymentPolicy';
+import { BOOKING_WINDOW_DAYS_OPTIONS } from '$lib/bookingSchedule';
+import { isValidTimeZone, timeZoneOptions } from '$lib/server/timezone';
 import { getOutreachState, generateOutreachLink, disableOutreach } from '$lib/server/outreach';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { logError } from '$lib/server/log';
@@ -135,7 +137,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		razorpay,
 		calendarError,
 		timezone: therapist.timezone,
-		timezoneOptions: Intl.supportedValuesOf('timeZone')
+		timezoneOptions: timeZoneOptions(therapist.timezone)
 	};
 };
 
@@ -161,7 +163,7 @@ export const actions: Actions = {
 		// ---- referral profile ----
 		const name = form.get('name')?.toString().trim() ?? '';
 		if (!name) {
-			return fail(400, { message: 'Name is required' });
+			return fail(400, { field: 'name', message: 'Name is required' });
 		}
 		const formatRaw = form.get('sessionFormat')?.toString() ?? '';
 		let sessionFormat: (typeof FORMATS)[number] | null = null;
@@ -200,7 +202,10 @@ export const actions: Actions = {
 		// ---- payments (cancellation policy) ----
 		const freeChangeWindowHours = Number(form.get('freeChangeWindowHours'));
 		if (!Number.isFinite(freeChangeWindowHours) || freeChangeWindowHours < 0) {
-			return fail(400, { message: 'Free change window must be a non-negative number of hours' });
+			return fail(400, {
+				field: 'freeChangeWindowHours',
+				message: 'Free change window must be a non-negative number of hours'
+			});
 		}
 		const partialRaw = form.get('partialChangeWindowHours')?.toString() ?? '';
 		const partialChangeWindowHours = partialRaw === '' ? null : Number(partialRaw);
@@ -211,6 +216,7 @@ export const actions: Actions = {
 				partialChangeWindowHours >= freeChangeWindowHours)
 		) {
 			return fail(400, {
+				field: 'partialChangeWindowHours',
 				message:
 					'Partial change window must be a non-negative number of hours, shorter than the free window'
 			});
@@ -220,6 +226,7 @@ export const actions: Actions = {
 		const rescheduleFreeChangeWindowHours = Number(form.get('rescheduleFreeChangeWindowHours'));
 		if (!Number.isFinite(rescheduleFreeChangeWindowHours) || rescheduleFreeChangeWindowHours < 0) {
 			return fail(400, {
+				field: 'rescheduleFreeChangeWindowHours',
 				message: 'Free reschedule window must be a non-negative number of hours'
 			});
 		}
@@ -233,6 +240,7 @@ export const actions: Actions = {
 				reschedulePartialChangeWindowHours >= rescheduleFreeChangeWindowHours)
 		) {
 			return fail(400, {
+				field: 'reschedulePartialChangeWindowHours',
 				message:
 					'Partial reschedule window must be a non-negative number of hours, shorter than the free window'
 			});
@@ -247,8 +255,8 @@ export const actions: Actions = {
 
 		// ---- timezone ----
 		const timezoneRaw = form.get('timezone')?.toString() ?? '';
-		if (!Intl.supportedValuesOf('timeZone').includes(timezoneRaw)) {
-			return fail(400, { message: 'Pick a valid timezone' });
+		if (!isValidTimeZone(timezoneRaw)) {
+			return fail(400, { field: 'timezone', message: 'Pick a valid timezone' });
 		}
 
 		// ---- booking rules ----
@@ -257,18 +265,32 @@ export const actions: Actions = {
 		if (maxUpcomingRaw !== '') {
 			maxUpcomingBookingsPerClient = Number(maxUpcomingRaw);
 			if (!MAX_UPCOMING_OPTIONS.includes(maxUpcomingBookingsPerClient)) {
-				return fail(400, { message: 'Pick a valid limit for upcoming sessions' });
+				return fail(400, {
+						field: 'maxUpcomingBookingsPerClient',
+						message: 'Pick a valid limit for upcoming sessions'
+					});
 			}
 		}
 		const minBookingNoticeHoursRaw = form.get('minBookingNoticeHours')?.toString() ?? '';
 		const minBookingNoticeHours = Number(minBookingNoticeHoursRaw);
 		if (!MIN_BOOKING_NOTICE_HOURS_OPTIONS.includes(minBookingNoticeHours)) {
-			return fail(400, { message: 'Pick a valid minimum booking notice' });
+			return fail(400, {
+				field: 'minBookingNoticeHours',
+				message: 'Pick a valid minimum booking notice'
+			});
+		}
+		const bookingWindowDays = Number(form.get('bookingWindowDays')?.toString() ?? '');
+		if (!BOOKING_WINDOW_DAYS_OPTIONS.includes(bookingWindowDays)) {
+			return fail(400, {
+				field: 'bookingWindowDays',
+				message: 'Pick how far ahead clients can book'
+			});
 		}
 		const bookingRules = {
 			requireZeroBalance: form.get('requireZeroBalance') === 'on',
 			maxUpcomingBookingsPerClient,
-			minBookingNoticeHours
+			minBookingNoticeHours,
+			bookingWindowDays
 		};
 
 		// ---- client field headings ----
@@ -302,10 +324,13 @@ export const actions: Actions = {
 		if (qrFile instanceof File && qrFile.size > 0) {
 			// raster only — an SVG can carry script, and the stored content type is the browser's claim
 			if (!QR_TYPES.includes(qrFile.type)) {
-				return fail(400, { message: 'The QR code must be a PNG, JPEG, or WebP image' });
+				return fail(400, {
+					field: 'payQrImage',
+					message: 'The QR code must be a PNG, JPEG, or WebP image'
+				});
 			}
 			if (qrFile.size > MAX_QR_BYTES) {
-				return fail(400, { message: 'The QR code image must be under 5 MB' });
+				return fail(400, { field: 'payQrImage', message: 'The QR code image must be under 5 MB' });
 			}
 			newQrFile = qrFile;
 		}

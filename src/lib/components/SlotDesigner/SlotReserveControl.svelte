@@ -1,13 +1,15 @@
 <script lang="ts">
 	import type { DesignedSlot } from '$lib/types/slots';
+	import ReserveClientDialog from './ReserveClientDialog.svelte';
 	import ReserveOverlapDialog from './ReserveOverlapDialog.svelte';
 	import ReservedSlotChangeDialog from './ReservedSlotChangeDialog.svelte';
 	import { useHeldSlotsLookup } from './reservedSlotsContext';
 	import { bookingSummary, postSlotAction } from './slotActions';
+	import { reservedFrequencyLabel } from '$lib/bookingSchedule';
 
-	// Holds a weekly slot for one client every week, or releases it. Posts ?/reserveSlot as soon
-	// as a client is picked. Changing who holds a reserved slot deletes their future sessions,
-	// so that asks first.
+	// Holds a weekly slot for one client at a chosen frequency, or releases it. The chip at the end
+	// of the row opens a small dialog; saving posts ?/reserveSlot. Changing who holds a reserved
+	// slot (or how often) deletes their future sessions, so that asks first.
 	let {
 		slot,
 		clients
@@ -18,14 +20,17 @@
 
 	const lookupHeldSlots = useHeldSlotsLookup();
 
+	const savedEveryWeeks = $derived(slot.reservedEveryWeeks ?? 1);
+
+	let dialogOpen = $state(false);
 	let saving = $state(false);
 	let error = $state('');
 	let summary = $state('');
-	// the pick waiting on a modal; null = no modal
+	// the pick waiting on a confirm modal; null = nothing waiting. '' means release.
 	let pendingClientId = $state<string | null>(null);
-	let confirmingRelease = $state(false);
+	let pendingEveryWeeks = $state(1);
+	let confirmingChange = $state(false);
 	let pendingHeldSlots = $state<string[]>([]);
-	let selectElement = $state<HTMLSelectElement>();
 
 	function nameOf(clientId: string | null | undefined): string {
 		for (const client of clients) {
@@ -36,31 +41,54 @@
 		return 'This client';
 	}
 
-	function onPick(clientId: string) {
+	function openDialog() {
+		error = '';
+		summary = '';
+		dialogOpen = true;
+	}
+
+	function closeDialog() {
+		dialogOpen = false;
+		cancelPick();
+	}
+
+	function onSave(clientId: string, everyWeeks: number) {
+		if (clientId === slot.reservedClientId && everyWeeks === savedEveryWeeks) {
+			closeDialog();
+			return;
+		}
 		pendingClientId = clientId;
+		pendingEveryWeeks = everyWeeks;
 		if (slot.reservedClientId) {
-			confirmingRelease = true;
+			confirmingChange = true;
 			return;
 		}
 		checkHeldSlots();
 	}
 
+	function onRelease() {
+		pendingClientId = '';
+		pendingEveryWeeks = 1;
+		confirmingChange = true;
+	}
+
 	// A client who already holds another slot would be booked at both times, so ask first.
+	// Only a different client can cause that; changing just the frequency can't.
 	function checkHeldSlots() {
-		confirmingRelease = false;
+		confirmingChange = false;
 		const clientId = pendingClientId;
 		if (clientId === null) {
 			return;
 		}
-		if (clientId !== '' && slot.id && lookupHeldSlots) {
+		if (clientId !== '' && clientId !== slot.reservedClientId && slot.id && lookupHeldSlots) {
 			const held = lookupHeldSlots(clientId, slot.id);
 			if (held.length > 0) {
 				pendingHeldSlots = held;
 				return;
 			}
 		}
+		reserve(clientId, pendingEveryWeeks);
 		pendingClientId = null;
-		reserve(clientId);
 	}
 
 	function confirmOverlap() {
@@ -68,34 +96,35 @@
 		pendingClientId = null;
 		pendingHeldSlots = [];
 		if (clientId !== null) {
-			reserve(clientId);
+			reserve(clientId, pendingEveryWeeks);
 		}
 	}
 
-	// the select already shows the new pick, so put it back to what is actually saved
+	// back to the reserve dialog with nothing waiting; it stays open for another go
 	function cancelPick() {
 		pendingClientId = null;
-		confirmingRelease = false;
+		confirmingChange = false;
 		pendingHeldSlots = [];
-		if (selectElement) {
-			selectElement.value = slot.reservedClientId ?? '';
-		}
 	}
 
-	async function reserve(clientId: string) {
+	async function reserve(clientId: string, everyWeeks: number) {
 		if (!slot.id) {
 			return;
 		}
 		saving = true;
 		error = '';
 		summary = '';
-		const result = await postSlotAction('reserveSlot', { slotId: slot.id, clientId });
+		const result = await postSlotAction('reserveSlot', {
+			slotId: slot.id,
+			clientId,
+			everyWeeks: String(everyWeeks)
+		});
 		saving = false;
 		if (!result.ok) {
 			error = result.message;
-			cancelPick();
 			return;
 		}
+		dialogOpen = false;
 		if (result.booking) {
 			summary = bookingSummary(result.booking);
 		}
@@ -104,31 +133,39 @@
 
 {#if slot.modality !== 'hybrid' && slot.id}
 	<div class="reserve">
-		<label class="reserve-chip" class:reserved={!!slot.reservedClientId}>
-			<span class="sr-only">Reserved for</span>
-			<select
-				bind:this={selectElement}
-				value={slot.reservedClientId ?? ''}
-				disabled={saving}
-				onchange={(event) => onPick(event.currentTarget.value)}
-			>
-				<option value="">Open to everyone</option>
-				{#each clients as client (client.id)}
-					<option value={client.id}>Reserved: {client.name}</option>
-				{/each}
-			</select>
-		</label>
+		{#if slot.reservedClientId}
+			<button type="button" class="reserve-chip reserved" onclick={openDialog}>
+				<span class="chip-name">{nameOf(slot.reservedClientId)}</span>
+				<span class="chip-frequency">{reservedFrequencyLabel(savedEveryWeeks)}</span>
+			</button>
+		{:else}
+			<button type="button" class="reserve-chip" onclick={openDialog}>+ Add client</button>
+		{/if}
 		{#if summary}
 			<span class="summary">{summary}</span>
-		{/if}
-		{#if error}
-			<span class="error">{error}</span>
 		{/if}
 	</div>
 {/if}
 
-{#if confirmingRelease}
-	<ReservedSlotChangeDialog clientName={nameOf(slot.reservedClientId)} onconfirm={checkHeldSlots} oncancel={cancelPick} />
+{#if dialogOpen}
+	<ReserveClientDialog
+		{clients}
+		initialClientId={slot.reservedClientId ?? null}
+		initialEveryWeeks={savedEveryWeeks}
+		{saving}
+		{error}
+		onsave={onSave}
+		onrelease={slot.reservedClientId ? onRelease : undefined}
+		oncancel={closeDialog}
+	/>
+{/if}
+
+{#if confirmingChange}
+	<ReservedSlotChangeDialog
+		clientName={nameOf(slot.reservedClientId)}
+		onconfirm={checkHeldSlots}
+		oncancel={cancelPick}
+	/>
 {:else if pendingHeldSlots.length > 0}
 	<ReserveOverlapDialog
 		clientName={nameOf(pendingClientId)}
@@ -143,12 +180,15 @@
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
+		justify-content: flex-end;
 		gap: 6px;
 	}
 
-	.reserve-chip select {
-		appearance: none;
-		max-width: 180px;
+	.reserve-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		max-width: 100%;
 		padding: 5px 12px;
 		border: 2px dashed var(--outline);
 		border-radius: var(--radius-pill);
@@ -160,33 +200,36 @@
 		cursor: pointer;
 	}
 
-	.reserve-chip.reserved select {
+	.reserve-chip:hover {
+		background: var(--coral-100);
+	}
+
+	.reserve-chip.reserved {
 		border-style: solid;
 		background: var(--coral-100);
 		color: var(--text-primary);
 	}
 
-	.reserve-chip select:focus-visible {
+	.reserve-chip:focus-visible {
 		outline: none;
 		box-shadow: var(--shadow-focus);
+	}
+
+	.chip-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		max-width: 140px;
+	}
+
+	.chip-frequency {
+		font-weight: 400;
+		color: var(--text-muted);
+		white-space: nowrap;
 	}
 
 	.summary {
 		font-size: 12px;
 		color: var(--text-muted);
-	}
-
-	.error {
-		font-size: 12px;
-		color: var(--danger);
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
 	}
 </style>

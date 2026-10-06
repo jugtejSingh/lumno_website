@@ -48,7 +48,7 @@ async function sendInviteEmail(email: string, url: string, therapistName: string
 		"You've been invited",
 		wrapEmail({
 			heading: "You're invited",
-			bodyHtml: `<p>${escapeHtml(therapistName)} has invited you to set up your client portal on Lumno.</p><p>Lumno is where you'll book and reschedule sessions, keep track of payments, and get notes and homework your therapist shares with you — all in one place.</p>`,
+			bodyHtml: `<p>${escapeHtml(therapistName)} has invited you to set up your client portal on Lumno.</p><p>Lumno is where you'll book and reschedule sessions, keep track of payments, and get notes and follow-ups your practitioner shares with you — all in one place.</p>`,
 			cta: { text: 'Set up your portal', url },
 			footerNote: `Sent on behalf of ${therapistName}. Reply to this email to reach them directly.`
 		}),

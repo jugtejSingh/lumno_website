@@ -47,14 +47,14 @@
 					<Button type="submit" variant="secondary">Log out</Button>
 				</form>
 			{:else if data.loggedInAsMatch}
-				<div class="form-title">Join {data.invite.therapistName}'s care team</div>
+				<div class="form-title">Join {data.invite.therapistName}'s client portal</div>
 				<div class="form-subtitle">Accept as {data.invite.email}?</div>
 				{#if form?.message}
 					<div class="form-error">{form.message}</div>
 				{/if}
 				<form class="form-fields" method="POST" action="?/acceptAsSelf" use:enhance>
 					{#if data.needsProfile}
-						<div class="form-hint-block">Your therapist will see these details.</div>
+						<div class="form-hint-block">Your practitioner will see these details.</div>
 						<ClientProfileFields bind:profile />
 					{/if}
 					<Button type="submit" variant="primary">Accept invite</Button>
@@ -71,7 +71,7 @@
 				{/if}
 
 				<div class="form-fields">
-					<div class="form-hint-block">About you — your therapist will see these details.</div>
+					<div class="form-hint-block">About you — your practitioner will see these details.</div>
 					<ClientProfileFields bind:profile named={false} />
 					<Input
 						label="Phone (optional)"

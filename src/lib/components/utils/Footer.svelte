@@ -8,7 +8,7 @@
 <footer class="footer">
 	<Logo size={18} />
 	<div class="copyright">
-		&#169; {new Date().getFullYear()} Lumno. Practice management for therapists.
+		&#169; {new Date().getFullYear()} Lumno. Practice management for practitioners.
 	</div>
 	<div class="footer-links">
 		<a href="/">Home</a>

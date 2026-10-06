@@ -51,7 +51,7 @@ export const actions: Actions = {
 				return fail(403, { message: 'This account has no practice set up.' });
 			}
 			return fail(403, {
-				message: 'This account has no client profile. Ask your therapist for an invite.'
+				message: 'This account has no client profile. Ask your practitioner for an invite.'
 			});
 		}
 		return redirect(302, destination);

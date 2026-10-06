@@ -140,7 +140,7 @@ export async function sendGuestBookingEmail(appointmentId: string, guestEmail: s
 
 		// online but no Meet link (therapist hasn't connected Google): say the link comes separately
 		const linkPending = row.modality === 'online' && !row.meetLink;
-		const pendingNote = 'Your therapist will send you the joining link separately.';
+		const pendingNote = 'Your practitioner will send you the joining link separately.';
 
 		let bodyHtml = `<p>Hi ${escapeHtml(greetingName)}, your ${escapeHtml(label)} with ${escapeHtml(row.therapistName)} is confirmed for ${when} (${modalityText}).</p>`;
 		let text = `Hi ${greetingName}, your ${label} with ${row.therapistName} is confirmed for ${when} (${modalityText}).`;

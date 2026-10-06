@@ -106,7 +106,7 @@ export async function attachMeetingLinkIfOnline(
 	if (!therapistRow) return appt;
 
 	const meetEvent = await createMeetEvent(therapistRow.userId, {
-		summary: `Therapy session: ${therapistRow.therapistName} & ${clientRow?.name ?? appt.customName ?? 'client'}`,
+		summary: `${therapistRow.therapistName} &${clientRow?.name ?? appt.customName ?? 'client'}`,
 		startAt: appt.startAt,
 		endAt: appt.endAt,
 		attendeeEmail: clientRow?.email ?? guestEmail

@@ -20,7 +20,7 @@ export const RESOURCE_TAG_LABELS: Record<ResourceTag, string> = {
 	reading: 'Reading',
 	extra_information: 'Extra information',
 	medical_report: 'Medical report',
-	worksheet: 'Worksheet / homework',
+	worksheet: 'Worksheet / follow-up',
 	letter: 'Letter / referral',
 	consent_form: 'Consent form',
 	other: 'Other'

@@ -38,7 +38,9 @@
 			{/each}
 		</select>
 	</label>
-	{@render children?.()}
+	<div class="extras">
+		{@render children?.()}
+	</div>
 	<button type="button" class="remove-btn" onclick={onremove} aria-label="Remove slot">&times;</button>
 </div>
 
@@ -47,7 +49,20 @@
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 7px;
+		gap: 6px;
+	}
+
+	/* a phone keeps time and type on the first line; the client chip wraps under them */
+	@media (max-width: 480px) {
+		.extras {
+			order: 1;
+			flex-basis: 100%;
+			margin-left: 0;
+		}
+
+		.remove-btn {
+			margin-left: auto;
+		}
 	}
 
 	.time {
@@ -103,8 +118,13 @@
 		box-shadow: var(--shadow-focus);
 	}
 
-	.remove-btn {
+	/* the client chip / save button sits at the end of the line, before the remove button */
+	.extras {
 		margin-left: auto;
+		min-width: 0;
+	}
+
+	.remove-btn {
 		padding: 0 4px;
 		border: none;
 		background: transparent;

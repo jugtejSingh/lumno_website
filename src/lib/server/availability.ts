@@ -4,6 +4,7 @@ import { appointment, therapist, client } from '$lib/server/db/schema';
 import { zonedDayBounds, zonedDateToUTC, parseTimeOfDay } from '$lib/server/timezone';
 import { listDesignedDaysForMonth } from '$lib/server/availabilitySlots';
 import { getBookingRules } from '$lib/server/settings';
+import { bookingWindowEnd } from '$lib/server/bookingWindow';
 import {
 	getActivePackForClient,
 	hasOutstandingBalance,
@@ -18,9 +19,6 @@ import {
 	type RescheduleAppointmentResult
 } from '$lib/server/appointments';
 import { sendAppointmentEmail, sendGuestBookingEmail } from '$lib/server/bookingEmails';
-
-// clients can only book within the next 2 weeks
-const BOOKING_WINDOW_DAYS = 14;
 
 export type AvailableSlot = {
 	startTime: string; // "HH:MM", therapist's local time
@@ -49,7 +47,7 @@ export async function listAvailabilityForMonth(
 		.from(therapist)
 		.where(eq(therapist.id, therapistId));
 	const timezone = therapistRow?.timezone ?? 'Asia/Kolkata';
-	const { minBookingNoticeHours } = await getBookingRules(therapistId);
+	const { minBookingNoticeHours, bookingWindowDays } = await getBookingRules(therapistId);
 
 	// Slots are handcrafted by the therapist (availabilitySlots.ts); the therapist's own
 	// manual bookings (createAppointmentForTherapist) can still use any start/end.
@@ -65,6 +63,9 @@ export async function listAvailabilityForMonth(
 			.where(
 				and(
 					eq(appointment.therapistId, therapistId),
+					// ponytail: start_at lower bound lets the (therapistId, startAt) index skip old history;
+					// assumes no session runs longer than a day, so it can't hide one overlapping monthStart
+					gte(appointment.startAt, new Date(monthStart.getTime() - 24 * 60 * 60 * 1000)),
 					lt(appointment.startAt, monthEnd),
 					gte(appointment.endAt, monthStart),
 					ne(appointment.status, 'cancelled'),
@@ -75,7 +76,8 @@ export async function listAvailabilityForMonth(
 
 	const now = new Date();
 	const noticeCutoff = new Date(now.getTime() + minBookingNoticeHours * 60 * 60 * 1000);
-	const windowEnd = new Date(now.getTime() + BOOKING_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+	// clients only book within the therapist's window, counted in whole local days
+	const windowEnd = bookingWindowEnd(now, timezone, bookingWindowDays);
 	const slotsByDay: Record<number, AvailableSlot[]> = {};
 
 	for (let day = 1; day <= daysInMonth; day++) {
@@ -116,7 +118,7 @@ export async function listAvailabilityForMonth(
 
 			const blocked =
 				slotStart <= noticeCutoff ||
-				slotStart > windowEnd ||
+				slotStart >= windowEnd ||
 				dayAppointments.some((a) => slotStart < a.endAt && slotEnd > a.startAt);
 
 			if (!blocked) {

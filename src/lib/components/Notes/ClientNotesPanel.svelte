@@ -221,7 +221,7 @@
 				todayLabel={editorDateLabel}
 				subtitle={isSharedWriting ? `Visible to ${client.name} in their portal` : 'Private — only you see this'}
 				placeholder={isSharedWriting
-					? 'Write the note or homework for your client…'
+					? 'Write the note or follow-up for your client…'
 					: "Write today's private note here…"}
 				shared={isSharedWriting}
 				saveLabel={editorSaveLabel}

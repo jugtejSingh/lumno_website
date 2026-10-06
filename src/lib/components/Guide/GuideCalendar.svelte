@@ -68,13 +68,13 @@
 			specific date you've edited on the calendar keeps its own slots regardless.
 		</li>
 	</ul>
-	<p>Clients can book up to <strong>14 days</strong> ahead and only see slots that are still open.</p>
+	<p>Clients can book as far ahead as you set in <strong>Settings</strong> (2 weeks by default) and only see slots that are still open.</p>
 
 	<h3>Reserving a slot for one client</h3>
 	<p>
 		For a client you see at the same time every week, set a weekly slot's dropdown from
 		<strong>Open to everyone</strong> to <strong>Reserved: their name</strong>. They're then booked
-		into that slot every week automatically, up to 14 days ahead, and no other client ever sees it.
+		into that slot automatically (every week, 2 weeks or 4 weeks), booked as far ahead as your booking window, and no other client ever sees it.
 		Each of those sessions is invoiced like any other, or uses a pack credit if they have one.
 	</p>
 	<ul>
@@ -85,10 +85,15 @@
 			weeks were blocked.
 		</li>
 		<li>
-			<strong>Changing a reserved slot</strong> (its time, day or type, a different client, opening
-			it to everyone, or deleting it) deletes that client's future sessions on it, along with their
-			unpaid charges, and gives back any pack credits. No cancellation fee is charged. Past sessions
-			and any week the client cancelled or moved themselves are kept.
+			Cancelling or rescheduling a single session, whether you or the client does it, only affects
+			that one session. Their other weeks stay booked.
+		</li>
+		<li>
+			To stop a client's recurring sessions, <strong>change or delete the reserved slot</strong>
+			itself (its time, day or type, a different client, opening it to everyone, or deleting it).
+			This deletes their future sessions on it, along with their unpaid charges, and gives back any
+			pack credits. No cancellation fee is charged. Past sessions and any week the client cancelled
+			or moved themselves are kept.
 		</li>
 		<li>
 			If the client moves one of these sessions from their portal, the new time becomes an ordinary

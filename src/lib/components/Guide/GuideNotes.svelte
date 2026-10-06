@@ -19,11 +19,11 @@
 	<h3>Private notes vs notes for the client</h3>
 	<ul>
 		<li>
-			<strong>Private notes</strong> (<strong>New note</strong>) are your clinical notes. Only you
+			<strong>Private notes</strong> (<strong>New note</strong>) are your own working notes. Only you
 			can see them, and they're never shown to the client.
 		</li>
 		<li>
-			<strong>Sent to client</strong> (<strong>New for client</strong>) is for homework, summaries
+			<strong>Sent to client</strong> (<strong>New for client</strong>) is for follow-ups, summaries
 			or resources. Pressing <strong>Send to client</strong> shows it in their portal straight away.
 			These notes carry a <Tag color="sage">Visible to client</Tag> tag so you never mix the two up.
 		</li>

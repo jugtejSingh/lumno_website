@@ -8,6 +8,8 @@ export type DesignedSlot = {
 	// weekly-template slots only: the client this slot is held for every week. Read-only here —
 	// it is set through its own action (reserveSlot in weeklySlots.ts)
 	reservedClientId?: string | null;
+	// with reservedClientId: how often their session repeats, in weeks (1, 2 or 4)
+	reservedEveryWeeks?: number;
 	startTime: string;
 	endTime: string;
 	modality: SlotModality;
