@@ -36,6 +36,8 @@
 	// only meaningful while the dialog is open, so it's local rather than lifted to the page
 	let addApptOpen = $state(false);
 	let rescheduleSessionId = $state<string | null>(null);
+	// the slot chip clicked to open the quick-book modal (times are "HH:MM")
+	let pickedSlot = $state<{ startTime: string; endTime: string } | null>(null);
 	// which completed session (if any) has its "how much to charge" picker open
 	let feePickerId = $state<string | null>(null);
 
@@ -59,6 +61,7 @@
 
 	function close() {
 		addApptOpen = false;
+		pickedSlot = null;
 		rescheduleSessionId = null;
 		feePickerId = null;
 		onclose();
@@ -173,10 +176,38 @@
 			{/if}
 
 			{#if day !== null}
-				<DateSlotsPanel {year} {month} {day} {templateDay} {overrideDay} message={formMessage} />
+				<DateSlotsPanel
+					{year}
+					{month}
+					{day}
+					{templateDay}
+					{overrideDay}
+					message={formMessage}
+					onpick={(slot) => (pickedSlot = slot)}
+				/>
 			{/if}
 		</div>
 	</div>
+</Dialog>
+
+<Dialog
+	open={pickedSlot !== null && day !== null}
+	title="Book this slot"
+	onclose={() => (pickedSlot = null)}
+>
+	{#if pickedSlot !== null && day !== null}
+		<AddAppointmentForm
+			{year}
+			{month}
+			{day}
+			{clients}
+			message={formMessage}
+			initialStart={pickedSlot.startTime.slice(0, 5)}
+			initialEnd={pickedSlot.endTime.slice(0, 5)}
+			onCancel={() => (pickedSlot = null)}
+			onSuccess={() => (pickedSlot = null)}
+		/>
+	{/if}
 </Dialog>
 
 <style>

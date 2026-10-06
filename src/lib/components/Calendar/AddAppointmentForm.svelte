@@ -10,6 +10,8 @@
 		day,
 		clients,
 		message,
+		initialStart = '09:00',
+		initialEnd = '10:00',
 		onCancel,
 		onSuccess
 	}: {
@@ -18,6 +20,9 @@
 		day: number;
 		clients: { id: string; name: string }[];
 		message?: string;
+		// set when opened from a bookable slot chip
+		initialStart?: string;
+		initialEnd?: string;
 		onCancel: () => void;
 		onSuccess: () => void;
 	} = $props();
@@ -28,8 +33,8 @@
 	let customName = $state('');
 	let email = $state('');
 	let rate = $state('');
-	let startTime = $state('09:00');
-	let endTime = $state('10:00');
+	let startTime = $state(untrack(() => initialStart));
+	let endTime = $state(untrack(() => initialEnd));
 	let modality = $state('online');
 	let notes = $state('');
 	// the server's message describes the last submit; once the user edits anything it's stale

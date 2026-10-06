@@ -14,7 +14,8 @@
 		day,
 		templateDay,
 		overrideDay,
-		message
+		message,
+		onpick
 	}: {
 		year: number;
 		month: number;
@@ -22,6 +23,8 @@
 		templateDay: WeeklyDay;
 		overrideDay: DesignedDay | undefined; // undefined = follows the template
 		message?: string;
+		// called when a slot chip is clicked (used to book an appointment into it)
+		onpick?: (slot: { startTime: string; endTime: string }) => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -115,9 +118,16 @@
 		{:else}
 			<ul class="chips">
 				{#each effectiveDay.slots as slot (slot.startTime)}
-					<li class="chip" data-modality={slot.modality}>
-						{formatTime(slot.startTime)} – {formatTime(slot.endTime)}
-						<span class="chip-type">{modalityLabels[slot.modality]}</span>
+					<li>
+						<button
+							type="button"
+							class="chip"
+							data-modality={slot.modality}
+							onclick={() => onpick?.(slot)}
+						>
+							{formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+							<span class="chip-type">{modalityLabels[slot.modality]}</span>
+						</button>
 					</li>
 				{/each}
 			</ul>
@@ -208,6 +218,9 @@
 		display: flex;
 		align-items: baseline;
 		gap: 6px;
+		width: 100%;
+		font-family: inherit;
+		cursor: pointer;
 		padding: 3px 9px;
 		border: 1.5px solid var(--outline);
 		border-radius: var(--radius-sm);
@@ -236,6 +249,11 @@
 		.chip-type {
 			font-size: 12px;
 		}
+	}
+
+	.chip:hover,
+	.chip:focus-visible {
+		filter: brightness(0.95);
 	}
 
 	.chip[data-modality='online'] {
