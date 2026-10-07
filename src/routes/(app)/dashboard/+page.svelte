@@ -44,7 +44,9 @@
 							</div>
 							<Badge tone={session.tone}>{session.status}</Badge>
 						</a>
-						<Button href={session.notesHref} size="sm" variant="secondary">Notes</Button>
+						<div class="session-notes">
+							<Button href={session.notesHref} size="sm" variant="secondary">Notes</Button>
+						</div>
 					</div>
 				</Card>
 			{/each}
@@ -98,6 +100,29 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
 		gap: 14px;
+	}
+
+	/* phones: two across, and an odd last card spans the row instead of sitting alone */
+	@media (max-width: 640px) {
+		.stat-row {
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.stat-row > :global(:last-child:nth-child(odd)) {
+			grid-column: 1 / -1;
+		}
+
+		/* avatar | name + time, with the status badge tucked under the name */
+		.session-row .session-link {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			align-items: center;
+		}
+
+		.session-row .session-link > :global(:last-child) {
+			grid-column: 2;
+			justify-self: start;
+		}
 	}
 
 	.overdue-empty {
@@ -155,6 +180,19 @@
 		gap: 10px 12px;
 		color: inherit;
 		text-decoration: none;
+	}
+
+	/* ponytail: stretched link, the overlay fills the (position: relative) Card so the whole row clicks through */
+	.session-link::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+
+	/* lifts Notes above the overlay so it keeps its own click target */
+	.session-notes {
+		position: relative;
+		z-index: 1;
 	}
 
 	.session-info {

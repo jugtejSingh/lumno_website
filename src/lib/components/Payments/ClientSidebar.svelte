@@ -109,6 +109,9 @@
 			flex-shrink: 0;
 			white-space: nowrap;
 			border-radius: 999px;
+			border: 2px solid var(--border-subtle);
+			background: var(--surface-card);
+			padding: 8px 14px;
 		}
 
 		.client-item.active {

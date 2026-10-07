@@ -225,6 +225,17 @@
 		gap: 14px;
 	}
 
+	/* phones: two across, and an odd last card spans the row instead of sitting alone */
+	@media (max-width: 640px) {
+		.stat-row {
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.stat-row > :global(:last-child:nth-child(odd)) {
+			grid-column: 1 / -1;
+		}
+	}
+
 	.section-title {
 		font-size: 15px;
 		font-weight: 700;

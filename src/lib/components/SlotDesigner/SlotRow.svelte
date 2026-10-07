@@ -23,11 +23,13 @@
 
 <!-- one line: from → to, type chip, remove. Labels stay for screen readers only. -->
 <div class="slot-row">
-	<div class="time" role="group" aria-label="From">
+	<div class="time from" role="group" aria-label="From">
+		<span class="when-label" aria-hidden="true">From</span>
 		<TimeInput bind:value={slot.startTime} />
 	</div>
 	<span class="arrow" aria-hidden="true">→</span>
-	<div class="time" role="group" aria-label="To">
+	<div class="time to" role="group" aria-label="To">
+		<span class="when-label" aria-hidden="true">To</span>
 		<TimeInput bind:value={slot.endTime} />
 	</div>
 	<label class="type-chip" data-modality={slot.modality}>
@@ -52,21 +54,66 @@
 		gap: 6px;
 	}
 
-	/* a phone keeps time and type on the first line; the client chip wraps under them */
-	@media (max-width: 480px) {
-		.extras {
+	.time {
+		display: flex;
+		align-items: center;
+	}
+
+	.when-label {
+		display: none;
+	}
+
+	/* a phone gets a small card: From + remove, To + type, then the client chip */
+	@media (max-width: 520px) {
+		.slot-row {
+			gap: 8px;
+			padding: 10px;
+			border: 2px solid var(--border-subtle);
+			border-radius: var(--radius-md);
+			background: var(--surface-sunken);
+		}
+
+		.arrow {
+			display: none;
+		}
+
+		.when-label {
+			display: inline-block;
+			width: 38px;
+			font-family: var(--font-mono);
+			font-size: 10.5px;
+			font-weight: 700;
+			text-transform: uppercase;
+			color: var(--text-muted);
+		}
+
+		.from {
 			order: 1;
-			flex-basis: 100%;
-			margin-left: 0;
+			flex: 1;
 		}
 
 		.remove-btn {
-			margin-left: auto;
+			order: 2;
+			min-width: 36px;
+			min-height: 36px;
 		}
-	}
 
-	.time {
-		display: flex;
+		.to {
+			order: 3;
+		}
+
+		.type-chip {
+			order: 4;
+		}
+
+		.slot-row .extras {
+			order: 5;
+			margin-left: 0;
+		}
+
+		.extras :global(.reserve) {
+			justify-content: flex-start;
+		}
 	}
 
 	/* TimeInput's own fields, slimmed down to fit on one line */

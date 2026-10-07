@@ -318,6 +318,11 @@
 		.actions :global(.btn) {
 			width: 100%;
 		}
+
+		/* email and rate stack here, so the separator dot would just lead the line */
+		.rate::before {
+			display: none;
+		}
 	}
 
 	.empty {

@@ -226,6 +226,8 @@
 		font-weight: 400;
 		color: var(--text-muted);
 		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.summary {
