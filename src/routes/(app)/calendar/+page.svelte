@@ -6,6 +6,7 @@
 	import BookingNoteEditor from '$lib/components/Calendar/BookingNoteEditor.svelte';
 	import WeekTemplateDialog from '$lib/components/SlotDesigner/WeekTemplateDialog.svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
 	import type { CalendarDay, CalendarWeek } from '$lib/types/calendar';
 
@@ -30,7 +31,9 @@
 	let year = $derived(data.year);
 	let month = $derived(data.month);
 
-	let dayDialogDay = $state<number | null>(null);
+	// ?day= (from the dashboard's upcoming sessions) opens that day's dialog on load
+	const dayParam = Number(page.url.searchParams.get('day'));
+	let dayDialogDay = $state<number | null>(dayParam >= 1 && dayParam <= 31 ? dayParam : null);
 	let todayDialogOpen = $state(false);
 
 	// single-day view for phones (see .day-view in styles). Starts on today's

@@ -36,12 +36,14 @@
 			{#each data.upcoming as session (session.id)}
 				<Card interactive>
 					<div class="session-row">
-						<Avatar name={session.name} />
-						<div class="session-info">
-							<div class="session-name">{session.name}</div>
-							<div class="session-time">{session.next}</div>
-						</div>
-						<Badge tone={session.tone}>{session.status}</Badge>
+						<a class="session-link" href={session.calendarHref}>
+							<Avatar name={session.name} />
+							<div class="session-info">
+								<div class="session-name">{session.name}</div>
+								<div class="session-time">{session.next}</div>
+							</div>
+							<Badge tone={session.tone}>{session.status}</Badge>
+						</a>
 						<Button href={session.notesHref} size="sm" variant="secondary">Notes</Button>
 					</div>
 				</Card>
@@ -143,6 +145,16 @@
 		align-items: center;
 		flex-wrap: wrap;
 		gap: 10px 12px;
+	}
+
+	.session-link {
+		display: flex;
+		align-items: center;
+		flex: 1;
+		flex-wrap: wrap;
+		gap: 10px 12px;
+		color: inherit;
+		text-decoration: none;
 	}
 
 	.session-info {

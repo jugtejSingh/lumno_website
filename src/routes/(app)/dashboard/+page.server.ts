@@ -143,14 +143,19 @@ export const load: PageServerLoad = async (event) => {
 		{ label: 'Outstanding balance', value: formatCurrency(outstandingTotal, therapist.currency), accent: 'sage' }
 	];
 
-	const upcoming: UpcomingSession[] = upcomingRows.map((row) => ({
-		id: row.id,
-		name: row.name,
-		next: formatUpcoming(row.startAt, timezone),
-		status: 'confirmed',
-		tone: 'success',
-		notesHref: `/notes?client=${encodeURIComponent(row.name)}`
-	}));
+	const upcoming: UpcomingSession[] = upcomingRows.map((row) => {
+		const parts = getZonedDateParts(row.startAt, timezone);
+		return {
+			id: row.id,
+			name: row.name,
+			next: formatUpcoming(row.startAt, timezone),
+			status: 'confirmed',
+			tone: 'success',
+			notesHref: `/notes?client=${encodeURIComponent(row.name)}`,
+			// opens that day's dialog on the calendar (month is 0-indexed, like ?month=)
+			calendarHref: `/calendar?year=${parts.year}&month=${parts.month}&day=${parts.day}`
+		};
+	});
 
 	return {
 		therapistName: user.name,

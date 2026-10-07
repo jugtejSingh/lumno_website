@@ -266,6 +266,16 @@
 		.col-slots:only-child {
 			border-top: none;
 		}
+
+		/* actions take their own full-width line under the name */
+		.dialog-actions {
+			flex: 1 1 100%;
+		}
+
+		.dialog-actions :global(button),
+		.dialog-actions form {
+			flex: 1;
+		}
 	}
 
 	.dialog-row {
@@ -276,7 +286,8 @@
 	}
 
 	.dialog-info {
-		flex: 1;
+		/* basis keeps the name readable; the actions wrap below instead of squeezing it */
+		flex: 1 1 140px;
 		min-width: 0;
 		line-height: 1.25;
 	}

@@ -12,4 +12,5 @@ export type UpcomingSession = {
 	status: string;
 	tone: 'success';
 	notesHref: string;
+	calendarHref: string;
 };

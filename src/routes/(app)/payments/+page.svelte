@@ -241,14 +241,20 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		width: 100%;
+		/* ponytail: 24px matches Card's padding, so the button fills the whole card */
+		margin: -24px;
+		padding: 24px;
+		width: calc(100% + 48px);
 		background: none;
 		border: none;
-		padding: 0;
 		font: inherit;
 		color: inherit;
 		cursor: pointer;
 		text-align: left;
+	}
+
+	.balance-row:disabled {
+		cursor: default;
 	}
 
 	.balance-name {
