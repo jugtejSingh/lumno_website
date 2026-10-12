@@ -14,6 +14,20 @@ import {
 // letting these functions fall back to the module-level `db`.
 type Executor = DbOrTx;
 
+// A session's charge is created when it's booked, but only shows as due (to the therapist
+// and the client) from this long before the session starts.
+const CHARGE_VISIBLE_BEFORE_MS = 2 * 24 * 60 * 60 * 1000;
+
+// Ad-hoc charges (no appointment) and cancelled sessions (cancellation fee) are always
+// visible. The query must left-join `appointment` on payment.appointmentId.
+function chargeIsVisible() {
+	return or(
+		isNull(payment.appointmentId),
+		eq(appointment.status, 'cancelled'),
+		lte(appointment.startAt, new Date(Date.now() + CHARGE_VISIBLE_BEFORE_MS))
+	);
+}
+
 export function parseAmount(raw: FormDataEntryValue | null): number | null {
 	const amount = Number(raw);
 	// amount is a whole-rupee integer column — a fractional value would otherwise
@@ -107,7 +121,13 @@ export async function listPaymentsForClientPage(
 	page: number,
 	pageSize: number
 ): Promise<{ rows: ClientPaymentHistoryRow[]; total: number }> {
-	const where = and(eq(payment.therapistId, therapistId), eq(payment.clientId, clientId));
+	// a future session's charge stays out of the list until it's within the visibility window
+	// (a charge already paid in advance is always listed)
+	const where = and(
+		eq(payment.therapistId, therapistId),
+		eq(payment.clientId, clientId),
+		or(eq(payment.status, 'paid'), chargeIsVisible())
+	);
 
 	const [rows, [countRow]] = await Promise.all([
 		db
@@ -139,7 +159,11 @@ export async function listPaymentsForClientPage(
 			.orderBy(sql`${payment.status} <> 'unpaid'`, desc(sql`coalesce(${appointment.startAt}, ${payment.createdAt})`))
 			.limit(pageSize)
 			.offset((page - 1) * pageSize),
-		db.select({ count: sql<number>`count(*)::int` }).from(payment).where(where)
+		db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(payment)
+			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+			.where(where)
 	]);
 
 	return { rows, total: countRow?.count ?? 0 };
@@ -157,11 +181,12 @@ export async function getClientPaymentTotals(therapistId: string, clientId: stri
 
 	const [paymentRow] = await db
 		.select({
-			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid'), 0)::int`,
+			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${chargeIsVisible()}), 0)::int`,
 			paidThisMonth: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${payment.createdAt} >= ${monthStart.toISOString()}), 0)::int`,
 			paidThisYear: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${payment.createdAt} >= ${yearStart.toISOString()}), 0)::int`
 		})
 		.from(payment)
+		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
 		.where(and(eq(payment.therapistId, therapistId), eq(payment.clientId, clientId)));
 
 	return {
@@ -182,7 +207,7 @@ export async function getBalanceDueForClient(clientId: string): Promise<number> 
 			and(
 				eq(payment.clientId, clientId),
 				eq(payment.status, 'unpaid'),
-				or(isNull(payment.appointmentId), eq(appointment.status, 'cancelled'), lte(appointment.endAt, new Date()))
+				chargeIsVisible()
 			)
 		);
 	return row?.owed ?? 0;
@@ -219,7 +244,7 @@ export async function listVisiblePaymentsForClient(
 		or(
 			and(
 				eq(payment.status, 'unpaid'),
-				or(isNull(payment.appointmentId), eq(appointment.status, 'cancelled'), lte(appointment.endAt, new Date()))
+				chargeIsVisible()
 			),
 			and(
 				isNotNull(razorpayReconcileException.id),
@@ -586,7 +611,8 @@ export async function listOutstandingBalancesByClient(therapistId: string): Prom
 		})
 		.from(payment)
 		.leftJoin(client, eq(payment.clientId, client.id))
-		.where(and(eq(payment.therapistId, therapistId), eq(payment.status, 'unpaid')))
+		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+		.where(and(eq(payment.therapistId, therapistId), eq(payment.status, 'unpaid'), chargeIsVisible()))
 		.groupBy(payment.clientId, client.name, payment.customName);
 
 	const byKey = new Map<string, ClientBalanceSummary>();
@@ -613,9 +639,10 @@ export async function getMonthlyPaymentSummary(therapistId: string, year: number
 	const [row] = await db
 		.select({
 			paid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid'), 0)::int`,
-			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid'), 0)::int`
+			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${chargeIsVisible()}), 0)::int`
 		})
 		.from(payment)
+		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
 		.where(
 			and(eq(payment.therapistId, therapistId), gte(payment.createdAt, monthStart), lt(payment.createdAt, monthEnd))
 		);

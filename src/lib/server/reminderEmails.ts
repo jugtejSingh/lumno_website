@@ -169,7 +169,11 @@ export async function sendPaymentReminders(): Promise<void> {
 			clientId: client.id,
 			owed: sql<number>`
 				coalesce((select sum(${payment.amount}) from ${payment}
-					where ${payment.clientId} = ${client.id} and ${payment.status} = 'unpaid'), 0)			`.mapWith(Number),
+					left join ${appointment} on ${appointment.id} = ${payment.appointmentId}
+					where ${payment.clientId} = ${client.id} and ${payment.status} = 'unpaid'
+					and (${payment.appointmentId} is null
+						or ${appointment.status} = 'cancelled'
+						or ${appointment.endAt} <= now())), 0)			`.mapWith(Number),
 			clientEmail: client.email,
 			clientName: client.name,
 			currency: therapist.currency,

@@ -11,9 +11,8 @@
 		<div class="eyebrow">For solo practitioners</div>
 		<h1 class="display">Why juggle five apps <span class="italic-accent">when one will do?</span></h1>
 		<p class="lede">
-			Bookings, payments, cancellations and reminders — Lumno handles all of it in one place.
-			Clients only see the hours you're actually free, so no one books over your lunch. And if
-			someone hasn't booked in a while, we'll gently remind them for you.
+			Bookings, payments, reminders and notes, all in one place. Clients book only the hours
+			you're free, and Lumno keeps track of who's paid.
 		</p>
 		<div class="hero-actions">
 			<Button href="/login?tab=register" variant="primary" size="lg">Get started for free</Button>
