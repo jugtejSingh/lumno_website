@@ -92,7 +92,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 			headers: event.request.headers,
 			returnHeaders: true
 		});
-		headers.set('Location', '/login?error=account_removed');
+		// usually a client whose practitioner removed them, so portal routes land on
+		// the client login
+		if (event.route.id?.startsWith('/(portal)')) {
+			headers.set('Location', '/login/client?error=account_removed');
+		} else {
+			headers.set('Location', '/login?error=account_removed');
+		}
 		return new Response(null, { status: 302, headers });
 	}
 

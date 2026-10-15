@@ -33,7 +33,7 @@
 				<div class="form-title">{data.invalid?.title ?? 'Invite not found'}</div>
 				<div class="form-subtitle">{data.invalid?.body ?? ''}</div>
 				{#if data.invalid?.title === 'Invite already used'}
-					<Button href="/login" variant="primary">Log in</Button>
+					<Button href="/login/client" variant="primary">Log in</Button>
 				{/if}
 			{:else if data.loggedInAsOther}
 				<div class="form-title">Wrong account</div>
@@ -43,7 +43,7 @@
 				{#if data.oauthError}
 					<div class="form-error">{data.oauthError}</div>
 				{/if}
-				<form method="POST" action="/logout">
+				<form method="POST" action="/logout?to=client">
 					<Button type="submit" variant="secondary">Log out</Button>
 				</form>
 			{:else if data.loggedInAsMatch}

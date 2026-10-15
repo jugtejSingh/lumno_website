@@ -1,61 +1,16 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
-import { destinationFor, destinationForRole } from '$lib/server/destination';
+import { loadLoginPage, signInEmailAction, signInGoogleAction } from '$lib/server/loginActions';
 import { requestTherapistUpgrade } from '$lib/server/therapistUpgrade';
 import { createTherapistProfile } from '$lib/server/therapistProfile';
-import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
+import { describeAuthError } from '$lib/server/authErrors';
 import { logError } from '$lib/server/log';
 
-export const load: PageServerLoad = async (event) => {
-	if (event.locals.user) {
-		const destination = await destinationFor(event.locals.user.id);
-		if (destination) return redirect(302, destination);
-	}
-
-	const oauthError = describeOAuthError(
-		'login.oauth',
-		event.url,
-		'Google sign-in failed. Please try again.'
-	);
-	return { oauthError };
-};
+export const load: PageServerLoad = loadLoginPage;
 
 export const actions: Actions = {
-	signInEmail: async (event) => {
-		const formData = await event.request.formData();
-		const email = formData.get('email')?.toString().trim() ?? '';
-		const password = formData.get('password')?.toString() ?? '';
-		const role = formData.get('role')?.toString() === 'Client' ? 'Client' : 'Therapist';
-
-		if (!email || !password) {
-			return fail(400, { message: 'Enter your email and password.' });
-		}
-
-		let userId: string;
-		try {
-			const result = await auth.api.signInEmail({
-				body: { email, password },
-				headers: event.request.headers,
-				asResponse: false
-			});
-			userId = result.user.id;
-		} catch (error) {
-			const failure = describeAuthError('login.signIn', error, 'Login failed. Please try again.');
-			return fail(failure.status, { message: failure.message });
-		}
-
-		const destination = await destinationForRole(userId, role);
-		if (!destination) {
-			if (role === 'Therapist') {
-				return fail(403, { message: 'This account has no practice set up.' });
-			}
-			return fail(403, {
-				message: 'This account has no client profile. Ask your practitioner for an invite.'
-			});
-		}
-		return redirect(302, destination);
-	},
+	signInEmail: signInEmailAction('Therapist'),
 
 	signUpEmail: async (event) => {
 		const formData = await event.request.formData();
@@ -134,37 +89,5 @@ export const actions: Actions = {
 		return redirect(302, '/dashboard');
 	},
 
-	signInGoogle: async (event) => {
-		const formData = await event.request.formData();
-		const role = formData.get('role')?.toString() === 'Client' ? 'Client' : 'Therapist';
-
-		let url: string;
-		try {
-			const result = await auth.api.signInSocial({
-				body: {
-					provider: 'google',
-					// role survives the OAuth round-trip so the callback never provisions a
-					// therapist profile for someone who picked "Client"
-					callbackURL: `/login/google/callback?role=${role}`,
-					errorCallbackURL: '/login'
-				},
-				headers: event.request.headers,
-				asResponse: false
-			});
-			if (!result.url) {
-				logError('login.google', new Error('signInSocial returned no url'));
-				return fail(500, { message: 'Could not start Google sign-in. Please try again.' });
-			}
-			url = result.url;
-		} catch (error) {
-			const failure = describeAuthError(
-				'login.google',
-				error,
-				'Could not start Google sign-in. Please try again.'
-			);
-			return fail(failure.status, { message: failure.message });
-		}
-
-		return redirect(302, url);
-	}
+	signInGoogle: signInGoogleAction('Therapist')
 };

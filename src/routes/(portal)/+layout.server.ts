@@ -7,7 +7,7 @@ import { listClientsForUser } from '$lib/server/clients';
 
 export const load: LayoutServerLoad = async (event) => {
 	if (!event.locals.user) {
-		return redirect(302, '/login');
+		return redirect(302, '/login/client');
 	}
 
 	if (!event.locals.clientId) {

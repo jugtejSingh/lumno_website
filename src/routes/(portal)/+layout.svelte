@@ -36,7 +36,7 @@
 			<button type="button" class="sidebar-link-btn" onclick={() => (feedbackOpen = true)}>
 				<SidebarNavItem label="Feedback" tone="quiet" />
 			</button>
-			<form method="POST" action="/logout" class="sidebar-link" use:enhance>
+			<form method="POST" action="/logout?to=client" class="sidebar-link" use:enhance>
 				<button type="submit" class="sidebar-link-btn">
 					<SidebarNavItem label="Log out" tone="danger" />
 				</button>
@@ -68,7 +68,7 @@
 					<button type="button" data-kind="quiet" onclick={() => (feedbackOpen = true)}>
 						Feedback
 					</button>
-					<form method="POST" action="/logout" use:enhance>
+					<form method="POST" action="/logout?to=client" use:enhance>
 						<button type="submit" data-kind="danger">Log out</button>
 					</form>
 				</MobileNav>

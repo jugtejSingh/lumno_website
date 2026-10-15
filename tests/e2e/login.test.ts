@@ -24,7 +24,7 @@ test.describe('login', () => {
 		await expect(page.locator('.form-error')).toHaveText('Enter your email and password.');
 	});
 
-	test('therapist picking the Client pill is told there is no client profile', async ({
+	test('therapist on the client login page is told there is no client profile', async ({
 		page,
 		request
 	}) => {
@@ -33,9 +33,12 @@ test.describe('login', () => {
 		await expect(page.locator('.form-error')).toHaveText(
 			'This account has no client profile. Ask your practitioner for an invite.'
 		);
+		// the rejected login must not leave a session behind
+		await page.goto('/dashboard');
+		await expect(page).toHaveURL(/\/login$/);
 	});
 
-	test('client picking the Therapist pill is told there is no practice', async ({
+	test('client on the practitioner login page is told there is no practice', async ({
 		page,
 		request
 	}) => {
@@ -43,6 +46,8 @@ test.describe('login', () => {
 		const client = await seedClient(request, therapist.therapistId);
 		await login(page, 'Therapist', client.email);
 		await expect(page.locator('.form-error')).toHaveText('This account has no practice set up.');
+		await page.goto('/portal');
+		await expect(page).toHaveURL(/\/login\/client$/);
 	});
 
 	test('client with correct credentials lands on the portal', async ({ page, request }) => {
@@ -51,5 +56,14 @@ test.describe('login', () => {
 		await login(page, 'Client', client.email);
 		await expect(page).toHaveURL(/\/portal$/);
 		await expect(page.getByText(`Welcome back, ${client.name}`)).toBeVisible();
+	});
+
+	test('client logging out lands on the client login', async ({ page, request }) => {
+		const therapist = await seedTherapist(request);
+		const client = await seedClient(request, therapist.therapistId);
+		await login(page, 'Client', client.email);
+		await expect(page).toHaveURL(/\/portal$/);
+		await page.locator('aside').getByRole('button', { name: 'Log out' }).click();
+		await expect(page).toHaveURL(/\/login\/client$/);
 	});
 });

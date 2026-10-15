@@ -117,13 +117,13 @@ beforeEach(async () => {
 });
 
 describe('portal layout', () => {
-	it('redirects to /login without a user', async () => {
+	it('redirects to /login/client without a user', async () => {
 		try {
 			await runLayout({});
 			throw new Error('expected a redirect');
 		} catch (err) {
 			expect(isRedirect(err)).toBe(true);
-			expect((err as { location: string }).location).toBe('/login');
+			expect((err as { location: string }).location).toBe('/login/client');
 		}
 	});
 

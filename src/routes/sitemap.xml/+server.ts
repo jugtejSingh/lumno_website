@@ -1,7 +1,7 @@
 // Public marketing pages only — (app)/(portal) are behind auth, and the
 // invite/become-therapist routes are single-use private links. None belong indexed.
 const SITE_URL = 'https://www.lumno.in';
-const PAGES = ['/', '/pricing', '/login', '/privacy', '/terms'];
+const PAGES = ['/', '/pricing', '/login', '/login/client', '/privacy', '/terms'];
 
 export function GET() {
 	const urls = PAGES.map((path) => `\t<url><loc>${SITE_URL}${path}</loc></url>`).join('\n');

@@ -9,13 +9,15 @@
 	<div class="nav-links">
 		<a href="/#features">Features</a>
 		<a href="/pricing">Pricing</a>
-		<Button href="/login" variant="secondary" size="md">Log in</Button>
+		<Button href="/login/client" variant="pop" size="md">Client login</Button>
+		<Button href="/login" variant="secondary" size="md">Practitioner login</Button>
 		<Button href="/login?tab=register" variant="primary" size="md">Get started for free</Button>
 	</div>
 	<MobileNav>
 		<a href="/#features">Features</a>
 		<a href="/pricing">Pricing</a>
-		<a href="/login">Log in</a>
+		<a href="/login/client">Client login</a>
+		<a href="/login">Practitioner login</a>
 		<a href="/login?tab=register" data-kind="cta">Get started for free</a>
 	</MobileNav>
 </header>
