@@ -1,9 +1,17 @@
 import adapter from '@sveltejs/adapter-vercel';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { sentrySvelteKit } from '@sentry/sveltekit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [
+		// Must come before sveltekit(). Uploads source maps on build when
+		// SENTRY_AUTH_TOKEN is set; without it the upload is skipped with a warning.
+		sentrySvelteKit({
+			org: 'lumno',
+			project: 'therapist-website',
+			authToken: process.env.SENTRY_AUTH_TOKEN
+		}),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries — with one
@@ -18,6 +26,11 @@ export default defineConfig({
 				}
 			},
 			adapter: adapter(),
+			// Runs src/instrumentation.server.ts before app code so Sentry can hook in.
+			experimental: {
+				instrumentation: { server: true },
+				tracing: { server: true }
+			},
 			typescript: {
 				config: (config) => {
 					config.include.push('../drizzle.config.ts');

@@ -1,5 +1,6 @@
 import { error, redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import * as Sentry from '@sentry/sveltekit';
 import { randomUUID } from 'node:crypto';
 import { logError } from '$lib/server/log';
 import { eq } from 'drizzle-orm';
@@ -112,23 +113,27 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
-export const handle: Handle = sequence(handleRateLimit, handleBetterAuth);
+// sentryHandle first so its span wraps the whole request
+export const handle: Handle = sequence(Sentry.sentryHandle(), handleRateLimit, handleBetterAuth);
 
 // Every uncaught throw in a load/action/endpoint lands here. The full error goes
 // to the server log with a short id; the user only ever sees the id and a generic
 // line — never the message, which could leak SQL, env names or internal ids.
-export const handleError: HandleServerError = ({ error, event, status, message }) => {
-	const errorId = randomUUID().slice(0, 8);
-	logError('unhandled', error, {
-		errorId,
-		status,
-		route: event.route.id,
-		method: event.request.method,
-		url: event.url.pathname,
-		userId: event.locals.user?.id
-	});
-	if (status === 404) {
-		return { message: 'Page not found' };
+// Sentry captures it first, skipping 4xx (404s etc.) so only real crashes report.
+export const handleError: HandleServerError = Sentry.handleErrorWithSentry(
+	({ error, event, status, message }) => {
+		const errorId = randomUUID().slice(0, 8);
+		logError('unhandled', error, {
+			errorId,
+			status,
+			route: event.route.id,
+			method: event.request.method,
+			url: event.url.pathname,
+			userId: event.locals.user?.id
+		});
+		if (status === 404) {
+			return { message: 'Page not found' };
+		}
+		return { message: `${message || 'Something went wrong'} (ref ${errorId})` };
 	}
-	return { message: `${message || 'Something went wrong'} (ref ${errorId})` };
-};
+);
