@@ -277,19 +277,17 @@ export async function linkClientToUser(clientId: string, userId: string) {
 	await db.update(user).set({ emailVerified: true }).where(eq(user.id, userId));
 }
 
-// Unverified number the client typed themselves, either while accepting the invite
-// or later from their portal. Callers must have already established that clientId
-// belongs to the caller (invite token or locals.clientId).
-export async function setClientPhone(clientId: string, phone: string | null) {
-	await db.update(client).set({ phone }).where(eq(client.id, clientId));
-}
+// The phone is saved through savePhone in phoneVerification.ts: client.phone only ever
+// holds a verified number.
 
-// null clears back to "use the therapist's timezone" (see client.timezone comment).
+// Callers must have already established that clientId belongs to the caller (invite
+// token or locals.clientId). null clears back to "use the therapist's timezone" (see
+// client.timezone comment).
 export async function setClientTimezone(clientId: string, timezone: string | null) {
 	await db.update(client).set({ timezone }).where(eq(client.id, clientId));
 }
 
-// Same trust model as setClientPhone: the client's own answers, already validated by
+// Same trust model as setClientTimezone: the client's own answers, already validated by
 // parseClientProfile. Callers must have established that clientId belongs to the caller.
 export async function setClientProfile(clientId: string, profile: ClientProfile) {
 	await db.update(client).set(profile).where(eq(client.id, clientId));

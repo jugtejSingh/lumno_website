@@ -1,5 +1,5 @@
 {
-  "id": "5a8b086e-9db2-4bc0-bc83-72f0fe12df05",
+  "id": "ae4a2cec-fc52-4e22-939d-c651ed3a77d9",
   "prevId": "2ee9590a-0e89-4fba-bee4-30ca5314652a",
   "version": "7",
   "dialect": "postgresql",
@@ -2873,12 +2873,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "verified_at": {
-          "name": "verified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         },
         "otp_hash": {
           "name": "otp_hash",

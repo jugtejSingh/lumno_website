@@ -1,15 +1,18 @@
 <script lang="ts">
 	import Card from '$lib/components/utils/Card.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
-	import Input from '$lib/components/utils/Input.svelte';
+	import PhoneInput from '$lib/components/utils/PhoneInput.svelte';
+	import Badge from '$lib/components/utils/Badge.svelte';
 	import ClientProfileFields from '$lib/components/Clients/ClientProfileFields.svelte';
+	import PhoneVerification from '$lib/components/Clients/PhoneVerification.svelte';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// seeded from the load data only, like every other draft in this app
-	let phone = $state(data.clientPhone);
+	// seeded from the load data only, like every other draft in this app. A pending
+	// number is what the client last typed, so the field shows that over the verified one.
+	let phone = $state(data.pendingPhone || data.clientPhone);
 	let timezone = $state(data.clientTimezone);
 	let profile = $state(structuredClone(data.clientProfile));
 </script>
@@ -18,16 +21,16 @@
 	<div class="section-title">Your details</div>
 	<Card>
 		<form class="details-form" method="POST" action="?/saveDetails" use:enhance>
-			<Input
-				label="Phone"
-				name="phone"
-				type="tel"
-				placeholder="+910000000000"
-				bind:value={phone}
-			/>
+			<PhoneInput name="phone" bind:value={phone} />
 			<div class="hint">
 				Optional. Give us a number and session reminders come by WhatsApp instead of email.
 			</div>
+			{#if phone && phone !== data.clientPhone && phone !== data.pendingPhone}
+				<div class="hint">Save to verify this number on WhatsApp.</div>
+			{/if}
+			{#if form && 'message' in form && form.message}
+				<div class="form-error">{form.message}</div>
+			{/if}
 			<label class="field">
 				<span class="field-label">Timezone</span>
 				<select class="field-input" name="timezone" bind:value={timezone}>
@@ -40,6 +43,30 @@
 			<div class="hint">Session times show in this timezone.</div>
 			<Button type="submit" variant="primary" size="sm">Save</Button>
 		</form>
+		<!-- outside the details form: forms can't nest -->
+		{#if data.clientPhone || data.pendingPhone}
+			<div class="verify-block">
+				{#if data.clientPhone}
+					<div class="phone-status">
+						<span>{data.clientPhone}</span>
+						<Badge tone="success">Verified on WhatsApp</Badge>
+					</div>
+				{/if}
+				{#if data.pendingPhone}
+					<div class="hint">
+						{data.pendingPhone} isn't verified yet.
+						{#if data.clientPhone}
+							Reminders keep going to {data.clientPhone} until it is.
+						{:else}
+							Reminders come by email until it is.
+						{/if}
+					</div>
+					{#key data.pendingPhone}
+						<PhoneVerification phone={data.pendingPhone} />
+					{/key}
+				{/if}
+			</div>
+		{/if}
 	</Card>
 	<Card>
 		<form class="details-form" method="POST" action="?/saveProfile" use:enhance>
@@ -70,6 +97,22 @@
 	.hint {
 		font-size: 13px;
 		color: var(--text-muted);
+	}
+
+	.verify-block {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 12px;
+	}
+
+	.phone-status {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		font-size: 14px;
+		color: var(--text-primary);
 	}
 
 	.form-error {

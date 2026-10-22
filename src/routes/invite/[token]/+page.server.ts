@@ -4,16 +4,12 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
-import {
-	getInviteByToken,
-	linkClientToUser,
-	setClientPhone,
-	setClientProfile
-} from '$lib/server/clients';
+import { getInviteByToken, linkClientToUser, setClientProfile } from '$lib/server/clients';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { parsePhone } from '$lib/phone';
 import { hasClientProfile, parseClientProfile } from '$lib/clientProfile';
 import { logError } from '$lib/server/log';
+import { savePhone, sendPhoneCode, verifyPhoneCode } from '$lib/server/phoneVerification';
 
 // A client row can be created without an email (the invite is then never sent);
 // such a row can't be accepted, so treat it the same as a missing invite.
@@ -136,7 +132,7 @@ export const actions: Actions = {
 			});
 		}
 		if (parsedPhone.phone) {
-			await setClientPhone(invite.id, parsedPhone.phone);
+			await savePhone(invite.id, parsedPhone.phone);
 		}
 		await setClientProfile(invite.id, parsedProfile.profile);
 		return redirect(302, '/portal');
@@ -160,7 +156,7 @@ export const actions: Actions = {
 		// saved before we hand off to Google — the invite token already identifies this
 		// client row, so nothing needs stashing across the OAuth round trip
 		if (parsedPhone.phone) {
-			await setClientPhone(invite.id, parsedPhone.phone);
+			await savePhone(invite.id, parsedPhone.phone);
 		}
 		await setClientProfile(invite.id, parsedProfile.profile);
 
@@ -192,6 +188,45 @@ export const actions: Actions = {
 		return redirect(302, url);
 	},
 
+	// Optional WhatsApp verification before sign-up (see PhoneVerification.svelte). The
+	// invite token authorises it, the same as the phone save in the actions above. The
+	// typed number isn't saved until sign-up otherwise, so it's saved as pending here
+	// first: the code goes to the pending number.
+	sendPhoneCode: async (event) => {
+		const invite = await loadValidInvite(event.params.token);
+		if (!invite) {
+			return fail(400, { message: 'This invite is no longer valid.' });
+		}
+		const formData = await event.request.formData();
+		const parsedPhone = parsePhone(formData.get('phone')?.toString());
+		if ('error' in parsedPhone) {
+			return fail(400, { message: parsedPhone.error });
+		}
+		if (!parsedPhone.phone) {
+			return fail(400, { reason: 'no_phone' });
+		}
+		await savePhone(invite.id, parsedPhone.phone);
+
+		const result = await sendPhoneCode(invite.id);
+		if (!result.ok) {
+			return fail(400, { reason: result.reason });
+		}
+		return { ok: true };
+	},
+
+	verifyPhoneCode: async (event) => {
+		const invite = await loadValidInvite(event.params.token);
+		if (!invite) {
+			return fail(400, { message: 'This invite is no longer valid.' });
+		}
+		const formData = await event.request.formData();
+		const result = await verifyPhoneCode(invite.id, formData.get('code')?.toString() ?? '');
+		if (!result.ok) {
+			return fail(400, result);
+		}
+		return { ok: true };
+	},
+
 	// used when the visitor already has a session matching the invited email —
 	// e.g. they just landed back here after the Google OAuth redirect above.
 	acceptAsSelf: async (event) => {
@@ -217,7 +252,9 @@ export const actions: Actions = {
 			await linkClientToUser(invite.id, event.locals.user.id);
 		} catch (error) {
 			logError('invite.link', error, { clientId: invite.id, userId: event.locals.user.id });
-			return fail(500, { message: 'The invite could not be attached to your account. Please try again.' });
+			return fail(500, {
+				message: 'The invite could not be attached to your account. Please try again.'
+			});
 		}
 		return redirect(302, '/portal');
 	}

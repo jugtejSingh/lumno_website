@@ -5,17 +5,25 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import ClientProfileFields from '$lib/components/Clients/ClientProfileFields.svelte';
 	import ClientProfileHiddenInputs from '$lib/components/Clients/ClientProfileHiddenInputs.svelte';
+	import PhoneVerification from '$lib/components/Clients/PhoneVerification.svelte';
+	import PhoneInput from '$lib/components/utils/PhoneInput.svelte';
 	import type { ClientProfile } from '$lib/clientProfile';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// optional, unverified — used for WhatsApp reminders instead of email when given.
+	// optional; saved as pending, and used for WhatsApp reminders once verified.
 	// Shared by the Google and password forms below via hidden inputs.
 	let phone = $state('');
 	// required; mirrored into whichever form gets submitted
-	let profile = $state<ClientProfile>({ dateOfBirth: '', gender: '', city: '', state: '', country: '' });
+	let profile = $state<ClientProfile>({
+		dateOfBirth: '',
+		gender: '',
+		city: '',
+		state: '',
+		country: ''
+	});
 </script>
 
 <svelte:head>
@@ -73,13 +81,14 @@
 				<div class="form-fields">
 					<div class="form-hint-block">About you — your practitioner will see these details.</div>
 					<ClientProfileFields bind:profile named={false} />
-					<Input
-						label="Phone (optional)"
-						type="tel"
-						placeholder="+910000000000"
-						bind:value={phone}
-					/>
+					<PhoneInput label="Phone (optional)" bind:value={phone} />
 					<div class="form-hint">We'll send session reminders on WhatsApp instead of email.</div>
+					{#if phone}
+						<!-- optional: skipping it leaves the number pending and reminders on email -->
+						{#key phone}
+							<PhoneVerification {phone} />
+						{/key}
+					{/if}
 				</div>
 
 				<form method="POST" action="?/google" use:enhance>
