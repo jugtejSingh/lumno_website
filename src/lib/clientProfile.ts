@@ -10,7 +10,10 @@ export type ClientProfile = {
 	country: string; // ISO 3166-1 alpha-2
 };
 
-export type ParsedClientProfile = { profile: ClientProfile } | { error: string };
+// `field` names the input the error belongs to, so the page can show it right there
+export type ParsedClientProfile =
+	| { profile: ClientProfile }
+	| { error: string; field: keyof ClientProfile };
 
 const MAX_TEXT_LENGTH = 100;
 const MAX_AGE_YEARS = 120;
@@ -31,33 +34,40 @@ export function parseClientProfile(form: FormData, today: Date = new Date()): Pa
 	const country = readText(form, 'country').toUpperCase();
 
 	if (!DATE_RE.test(dateOfBirth)) {
-		return { error: 'Enter your date of birth.' };
+		return { error: 'Enter your date of birth.', field: 'dateOfBirth' };
 	}
 	const dob = new Date(`${dateOfBirth}T00:00:00Z`);
 	// round-trip catches impossible dates like 2001-02-30
 	if (Number.isNaN(dob.getTime()) || dob.toISOString().slice(0, 10) !== dateOfBirth) {
-		return { error: 'Enter a valid date of birth.' };
+		return { error: 'Enter a valid date of birth.', field: 'dateOfBirth' };
 	}
 	const oldest = new Date(today);
 	oldest.setUTCFullYear(oldest.getUTCFullYear() - MAX_AGE_YEARS);
 	if (dob > today || dob < oldest) {
-		return { error: 'Enter a valid date of birth.' };
+		return { error: 'Enter a valid date of birth.', field: 'dateOfBirth' };
 	}
 
+	const tooLong = `Keep this to ${MAX_TEXT_LENGTH} characters or fewer.`;
 	if (!gender) {
-		return { error: 'Enter your gender.' };
+		return { error: 'Enter your gender.', field: 'gender' };
+	}
+	if (gender.length > MAX_TEXT_LENGTH) {
+		return { error: tooLong, field: 'gender' };
 	}
 	if (!city) {
-		return { error: 'Enter your city or town.' };
+		return { error: 'Enter your city or town.', field: 'city' };
+	}
+	if (city.length > MAX_TEXT_LENGTH) {
+		return { error: tooLong, field: 'city' };
 	}
 	if (!state) {
-		return { error: 'Enter your state.' };
+		return { error: 'Enter your state.', field: 'state' };
 	}
-	if (gender.length > MAX_TEXT_LENGTH || city.length > MAX_TEXT_LENGTH || state.length > MAX_TEXT_LENGTH) {
-		return { error: `Keep each answer to ${MAX_TEXT_LENGTH} characters or fewer.` };
+	if (state.length > MAX_TEXT_LENGTH) {
+		return { error: tooLong, field: 'state' };
 	}
 	if (!isCountryCode(country)) {
-		return { error: 'Choose your country.' };
+		return { error: 'Choose your country.', field: 'country' };
 	}
 
 	return { profile: { dateOfBirth, gender, city, state, country } };

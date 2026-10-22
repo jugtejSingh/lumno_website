@@ -51,6 +51,10 @@
 				return;
 			}
 			const data = failureData(result);
+			if (data && data.reason === 'already_verified') {
+				verifiedHere = true;
+				return;
+			}
 			if (data && typeof data.reason === 'string' && SEND_MESSAGES[data.reason]) {
 				message = SEND_MESSAGES[data.reason];
 			} else if (data && typeof data.message === 'string') {

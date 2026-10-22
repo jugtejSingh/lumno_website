@@ -1,6 +1,23 @@
 import { enhance as kitEnhance } from '$app/forms';
+import { tick } from 'svelte';
 import { toast } from 'svelte-sonner';
 import type { SubmitFunction } from '@sveltejs/kit';
+
+// After a failed submit, bring the first error into view and put the cursor in the
+// field it belongs to. Searches the whole page, not just the form: some pages keep
+// their fields outside the form that posts them (the invite page).
+async function scrollToFirstError() {
+	await tick();
+	const alert = document.querySelector('[role="alert"]');
+	if (!alert) {
+		return;
+	}
+	alert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	const invalid = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+	if (invalid) {
+		invalid.focus({ preventScroll: true });
+	}
+}
 
 // Drop-in replacement for $app/forms enhance. Same signature, but while the
 // action is in flight the form gets aria-busy and the submit button is disabled,
@@ -56,6 +73,9 @@ export function enhance(form: HTMLFormElement, submit?: SubmitFunction) {
 					await resolved(event);
 				} else {
 					await event.update();
+				}
+				if (result.type === 'failure') {
+					await scrollToFirstError();
 				}
 			} finally {
 				setBusy(false);

@@ -33,9 +33,9 @@ describe('parseClientProfile', () => {
 		});
 	});
 
-	it('requires every field', () => {
+	it('requires every field, naming the one that failed', () => {
 		for (const key of ['dateOfBirth', 'gender', 'city', 'state', 'country']) {
-			expect(parseClientProfile(profileForm({ [key]: '' }), TODAY)).toHaveProperty('error');
+			expect(parseClientProfile(profileForm({ [key]: '' }), TODAY)).toHaveProperty('field', key);
 		}
 	});
 

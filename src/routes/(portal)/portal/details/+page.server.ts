@@ -61,7 +61,7 @@ export const actions: Actions = {
 		}
 		const parsedProfile = parseClientProfile(await event.request.formData());
 		if ('error' in parsedProfile) {
-			return fail(400, { profileMessage: parsedProfile.error });
+			return fail(400, { profileMessage: parsedProfile.error, profileField: parsedProfile.field });
 		}
 		await setClientProfile(event.locals.clientId, parsedProfile.profile);
 	},

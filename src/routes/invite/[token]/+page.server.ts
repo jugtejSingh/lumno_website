@@ -80,17 +80,17 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const password = formData.get('password')?.toString();
 		if (!password) {
-			return fail(400, { message: 'Password is required.' });
+			return fail(400, { message: 'Password is required.', field: 'password' });
 		}
 		// validated before the account is touched, so a bad number can't leave a
 		// signed-up user behind
 		const parsedPhone = parsePhone(formData.get('phone')?.toString());
 		if ('error' in parsedPhone) {
-			return fail(400, { message: parsedPhone.error });
+			return fail(400, { message: parsedPhone.error, field: 'phone' });
 		}
 		const parsedProfile = parseClientProfile(formData);
 		if ('error' in parsedProfile) {
-			return fail(400, { message: parsedProfile.error });
+			return fail(400, { message: parsedProfile.error, field: parsedProfile.field });
 		}
 
 		const [existingUser] = await db.select().from(user).where(eq(user.email, invite.email));
@@ -118,7 +118,7 @@ export const actions: Actions = {
 				error,
 				'Could not accept the invite. Please try again.'
 			);
-			return fail(failure.status, { message: failure.message });
+			return fail(failure.status, { message: failure.message, field: 'password' });
 		}
 
 		try {
@@ -147,11 +147,11 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const parsedPhone = parsePhone(formData.get('phone')?.toString());
 		if ('error' in parsedPhone) {
-			return fail(400, { message: parsedPhone.error });
+			return fail(400, { message: parsedPhone.error, field: 'phone' });
 		}
 		const parsedProfile = parseClientProfile(formData);
 		if ('error' in parsedProfile) {
-			return fail(400, { message: parsedProfile.error });
+			return fail(400, { message: parsedProfile.error, field: parsedProfile.field });
 		}
 		// saved before we hand off to Google — the invite token already identifies this
 		// client row, so nothing needs stashing across the OAuth round trip
@@ -173,7 +173,7 @@ export const actions: Actions = {
 			});
 			if (!result.url) {
 				logError('invite.google', new Error('signInSocial returned no url'));
-				return fail(500, { message: 'Could not start Google sign-in. Please try again.' });
+				return fail(500, { message: 'Could not start Google sign-in. Please try again.', field: 'google' });
 			}
 			url = result.url;
 		} catch (error) {
@@ -182,7 +182,7 @@ export const actions: Actions = {
 				error,
 				'Could not start Google sign-in. Please try again.'
 			);
-			return fail(failure.status, { message: failure.message });
+			return fail(failure.status, { message: failure.message, field: 'google' });
 		}
 
 		return redirect(302, url);
@@ -243,7 +243,7 @@ export const actions: Actions = {
 		if (!hasClientProfile(invite)) {
 			const parsedProfile = parseClientProfile(await event.request.formData());
 			if ('error' in parsedProfile) {
-				return fail(400, { message: parsedProfile.error });
+				return fail(400, { message: parsedProfile.error, field: parsedProfile.field });
 			}
 			await setClientProfile(invite.id, parsedProfile.profile);
 		}

@@ -24,6 +24,63 @@
 		state: '',
 		country: ''
 	});
+
+	const PROFILE_FIELDS: (keyof ClientProfile)[] = ['dateOfBirth', 'gender', 'city', 'state', 'country'];
+
+	// The actions tag each failure with the `field` it belongs to (a profile key,
+	// 'phone', 'password' or 'google'), so it shows next to that input. Untagged ones
+	// (e.g. invite no longer valid) show at the top of the card.
+	const failedField = $derived.by(() => {
+		if (form && 'field' in form && typeof form.field === 'string') {
+			return form.field;
+		}
+		return null;
+	});
+
+	const failedMessage = $derived.by(() => {
+		if (form && 'message' in form && typeof form.message === 'string') {
+			return form.message;
+		}
+		return '';
+	});
+
+	// Typing in the phone or password box hides its error; a new response (a new
+	// `form` object) clears this so a failed resubmit shows the error again.
+	// The profile fields do the same inside ClientProfileFields.
+	let editedFields = $state<string[]>([]);
+	$effect.pre(() => {
+		void form;
+		editedFields = [];
+	});
+
+	function markEdited(field: string) {
+		if (!editedFields.includes(field)) {
+			editedFields.push(field);
+		}
+	}
+
+	function errorFor(field: string): string | undefined {
+		if (failedMessage && failedField === field && !editedFields.includes(field)) {
+			return failedMessage;
+		}
+		return undefined;
+	}
+
+	const profileError = $derived.by(() => {
+		for (const field of PROFILE_FIELDS) {
+			if (failedMessage && failedField === field) {
+				return { field, message: failedMessage };
+			}
+		}
+		return null;
+	});
+
+	const generalError = $derived.by(() => {
+		if (failedMessage && !failedField) {
+			return failedMessage;
+		}
+		return '';
+	});
 </script>
 
 <svelte:head>
@@ -57,13 +114,13 @@
 			{:else if data.loggedInAsMatch}
 				<div class="form-title">Join {data.invite.therapistName}'s client portal</div>
 				<div class="form-subtitle">Accept as {data.invite.email}?</div>
-				{#if form?.message}
-					<div class="form-error">{form.message}</div>
+				{#if generalError}
+					<div class="form-error" role="alert">{generalError}</div>
 				{/if}
 				<form class="form-fields" method="POST" action="?/acceptAsSelf" use:enhance>
 					{#if data.needsProfile}
 						<div class="form-hint-block">Your practitioner will see these details.</div>
-						<ClientProfileFields bind:profile />
+						<ClientProfileFields bind:profile error={profileError} />
 					{/if}
 					<Button type="submit" variant="primary">Accept invite</Button>
 				</form>
@@ -75,14 +132,22 @@
 						: `Set a password for ${data.invite.email} to get started.`}
 				</div>
 				{#if data.oauthError}
-					<div class="form-error">{data.oauthError}</div>
+					<div class="form-error" role="alert">{data.oauthError}</div>
+				{/if}
+				{#if generalError}
+					<div class="form-error" role="alert">{generalError}</div>
 				{/if}
 
 				<div class="form-fields">
 					<div class="form-hint-block">About you — your practitioner will see these details.</div>
-					<ClientProfileFields bind:profile named={false} />
-					<PhoneInput label="Phone (optional)" bind:value={phone} />
-					<div class="form-hint">We'll send session reminders on WhatsApp instead of email.</div>
+					<ClientProfileFields bind:profile named={false} error={profileError} />
+					<PhoneInput
+						label="Phone (optional)"
+						hint="Your number is only used to send session reminders on WhatsApp. It is optional and can be skipped. WhatsApp numbers only, other numbers will not work."
+						error={errorFor('phone')}
+						oninput={() => markEdited('phone')}
+						bind:value={phone}
+					/>
 					{#if phone}
 						<!-- optional: skipping it leaves the number pending and reminders on email -->
 						{#key phone}
@@ -91,20 +156,30 @@
 					{/if}
 				</div>
 
-				<form method="POST" action="?/google" use:enhance>
+				<form class="google-form" method="POST" action="?/google" use:enhance>
 					<input type="hidden" name="phone" value={phone} />
 					<ClientProfileHiddenInputs {profile} />
+					<div class="form-hint-block">
+						Either continue with Google for passwordless login, or write in a password below.
+					</div>
 					<Button type="submit" variant="secondary">Continue with Google</Button>
+					{#if errorFor('google')}
+						<div class="form-error" role="alert">{errorFor('google')}</div>
+					{/if}
 				</form>
 				<div class="divider"><span>or</span></div>
 
 				<form class="form-fields" method="POST" action="?/password" use:enhance>
 					<input type="hidden" name="phone" value={phone} />
 					<ClientProfileHiddenInputs {profile} />
-					<Input label="Password" name="password" type="password" placeholder="••••••••" />
-					{#if form?.message}
-						<div class="form-error">{form.message}</div>
-					{/if}
+					<Input
+						label="Password"
+						name="password"
+						type="password"
+						placeholder="••••••••"
+						error={errorFor('password')}
+						oninput={() => markEdited('password')}
+					/>
 					<Button type="submit" variant="primary">
 						{data.hasAccount ? 'Log in and accept' : 'Create account'}
 					</Button>
@@ -173,14 +248,18 @@
 	}
 
 	.form-error {
-		font-size: 13px;
+		font-size: 14px;
+		font-weight: 700;
 		color: var(--accent-danger, #c0392b);
 	}
 
-	.form-hint {
-		font-size: 12px;
-		color: var(--text-muted);
-		margin-top: -8px;
+	.google-form {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		margin-top: 24px;
+		text-align: center;
 	}
 
 	.form-hint-block {

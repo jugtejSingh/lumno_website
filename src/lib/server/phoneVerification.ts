@@ -22,6 +22,7 @@ export type SendCodeResult =
 			ok: false;
 			reason:
 				| 'no_phone'
+				| 'already_verified'
 				| 'cooldown'
 				| 'rate_limited'
 				| 'number_rate_limited'
@@ -107,6 +108,15 @@ export async function savePhone(clientId: string, phone: string | null): Promise
 export async function sendPhoneCode(clientId: string): Promise<SendCodeResult> {
 	const pending = await loadPending(clientId);
 	if (!pending) {
+		// Nothing pending but a verified number: e.g. the invite page's Verify pressed
+		// again after a successful verify (savePhone just dropped the matching pending).
+		const [current] = await db
+			.select({ phone: client.phone })
+			.from(client)
+			.where(eq(client.id, clientId));
+		if (current && current.phone) {
+			return { ok: false, reason: 'already_verified' };
+		}
 		return { ok: false, reason: 'no_phone' };
 	}
 
@@ -156,8 +166,9 @@ export async function sendPhoneCode(clientId: string): Promise<SendCodeResult> {
 	}
 
 	try {
-		// lumno_otp shows the code in the body and on its copy-code button
-		await sendWhatsAppTemplate(pending.phone, 'lumno_otp', 'en_US', [code], code);
+		// lumno_otp's body is "OTP Code: {{1}}. This is your OTP code for {{2}}." and its
+		// copy-code button takes the code again
+		await sendWhatsAppTemplate(pending.phone, 'lumno_otp', 'en_US', [code, 'Lumno'], code);
 	} catch (err) {
 		logError('phoneVerification.send', err, { clientId });
 		// Nobody received this code, so drop it; otherwise the cooldown would block an

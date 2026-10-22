@@ -1,38 +1,52 @@
 <script lang="ts">
+	import { countryForPhone, listDialCountries } from '$lib/countries';
+
 	// A country code picker plus the local number, joined into one E.164 string
 	// (+919810012345) in `value`, which is what parsePhone validates and the DB stores.
 	// With `name`, that string is also posted as a hidden input.
 	let {
 		label = 'Phone',
 		name,
+		// small text between the label and the inputs
+		hint,
+		error,
+		oninput,
 		value = $bindable('')
-	}: { label?: string; name?: string; value?: string } = $props();
+	}: {
+		label?: string;
+		name?: string;
+		hint?: string;
+		error?: string;
+		// fires whenever the client changes the code or the number
+		oninput?: () => void;
+		value?: string;
+	} = $props();
 
-	// ponytail: hand-picked list, India first. "Other" takes the full +number for
-	// anywhere else; swap in a full list if clients outside these start showing up.
-	const COUNTRIES = [
-		{ code: '+91', label: 'India +91' },
-		{ code: '+44', label: 'UK +44' },
-		{ code: '+1', label: 'US/Canada +1' },
-		{ code: '+971', label: 'UAE +971' },
-		{ code: '+65', label: 'Singapore +65' },
-		{ code: '+61', label: 'Australia +61' },
-		{ code: '', label: 'Other' }
-	];
+	// Every country and territory, India first. The picker's value is the ISO country,
+	// not the dialling code, because several places share one (+1, +44, ...).
+	// '' is "Other", which takes the full +number as typed.
+	const DIAL_COUNTRIES = listDialCountries();
 
-	// Splits a stored number back into picker + local part. Codes are tried longest
-	// first so +971 isn't read as +9.
-	function split(full: string): { code: string; number: string } {
-		if (!full) {
-			return { code: '+91', number: '' };
-		}
-		const byLength = [...COUNTRIES].sort((a, b) => b.code.length - a.code.length);
-		for (const country of byLength) {
-			if (country.code && full.startsWith(country.code)) {
-				return { code: country.code, number: full.slice(country.code.length) };
+	function dialCodeOf(country: string): string {
+		for (const entry of DIAL_COUNTRIES) {
+			if (entry.country === country) {
+				return entry.dialCode;
 			}
 		}
-		return { code: '', number: full };
+		return '';
+	}
+
+	// Splits a stored number back into picker + local part. A shared code shows as its
+	// main country (+1 as the US); the number posted is the same either way.
+	function split(full: string): { country: string; number: string } {
+		if (!full) {
+			return { country: 'IN', number: '' };
+		}
+		const match = countryForPhone(full);
+		if (match) {
+			return { country: match.country, number: full.slice(match.dialCode.length) };
+		}
+		return { country: '', number: full };
 	}
 
 	// Spaces, dashes and brackets are dropped, and so is a leading trunk 0
@@ -51,11 +65,15 @@
 
 	// seeded once from the incoming value, like every other draft in this app
 	const initial = split(value);
-	let code = $state(initial.code);
+	let country = $state(initial.country);
 	let number = $state(initial.number);
+	const code = $derived(dialCodeOf(country));
 
 	function sync() {
 		value = join(code, number);
+		if (oninput) {
+			oninput();
+		}
 	}
 
 	let placeholder = $derived.by(() => {
@@ -68,22 +86,31 @@
 
 <div class="field">
 	<span class="field-label">{label}</span>
+	{#if hint}
+		<span class="field-hint">{hint}</span>
+	{/if}
 	<div class="row">
-		<select class="field-input code" aria-label="Country code" bind:value={code} onchange={sync}>
-			{#each COUNTRIES as country (country.label)}
-				<option value={country.code}>{country.label}</option>
+		<select class="field-input code" aria-label="Country code" bind:value={country} onchange={sync}>
+			{#each DIAL_COUNTRIES as entry (entry.country)}
+				<option value={entry.country}>{entry.name} {entry.dialCode}</option>
 			{/each}
+			<option value="">Other</option>
 		</select>
 		<input
 			class="field-input number"
+			class:has-error={Boolean(error)}
 			type="tel"
 			aria-label="Phone number"
+			aria-invalid={Boolean(error)}
 			autocomplete="tel-national"
 			{placeholder}
 			bind:value={number}
 			oninput={sync}
 		/>
 	</div>
+	{#if error}
+		<span class="field-error" role="alert">{error}</span>
+	{/if}
 	{#if name}
 		<input type="hidden" {name} {value} />
 	{/if}
@@ -101,6 +128,21 @@
 		font-size: 13px;
 		font-weight: 700;
 		color: var(--text-secondary);
+	}
+
+	.field-hint {
+		font-size: 12px;
+		color: var(--text-muted);
+	}
+
+	.field-error {
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--accent-danger, #c0392b);
+	}
+
+	.field-input.has-error {
+		border-color: var(--accent-danger, #c0392b);
 	}
 
 	.row {
@@ -127,8 +169,26 @@
 		box-shadow: var(--shadow-focus);
 	}
 
+	/* a select is as wide as its longest option; cap it so the number keeps room */
 	.code {
-		flex: 0 0 auto;
+		flex: 0 1 auto;
+		max-width: 45%;
+	}
+
+	/* 249 options would fill the screen. A customizable select (Chrome 135+) lets the
+	   open list be capped and scroll; other browsers ignore this and keep the native one. */
+	.code,
+	.code::picker(select) {
+		appearance: base-select;
+	}
+
+	.code::picker(select) {
+		max-height: 300px;
+		overflow-y: auto;
+		background: var(--surface-card);
+		border: 2px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-lg);
 	}
 
 	.number {

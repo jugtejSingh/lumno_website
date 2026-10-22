@@ -15,6 +15,14 @@
 	let phone = $state(data.pendingPhone || data.clientPhone);
 	let timezone = $state(data.clientTimezone);
 	let profile = $state(structuredClone(data.clientProfile));
+
+	// saveProfile tags its failure with the field it belongs to, shown under that field
+	const profileError = $derived.by(() => {
+		if (form && 'profileField' in form && form.profileField && form.profileMessage) {
+			return { field: form.profileField, message: form.profileMessage };
+		}
+		return null;
+	});
 </script>
 
 <div class="section">
@@ -71,10 +79,7 @@
 	<Card>
 		<form class="details-form" method="POST" action="?/saveProfile" use:enhance>
 			<div class="hint">{data.therapistName} can see these details.</div>
-			<ClientProfileFields bind:profile />
-			{#if form && 'profileMessage' in form && form.profileMessage}
-				<div class="form-error">{form.profileMessage}</div>
-			{/if}
+			<ClientProfileFields bind:profile error={profileError} />
 			<Button type="submit" variant="primary" size="sm">Save</Button>
 		</form>
 	</Card>
@@ -116,7 +121,8 @@
 	}
 
 	.form-error {
-		font-size: 13px;
+		font-size: 14px;
+		font-weight: 700;
 		color: var(--accent-danger, #c0392b);
 	}
 

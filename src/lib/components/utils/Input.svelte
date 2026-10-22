@@ -10,6 +10,7 @@
 		name,
 		value = $bindable(''),
 		onkeydown,
+		oninput,
 		error,
 		list
 	}: {
@@ -21,6 +22,7 @@
 		name?: string;
 		value?: string;
 		onkeydown?: (e: KeyboardEvent) => void;
+		oninput?: (e: Event) => void;
 		error?: string;
 		// id of a <datalist> offering suggestions
 		list?: string;
@@ -31,9 +33,20 @@
 	{#if label}
 		<span class="field-label">{label}{#if info}<InfoTip text={info} {label} />{/if}</span>
 	{/if}
-	<input class="field-input" {type} {name} {placeholder} {list} bind:value {onkeydown} />
+	<input
+		class="field-input"
+		class:has-error={Boolean(error)}
+		{type}
+		{name}
+		{placeholder}
+		{list}
+		aria-invalid={Boolean(error)}
+		bind:value
+		{onkeydown}
+		{oninput}
+	/>
 	{#if error}
-		<span class="field-error">{error}</span>
+		<span class="field-error" role="alert">{error}</span>
 	{/if}
 </label>
 
@@ -45,8 +58,13 @@
 	}
 
 	.field-error {
-		font-size: 12px;
+		font-size: 14px;
+		font-weight: 700;
 		color: var(--accent-danger, #c0392b);
+	}
+
+	.field-input.has-error {
+		border-color: var(--accent-danger, #c0392b);
 	}
 
 	.field-label {
