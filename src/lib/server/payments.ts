@@ -229,8 +229,8 @@ export type ClientVisiblePayment = {
 };
 
 // The client-facing version of the above: what they still owe, plus refunds owed back to
-// them. An unpaid charge only becomes visible once the session it's for has actually
-// happened; ad-hoc charges (no appointment) and cancelled sessions don't wait on anything.
+// them. An unpaid charge becomes visible 2 days before the session it's for (see
+// chargeIsVisible); ad-hoc charges (no appointment) and cancelled sessions don't wait on anything.
 // A paid charge is only shown while it carries a cancellation refund — pending, or marked
 // refunded within the last 30 days.
 export async function listVisiblePaymentsForClient(

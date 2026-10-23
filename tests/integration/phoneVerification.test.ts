@@ -2,14 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 
 // Meta and Upstash are replaced: these tests check the DB side of the OTP flow
-const { sendWhatsAppTemplate, isWhatsAppConfigured, clientLimit, numberLimit } = vi.hoisted(
-	() => ({
-		sendWhatsAppTemplate: vi.fn(async () => {}),
-		isWhatsAppConfigured: vi.fn(() => true),
-		clientLimit: vi.fn(async () => ({ success: true })),
-		numberLimit: vi.fn(async () => ({ success: true }))
-	})
-);
+const { sendWhatsAppTemplate, isWhatsAppConfigured, clientLimit, numberLimit } = vi.hoisted(() => ({
+	sendWhatsAppTemplate: vi.fn(async () => {}),
+	isWhatsAppConfigured: vi.fn(() => true),
+	clientLimit: vi.fn(async () => ({ success: true })),
+	numberLimit: vi.fn(async () => ({ success: true }))
+}));
 vi.mock('$lib/server/whatsapp', () => ({ sendWhatsAppTemplate, isWhatsAppConfigured }));
 vi.mock('$lib/server/rateLimit', () => ({
 	phoneOtpRatelimit: { limit: clientLimit },
@@ -44,7 +42,10 @@ async function loadRow() {
 }
 
 async function loadClientPhone() {
-	const [row] = await db.select({ phone: client.phone }).from(client).where(eq(client.id, clientId));
+	const [row] = await db
+		.select({ phone: client.phone })
+		.from(client)
+		.where(eq(client.id, clientId));
 	return row.phone;
 }
 
@@ -52,7 +53,7 @@ async function loadClientPhone() {
 function lastSentCode(): string {
 	const calls = sendWhatsAppTemplate.mock.calls as unknown as unknown[][];
 	const lastCall = calls[calls.length - 1];
-	return lastCall[4] as string;
+	return (lastCall[3] as { button: string }).button;
 }
 
 // Moves the stored code's send time back so the 60s resend cooldown has passed
@@ -114,7 +115,10 @@ describe('sendPhoneCode', () => {
 		expect(row.otpHash).toBe(hashCode(code));
 		expect(row.otpHash).not.toContain(code);
 		expect(row.otpAttempts).toBe(0);
-		expect(sendWhatsAppTemplate).toHaveBeenCalledWith(PHONE, 'lumno_otp', 'en_US', [code, 'Lumno'], code);
+		expect(sendWhatsAppTemplate).toHaveBeenCalledWith(PHONE, 'lumno_otp', 'en_US', {
+			body: [code, 'Lumno'],
+			button: code
+		});
 	});
 
 	it('refuses with no pending number', async () => {

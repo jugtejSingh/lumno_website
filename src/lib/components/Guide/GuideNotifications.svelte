@@ -25,7 +25,7 @@
 		</li>
 		<li>
 			<strong>Rebook reminders</strong>: when a client hasn't booked their next session, a friendly
-			nudge 4 days after their last one, another at 11 days, then every 2 weeks until they book.
+			nudge 2 weeks after their last one and one more at 4 weeks. After that they stop.
 			Only active clients get these, and they stop as soon as a new session is booked.
 		</li>
 		<li>

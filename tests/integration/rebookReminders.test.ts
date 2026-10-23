@@ -5,7 +5,10 @@ import { client } from '$lib/server/db/schema';
 import { sendRebookReminders, sendPaymentReminders } from '$lib/server/reminderEmails';
 import { createAppointmentForTherapist } from '$lib/server/appointments';
 import { cancelPack, createPack } from '$lib/server/payments';
-import { createAppointmentForClient, rescheduleAppointmentForClient } from '$lib/server/availability';
+import {
+	createAppointmentForClient,
+	rescheduleAppointmentForClient
+} from '$lib/server/availability';
 import { materialiseReservedSlots } from '$lib/server/recurringBookings';
 import {
 	resetDb,
@@ -34,16 +37,28 @@ async function getClient(clientId: string) {
 }
 
 describe('sendRebookReminders', () => {
-	it('sends the stage-1 nudge at 4 days and records it', async () => {
+	it('sends the stage-1 nudge at 14 days and records it', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: 'client@example.com' });
-		await setLastSessionAt(c.id, new Date(Date.now() - 5 * DAY_MS));
+		await setLastSessionAt(c.id, new Date(Date.now() - 15 * DAY_MS));
 
 		await sendRebookReminders();
 
 		const row = await getClient(c.id);
 		expect(row.rebookReminderStage).toBe(1);
 		expect(row.lastRebookReminderAt).not.toBeNull();
+	});
+
+	it('sends nothing before 14 days', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { email: 'client@example.com' });
+		await setLastSessionAt(c.id, new Date(Date.now() - 13 * DAY_MS));
+
+		await sendRebookReminders();
+
+		const row = await getClient(c.id);
+		expect(row.rebookReminderStage).toBe(0);
+		expect(row.lastRebookReminderAt).toBeNull();
 	});
 
 	it('does not nudge a client whose last known session is still in the future', async () => {
@@ -57,15 +72,16 @@ describe('sendRebookReminders', () => {
 		expect(row.rebookReminderStage).toBe(0);
 	});
 
-	it('does not re-send stage 1 or advance to stage 2 before 11 days', async () => {
+	it('does not re-send stage 1 or advance to stage 2 before 28 days', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: 'client@example.com' });
+		const sentAt = new Date(Date.now() - 10 * DAY_MS);
 		await db
 			.update(client)
 			.set({
-				lastSessionAt: new Date(Date.now() - 6 * DAY_MS),
+				lastSessionAt: new Date(Date.now() - 25 * DAY_MS),
 				rebookReminderStage: 1,
-				lastRebookReminderAt: new Date(Date.now() - 2 * DAY_MS)
+				lastRebookReminderAt: sentAt
 			})
 			.where(eq(client.id, c.id));
 
@@ -73,17 +89,18 @@ describe('sendRebookReminders', () => {
 
 		const row = await getClient(c.id);
 		expect(row.rebookReminderStage).toBe(1);
+		expect(row.lastRebookReminderAt).toEqual(sentAt);
 	});
 
-	it('advances to stage 2 at 11 days', async () => {
+	it('advances to stage 2 at 28 days', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: 'client@example.com' });
 		await db
 			.update(client)
 			.set({
-				lastSessionAt: new Date(Date.now() - 12 * DAY_MS),
+				lastSessionAt: new Date(Date.now() - 29 * DAY_MS),
 				rebookReminderStage: 1,
-				lastRebookReminderAt: new Date(Date.now() - 8 * DAY_MS)
+				lastRebookReminderAt: new Date(Date.now() - 15 * DAY_MS)
 			})
 			.where(eq(client.id, c.id));
 
@@ -93,31 +110,42 @@ describe('sendRebookReminders', () => {
 		expect(row.rebookReminderStage).toBe(2);
 	});
 
-	it('repeats stage 2 every 14 days and not sooner', async () => {
+	it('stops after stage 2, however long it has been', async () => {
+		const t = await mkTherapist();
+		const c = await mkClient(t.id, { email: 'client@example.com' });
+		const sentAt = new Date(Date.now() - 60 * DAY_MS);
+		await db
+			.update(client)
+			.set({
+				lastSessionAt: new Date(Date.now() - 90 * DAY_MS),
+				rebookReminderStage: 2,
+				lastRebookReminderAt: sentAt
+			})
+			.where(eq(client.id, c.id));
+
+		await sendRebookReminders();
+
+		const row = await getClient(c.id);
+		expect(row.rebookReminderStage).toBe(2);
+		expect(row.lastRebookReminderAt).toEqual(sentAt);
+	});
+
+	it('restarts the ladder after a session that came after the last nudge', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: 'client@example.com' });
 		await db
 			.update(client)
 			.set({
-				lastSessionAt: new Date(Date.now() - 20 * DAY_MS),
+				lastSessionAt: new Date(Date.now() - 15 * DAY_MS),
 				rebookReminderStage: 2,
-				lastRebookReminderAt: new Date(Date.now() - 5 * DAY_MS)
+				lastRebookReminderAt: new Date(Date.now() - 40 * DAY_MS)
 			})
 			.where(eq(client.id, c.id));
 
 		await sendRebookReminders();
-		let row = await getClient(c.id);
-		const unchangedReminderAt = row.lastRebookReminderAt;
-		expect(row.rebookReminderStage).toBe(2);
 
-		await db
-			.update(client)
-			.set({ lastRebookReminderAt: new Date(Date.now() - 15 * DAY_MS) })
-			.where(eq(client.id, c.id));
-
-		await sendRebookReminders();
-		row = await getClient(c.id);
-		expect(row.lastRebookReminderAt).not.toEqual(unchangedReminderAt);
+		const row = await getClient(c.id);
+		expect(row.rebookReminderStage).toBe(1);
 	});
 });
 
@@ -177,12 +205,12 @@ describe('createAppointmentForTherapist — client.lastSessionAt', () => {
 	});
 });
 
-// A client whose last session was 5 days ago would get the stage-1 nudge. Each test books
+// A client whose last session was 15 days ago would get the stage-1 nudge. Each test books
 // them through a path other than createAppointmentForTherapist and checks the nudge is skipped.
 describe('sendRebookReminders skips clients who booked their next session', () => {
 	async function quietClient(therapistId: string) {
 		const c = await mkClient(therapistId, { email: 'client@example.com' });
-		await setLastSessionAt(c.id, new Date(Date.now() - 5 * DAY_MS));
+		await setLastSessionAt(c.id, new Date(Date.now() - 15 * DAY_MS));
 		return c;
 	}
 
@@ -210,7 +238,7 @@ describe('sendRebookReminders skips clients who booked their next session', () =
 		const from = dateAhead(3);
 		const to = dateAhead(5);
 		await mkSlot(t.id, { weekday: to.weekday });
-		// written straight to the table, so lastSessionAt is still 5 days ago
+		// written straight to the table, so lastSessionAt is still 15 days ago
 		const old = await mkAppointment(t.id, c.id, { startAt: from.at(10), endAt: from.at(11) });
 
 		const moved = await rescheduleAppointmentForClient(t.id, c.id, old.id, {
@@ -264,7 +292,12 @@ describe('sendPaymentReminders with packs', () => {
 	it('stops reminding once the therapist cancels an unpaid pack', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: 'client@example.com' });
-		const { pack } = await createPack(t.id, { clientId: c.id, sessionCount: 3, amount: 3000, paid: false });
+		const { pack } = await createPack(t.id, {
+			clientId: c.id,
+			sessionCount: 3,
+			amount: 3000,
+			paid: false
+		});
 		await cancelPack(t.id, pack!.id);
 
 		await sendPaymentReminders();
@@ -286,7 +319,7 @@ describe('sendRebookReminders setting gate', () => {
 		const t = await mkTherapist();
 		await mkSettings(t.id, { sendRebookReminderEmails: false });
 		const c = await mkClient(t.id, { email: 'client@example.com' });
-		await setLastSessionAt(c.id, new Date(Date.now() - 5 * DAY_MS));
+		await setLastSessionAt(c.id, new Date(Date.now() - 15 * DAY_MS));
 
 		await sendRebookReminders();
 
@@ -296,7 +329,7 @@ describe('sendRebookReminders setting gate', () => {
 	it('skips a client with no email even when reminders are on', async () => {
 		const t = await mkTherapist();
 		const c = await mkClient(t.id, { email: null });
-		await setLastSessionAt(c.id, new Date(Date.now() - 5 * DAY_MS));
+		await setLastSessionAt(c.id, new Date(Date.now() - 15 * DAY_MS));
 
 		await sendRebookReminders();
 

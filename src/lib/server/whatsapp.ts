@@ -29,37 +29,58 @@ export function isWhatsAppConfigured(): boolean {
 	return true;
 }
 
+// A list fills a template's positional {{1}}, {{2}}...; an object fills its named
+// {{therapist_name}}-style params. Which one depends on how the template was created.
+export type TemplateParams = string[] | Record<string, string>;
+
+export type TemplateValues = {
+	header?: TemplateParams;
+	body?: TemplateParams;
+	// fills the first button: the trailing {{1}} of a URL button, or the code on an
+	// Authentication template's copy-code button
+	button?: string;
+};
+
+function toParameters(params: TemplateParams): Record<string, string>[] {
+	const parameters: Record<string, string>[] = [];
+	if (Array.isArray(params)) {
+		for (const value of params) {
+			parameters.push({ type: 'text', text: value });
+		}
+	} else {
+		for (const [name, value] of Object.entries(params)) {
+			parameters.push({ type: 'text', parameter_name: name, text: value });
+		}
+	}
+	return parameters;
+}
+
 // Sends an approved template. phone is E.164 as parsePhone returns it; Meta wants
 // bare digits. language must match the template's exactly as WhatsApp Manager shows
-// it (lumno_otp is en_US, the reminders are en). buttonParam fills the first button:
-// the trailing {{1}} of a URL button, or the code on an Authentication template's
-// copy-code button.
+// it (lumno_otp is en_US, the reminders are en).
 export async function sendWhatsAppTemplate(
 	phone: string,
 	templateName: string,
 	language: string,
-	bodyParams: string[],
-	buttonParam?: string
+	values: TemplateValues
 ): Promise<void> {
 	if (!isWhatsAppConfigured()) {
 		throw new Error('WhatsApp is not configured');
 	}
 
-	const bodyParameters: { type: 'text'; text: string }[] = [];
-	for (const value of bodyParams) {
-		bodyParameters.push({ type: 'text', text: value });
-	}
-
 	const components: Record<string, unknown>[] = [];
-	if (bodyParameters.length > 0) {
-		components.push({ type: 'body', parameters: bodyParameters });
+	if (values.header !== undefined) {
+		components.push({ type: 'header', parameters: toParameters(values.header) });
 	}
-	if (buttonParam !== undefined) {
+	if (values.body !== undefined) {
+		components.push({ type: 'body', parameters: toParameters(values.body) });
+	}
+	if (values.button !== undefined) {
 		components.push({
 			type: 'button',
 			sub_type: 'url',
 			index: '0',
-			parameters: [{ type: 'text', text: buttonParam }]
+			parameters: [{ type: 'text', text: values.button }]
 		});
 	}
 

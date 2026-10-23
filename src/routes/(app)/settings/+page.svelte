@@ -230,10 +230,22 @@
 
 	// the message from fail() when it belongs to this field, otherwise nothing
 	function errorFor(field: string): string {
-		if (form?.field === field) {
+		// only some actions' fail() carries a field, so check it's there first
+		if (form && 'field' in form && form.field === field && form.message) {
 			return form.message;
 		}
 		return '';
+	}
+
+	// a fail() message that isn't tied to one field
+	function hasGeneralError(): boolean {
+		if (!form?.message) {
+			return false;
+		}
+		if ('field' in form && form.field) {
+			return false;
+		}
+		return true;
 	}
 
 	// after a failed save, bring the first red error into view
@@ -279,8 +291,8 @@
 	</div>
 
 	<!-- errors tied to a field show under that field instead -->
-	{#if form?.message && !form.field}
-		<div class="form-error">{form.message}</div>
+	{#if hasGeneralError()}
+		<div class="form-error">{form?.message}</div>
 	{/if}
 	{#if data.calendarError}
 		<div class="form-error">{data.calendarError}</div>
@@ -353,7 +365,8 @@
 					placeholder="Add a specialty and press enter"
 					bind:value={newTag}
 					onkeydown={addTagOnEnter}
-				/>			</div>
+				/>
+			</div>
 			<Textarea
 				label="Bio"
 				name="bio"
@@ -459,7 +472,7 @@
 			/>
 			<Switch
 				label="Email clients who haven't booked a follow-up session"
-				info="A nudge 4 days after their last session, another at 11 days, then every 2 weeks until they book again."
+				info="A nudge 2 weeks after their last session and one more at 4 weeks, then nothing until they book again."
 				bind:checked={sendRebookReminderEmails}
 			/>
 		</div>
@@ -509,7 +522,9 @@
 					<option value="2">2 sessions</option>
 					<option value="3">3 sessions</option>
 				</select>
-				{#if errorFor('maxUpcomingBookingsPerClient')}<span class="field-error">{errorFor('maxUpcomingBookingsPerClient')}</span>{/if}
+				{#if errorFor('maxUpcomingBookingsPerClient')}<span class="field-error"
+						>{errorFor('maxUpcomingBookingsPerClient')}</span
+					>{/if}
 			</label>
 			<label class="field">
 				<span class="field-label">
@@ -518,16 +533,14 @@
 						text="How far ahead of a slot's start time a client must book it. With 4 hours, a client can't book an 8pm slot after 4pm the same day."
 					/>
 				</span>
-				<select
-					class="field-input"
-					name="minBookingNoticeHours"
-					bind:value={minBookingNoticeHours}
-				>
+				<select class="field-input" name="minBookingNoticeHours" bind:value={minBookingNoticeHours}>
 					{#each data.minNoticeOptions as o (o.hours)}
 						<option value={o.hours}>{o.label}</option>
 					{/each}
 				</select>
-				{#if errorFor('minBookingNoticeHours')}<span class="field-error">{errorFor('minBookingNoticeHours')}</span>{/if}
+				{#if errorFor('minBookingNoticeHours')}<span class="field-error"
+						>{errorFor('minBookingNoticeHours')}</span
+					>{/if}
 			</label>
 			<label class="field">
 				<span class="field-label">
@@ -541,7 +554,9 @@
 						<option value={choice.days}>{choice.label}</option>
 					{/each}
 				</select>
-				{#if errorFor('bookingWindowDays')}<span class="field-error">{errorFor('bookingWindowDays')}</span>{/if}
+				{#if errorFor('bookingWindowDays')}<span class="field-error"
+						>{errorFor('bookingWindowDays')}</span
+					>{/if}
 			</label>
 		</div>
 	</Card>
@@ -589,10 +604,14 @@
 						<span>Razorpay connected · renews automatically</span>
 					{:else if rzp.health === 'expiring'}
 						<span>Reconnect Razorpay to keep portal payments working</span>
-						<Button href="/settings/payments/connect" variant="secondary" size="sm">Reconnect</Button>
+						<Button href="/settings/payments/connect" variant="secondary" size="sm"
+							>Reconnect</Button
+						>
 					{:else}
 						<span>Portal payments are paused — reconnect Razorpay to resume</span>
-						<Button href="/settings/payments/connect" variant="secondary" size="sm">Reconnect</Button>
+						<Button href="/settings/payments/connect" variant="secondary" size="sm"
+							>Reconnect</Button
+						>
 					{/if}
 					{#if !confirmDisconnect && (rzp.health === 'connected' || rzp.health === 'expiring')}
 						<Button variant="secondary" size="sm" onclick={() => (confirmDisconnect = true)}>
@@ -651,7 +670,9 @@
 						<option value={o.hours}>{o.label}</option>
 					{/each}
 				</select>
-				{#if errorFor('freeChangeWindowHours')}<span class="field-error">{errorFor('freeChangeWindowHours')}</span>{/if}
+				{#if errorFor('freeChangeWindowHours')}<span class="field-error"
+						>{errorFor('freeChangeWindowHours')}</span
+					>{/if}
 			</label>
 			<label class="field">
 				<span class="field-label">
@@ -670,7 +691,9 @@
 						<option value={o.hours}>{o.label}</option>
 					{/each}
 				</select>
-				{#if errorFor('partialChangeWindowHours')}<span class="field-error">{errorFor('partialChangeWindowHours')}</span>{/if}
+				{#if errorFor('partialChangeWindowHours')}<span class="field-error"
+						>{errorFor('partialChangeWindowHours')}</span
+					>{/if}
 			</label>
 
 			<Switch
@@ -695,7 +718,9 @@
 							<option value={o.hours}>{o.label}</option>
 						{/each}
 					</select>
-				{#if errorFor('rescheduleFreeChangeWindowHours')}<span class="field-error">{errorFor('rescheduleFreeChangeWindowHours')}</span>{/if}
+					{#if errorFor('rescheduleFreeChangeWindowHours')}<span class="field-error"
+							>{errorFor('rescheduleFreeChangeWindowHours')}</span
+						>{/if}
 				</label>
 				<label class="field">
 					<span class="field-label">
@@ -714,7 +739,9 @@
 							<option value={o.hours}>{o.label}</option>
 						{/each}
 					</select>
-				{#if errorFor('reschedulePartialChangeWindowHours')}<span class="field-error">{errorFor('reschedulePartialChangeWindowHours')}</span>{/if}
+					{#if errorFor('reschedulePartialChangeWindowHours')}<span class="field-error"
+							>{errorFor('reschedulePartialChangeWindowHours')}</span
+						>{/if}
 				</label>
 			{/if}
 
@@ -797,19 +824,19 @@
 						{/if}
 					</div>
 				</div>
-					{#if data.billing.referralCreditOwed}
-						<div class="referral-credit-note">
-							You referred a practitioner who's paid their first month — this month's charge will be
-							refunded (referral).
-						</div>
-					{:else if data.billing.plan !== 0 && data.billing.status === 'active'}
-						<div class="referral-credit-note">
-							Refer a colleague for a free month: share your email ({data.user.email}) and have
-							them enter it as "Referred by" when they buy their first-ever plan. You'll get a free
-							month once their first payment goes through, and they get their first month free.
-							One referral per account, lifetime.
-						</div>
-					{/if}
+				{#if data.billing.referralCreditOwed}
+					<div class="referral-credit-note">
+						You referred a practitioner who's paid their first month — this month's charge will be
+						refunded (referral).
+					</div>
+				{:else if data.billing.plan !== 0 && data.billing.status === 'active'}
+					<div class="referral-credit-note">
+						Refer a colleague for a free month: share your email ({data.user.email}) and have them
+						enter it as "Referred by" when they buy their first-ever plan. You'll get a free month
+						once their first payment goes through, and they get their first month free. One referral
+						per account, lifetime.
+					</div>
+				{/if}
 			</div>
 		</div>
 	</Card>

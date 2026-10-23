@@ -81,7 +81,10 @@ describe('cancelAppointment', () => {
 	});
 
 	it('clears the Meet link and deletes its Google event', async () => {
-		const a = await appt(hoursFromNow(48), { meetLink: 'https://meet.google.com/abc', googleEventId: 'evt-1' });
+		const a = await appt(hoursFromNow(48), {
+			meetLink: 'https://meet.google.com/abc',
+			googleEventId: 'evt-1'
+		});
 		await cancelAppointment(therapistId, a.id);
 
 		const [row] = await db.select().from(appointment).where(eq(appointment.id, a.id));
@@ -107,7 +110,9 @@ describe('cancelAppointment', () => {
 		const fees = await feeRows(a.id);
 		expect(fees).toHaveLength(1);
 		expect(fees[0]).toMatchObject({ amount: 1000, status: 'unpaid' });
-		expect(fees[0].note).toMatch(/^Late cancellation fee \(100%\) · .+ session · cancelled .+ by client$/);
+		expect(fees[0].note).toMatch(
+			/^Late cancellation fee \(100%\) · .+ session · cancelled .+ by client$/
+		);
 	});
 
 	it('partial tier (between 8h and 24h): a client cancelling is charged a 50% fee', async () => {
@@ -140,8 +145,12 @@ describe('cancelAppointment', () => {
 		const late = await appt(hoursFromNow(2));
 		const partial = await appt(hoursFromNow(12));
 
-		expect(await cancelAppointment(therapistId, late.id)).toEqual({ outcome: { tier: 'free', feeAmount: 0 } });
-		expect(await cancelAppointment(therapistId, partial.id)).toEqual({ outcome: { tier: 'free', feeAmount: 0 } });
+		expect(await cancelAppointment(therapistId, late.id)).toEqual({
+			outcome: { tier: 'free', feeAmount: 0 }
+		});
+		expect(await cancelAppointment(therapistId, partial.id)).toEqual({
+			outcome: { tier: 'free', feeAmount: 0 }
+		});
 		expect(await feeRows(late.id)).toHaveLength(0);
 		expect(await feeRows(partial.id)).toHaveLength(0);
 	});
@@ -212,7 +221,9 @@ describe('cancelAppointment', () => {
 			const [row] = await db.select().from(appointment).where(eq(appointment.id, a.id));
 			expect(row.status).toBe('cancelled');
 			expect((await feeRows(a.id))[0]).toMatchObject({ amount: 1000 });
-			expect((await feeRows(a.id))[0].note).toMatch(/Late cancellation fee \(100%\) .* by therapist$/);
+			expect((await feeRows(a.id))[0].note).toMatch(
+				/Late cancellation fee \(100%\) .* by therapist$/
+			);
 		});
 
 		it('manual free tier: cancels with no fee and returns the pack credit', async () => {
@@ -237,7 +248,10 @@ describe('markPastAppointmentsCompleted', () => {
 
 		await markPastAppointmentsCompleted(therapistId);
 
-		const rows = await db.select().from(appointment).where(eq(appointment.therapistId, therapistId));
+		const rows = await db
+			.select()
+			.from(appointment)
+			.where(eq(appointment.therapistId, therapistId));
 		const byId = Object.fromEntries(rows.map((r) => [r.id, r.status]));
 		expect(byId[past.id]).toBe('completed');
 		expect(byId[future.id]).toBe('confirmed');
@@ -267,7 +281,9 @@ describe('rescheduleAppointmentForTherapist', () => {
 
 	it('not_found for a completed appointment', async () => {
 		const a = await appt(hoursFromNow(-48), { status: 'completed' });
-		expect(await rescheduleAppointmentForTherapist(therapistId, a.id, inputAt(hoursFromNow(72)))).toEqual({
+		expect(
+			await rescheduleAppointmentForTherapist(therapistId, a.id, inputAt(hoursFromNow(72)))
+		).toEqual({
 			error: 'not_found'
 		});
 	});
@@ -291,7 +307,12 @@ describe('rescheduleAppointmentForTherapist', () => {
 	it('moves financial links (payment rows + pack) onto the new appointment', async () => {
 		const pack = await mkPack(therapistId, clientId);
 		const old = await appt(hoursFromNow(72), { packId: pack.id });
-		await addCharge(therapistId, { clientId, appointmentId: old.id, amount: 1000, note: 'session' });
+		await addCharge(therapistId, {
+			clientId,
+			appointmentId: old.id,
+			amount: 1000,
+			note: 'session'
+		});
 
 		const res = await rescheduleAppointmentForTherapist(
 			therapistId,
@@ -300,10 +321,7 @@ describe('rescheduleAppointmentForTherapist', () => {
 		);
 		if (!('appointment' in res)) throw new Error('expected success');
 
-		const [sessionCharge] = await db
-			.select()
-			.from(payment)
-			.where(eq(payment.note, 'session'));
+		const [sessionCharge] = await db.select().from(payment).where(eq(payment.note, 'session'));
 		expect(sessionCharge.appointmentId).toBe(res.appointment.id);
 
 		const [oldRow] = await db.select().from(appointment).where(eq(appointment.id, old.id));
@@ -312,7 +330,10 @@ describe('rescheduleAppointmentForTherapist', () => {
 	});
 
 	it('moves the Meet link onto the new appointment and patches the Google event time', async () => {
-		const old = await appt(hoursFromNow(72), { meetLink: 'https://meet.google.com/abc', googleEventId: 'evt-1' });
+		const old = await appt(hoursFromNow(72), {
+			meetLink: 'https://meet.google.com/abc',
+			googleEventId: 'evt-1'
+		});
 		const newStart = new Date(Date.UTC(2026, 11, 6, 9, 0, 0));
 		const res = await rescheduleAppointmentForTherapist(therapistId, old.id, inputAt(newStart));
 		if (!('appointment' in res)) throw new Error('expected success');
@@ -355,7 +376,11 @@ describe('rescheduleAppointmentForTherapist', () => {
 	it('a late reschedule by the client charges the fee against the new appointment', async () => {
 		// one open slot, 10 days out
 		const newDay = new Date(Date.now() + 10 * 86_400_000);
-		await mkSlot(therapistId, { weekday: newDay.getUTCDay(), startTime: '09:00', endTime: '10:00' });
+		await mkSlot(therapistId, {
+			weekday: newDay.getUTCDay(),
+			startTime: '09:00',
+			endTime: '10:00'
+		});
 		const old = await appt(hoursFromNow(2));
 
 		const res = await rescheduleAppointmentForClient(therapistId, clientId, old.id, {
@@ -385,7 +410,6 @@ describe('rescheduleAppointmentForTherapist', () => {
 		const all = await db.select().from(appointment).where(eq(appointment.therapistId, therapistId));
 		expect(all).toHaveLength(2);
 	});
-
 });
 
 describe('parseDateParts', () => {
@@ -458,16 +482,17 @@ describe('balance after a client cancels or reschedules', () => {
 		const partial = await bookedSession(hoursFromNow(12));
 		const full = await bookedSession(hoursFromNow(2));
 		const untouched = await bookedSession(hoursFromNow(96));
-		expect(await owed()).toBe(4000);
-
-		await cancelAppointment(therapistId, free.id, clientId);
+		// the 96h session's charge isn't counted until 2 days before it
 		expect(await owed()).toBe(3000);
 
+		await cancelAppointment(therapistId, free.id, clientId);
+		expect(await owed()).toBe(2000);
+
 		await cancelAppointment(therapistId, partial.id, clientId);
-		expect(await owed()).toBe(2500);
+		expect(await owed()).toBe(1500);
 
 		await cancelAppointment(therapistId, full.id, clientId);
-		expect(await owed()).toBe(2500);
+		expect(await owed()).toBe(1500);
 
 		expect((await feeRows(untouched.id))[0].amount).toBe(1000);
 	});
@@ -485,12 +510,13 @@ describe('balance after a client cancels or reschedules', () => {
 		const full = await bookedSession(hoursFromNow(2));
 		expect(await owed()).toBe(3000);
 
-		const moves: Array<[string, Date, number]> = [
-			[free.id, days[0], 3000],
-			[partial.id, days[1], 3500],
-			[full.id, days[2], 4500]
+		// the session charge moves to the new appointment and the fee is added there too
+		const moves: Array<[string, Date, number[]]> = [
+			[free.id, days[0], [1000]],
+			[partial.id, days[1], [500, 1000]],
+			[full.id, days[2], [1000, 1000]]
 		];
-		for (const [id, day, expected] of moves) {
+		for (const [id, day, expectedAmounts] of moves) {
 			const res = await rescheduleAppointmentForClient(therapistId, clientId, id, {
 				year: day.getUTCFullYear(),
 				month: day.getUTCMonth(),
@@ -498,7 +524,14 @@ describe('balance after a client cancels or reschedules', () => {
 				startTime: '09:00'
 			});
 			if (!('appointment' in res)) throw new Error(`expected success, got ${JSON.stringify(res)}`);
-			expect(await owed()).toBe(expected);
+			const amounts: number[] = [];
+			for (const row of await feeRows(res.appointment.id)) {
+				amounts.push(row.amount);
+			}
+			amounts.sort((a, b) => a - b);
+			expect(amounts).toEqual(expectedAmounts);
 		}
+		// every session now sits 10+ days out, so nothing is counted as owed yet
+		expect(await owed()).toBe(0);
 	});
 });

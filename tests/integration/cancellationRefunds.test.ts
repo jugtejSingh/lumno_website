@@ -196,8 +196,8 @@ describe('fees on an unpaid session', () => {
 		expect(await getBalanceDueForClient(clientId)).toBe(1000);
 	});
 
-	it('an upcoming session that is not cancelled stays hidden from the client until it happens', async () => {
-		await bookSession(IN_50_PERCENT_WINDOW);
+	it('an upcoming session more than 2 days away stays hidden from the client', async () => {
+		await bookSession(96);
 
 		expect((await listVisiblePaymentsForClient(clientId, 1, 10)).total).toBe(0);
 		expect(await getBalanceDueForClient(clientId)).toBe(0);

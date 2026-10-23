@@ -14,6 +14,7 @@ vi.mock('$lib/server/auth', () => ({
 const { db } = await import('$lib/server/db');
 const { client } = await import('$lib/server/db/schema');
 const { load, actions } = await import('../../src/routes/invite/[token]/+page.server');
+const { getPendingPhone } = await import('$lib/server/phoneVerification');
 const { resetDb, mkTherapist, mkClient, mkUser, mkEvent } = await import('./helpers');
 
 const TOKEN = 'invite-token-123';
@@ -29,9 +30,18 @@ const validProfile = {
 	country: 'IN'
 };
 
-function post(action: keyof typeof actions, fields: Record<string, string>, locals: Record<string, unknown> = {}) {
+function post(
+	action: keyof typeof actions,
+	fields: Record<string, string>,
+	locals: Record<string, unknown> = {}
+) {
 	return actions[action](
-		mkEvent({ locals, fields, params: { token: TOKEN }, url: `http://localhost/invite/${TOKEN}` }) as never
+		mkEvent({
+			locals,
+			fields,
+			params: { token: TOKEN },
+			url: `http://localhost/invite/${TOKEN}`
+		}) as never
 	);
 }
 
@@ -68,13 +78,17 @@ beforeEach(async () => {
 
 describe('invite load', () => {
 	it('asks for the profile until the client row has one', async () => {
-		const before = (await load(mkEvent({ params: { token: TOKEN }, url: `http://localhost/invite/${TOKEN}` }) as never)) as {
+		const before = (await load(
+			mkEvent({ params: { token: TOKEN }, url: `http://localhost/invite/${TOKEN}` }) as never
+		)) as {
 			needsProfile: boolean;
 		};
 		expect(before.needsProfile).toBe(true);
 
 		await db.update(client).set(validProfile).where(eq(client.id, clientId));
-		const after = (await load(mkEvent({ params: { token: TOKEN }, url: `http://localhost/invite/${TOKEN}` }) as never)) as {
+		const after = (await load(
+			mkEvent({ params: { token: TOKEN }, url: `http://localhost/invite/${TOKEN}` }) as never
+		)) as {
 			needsProfile: boolean;
 		};
 		expect(after.needsProfile).toBe(false);
@@ -83,21 +97,32 @@ describe('invite load', () => {
 
 describe('password action', () => {
 	it('rejects a bad profile before any account is created or signed in', async () => {
-		const result = await post('password', { password: 'hunter22hunter', ...validProfile, dateOfBirth: '' });
+		const result = await post('password', {
+			password: 'hunter22hunter',
+			...validProfile,
+			dateOfBirth: ''
+		});
 		expect(isActionFailure(result)).toBe(true);
-		expect((result as { data: unknown }).data).toEqual({ message: 'Enter your date of birth.' });
+		expect((result as { data: unknown }).data).toEqual({
+			message: 'Enter your date of birth.',
+			field: 'dateOfBirth'
+		});
 		expect(signUpEmail).not.toHaveBeenCalled();
 		expect(signInEmail).not.toHaveBeenCalled();
 		expect((await clientRow()).userId).toBeNull();
 	});
 
 	it('rejects a bad phone before any account is created', async () => {
-		const result = await post('password', { password: 'hunter22hunter', ...validProfile, phone: 'not-a-phone' });
+		const result = await post('password', {
+			password: 'hunter22hunter',
+			...validProfile,
+			phone: 'not-a-phone'
+		});
 		expect(isActionFailure(result)).toBe(true);
 		expect(signUpEmail).not.toHaveBeenCalled();
 	});
 
-	it('signs up, links the client, saves the profile and phone, and goes to the portal', async () => {
+	it('signs up, links the client, saves the profile and pending phone, and goes to the portal', async () => {
 		// no user with the invited email yet, so the action signs up; the mock creates the row
 		let createdId = '';
 		signUpEmail.mockImplementation(async () => {
@@ -115,23 +140,32 @@ describe('password action', () => {
 		const row = await clientRow();
 		expect(row.userId).toBe(createdId);
 		expect(row.inviteToken).toBeNull();
-		expect(row).toMatchObject({ ...validProfile, phone: '+919876543210' });
+		// the number waits for verification; client.phone only ever holds a verified one
+		expect(row).toMatchObject({ ...validProfile, phone: null });
+		expect(await getPendingPhone(clientId)).toBe('+919876543210');
 	});
 
 	it('signs an existing user in instead of signing up', async () => {
 		const existing = await mkUser({ email: INVITE_EMAIL });
 		signInEmail.mockResolvedValue({ user: { id: existing.id } });
 
-		expect(await redirectTarget(post('password', { password: 'hunter22hunter', ...validProfile }))).toBe('/portal');
+		expect(
+			await redirectTarget(post('password', { password: 'hunter22hunter', ...validProfile }))
+		).toBe('/portal');
 		expect(signInEmail).toHaveBeenCalledOnce();
 		expect(signUpEmail).not.toHaveBeenCalled();
 		expect((await clientRow()).userId).toBe(existing.id);
 	});
 
 	it('refuses an expired invite', async () => {
-		await db.update(client).set({ inviteExpiresAt: new Date(Date.now() - 1000) }).where(eq(client.id, clientId));
+		await db
+			.update(client)
+			.set({ inviteExpiresAt: new Date(Date.now() - 1000) })
+			.where(eq(client.id, clientId));
 		const result = await post('password', { password: 'hunter22hunter', ...validProfile });
-		expect((result as { data: unknown }).data).toEqual({ message: 'This invite is no longer valid.' });
+		expect((result as { data: unknown }).data).toEqual({
+			message: 'This invite is no longer valid.'
+		});
 		expect(signUpEmail).not.toHaveBeenCalled();
 	});
 });
@@ -185,7 +219,9 @@ describe('acceptAsSelf', () => {
 
 	it('saves the profile and links when collected here', async () => {
 		const invited = await mkUser({ email: INVITE_EMAIL });
-		expect(await redirectTarget(post('acceptAsSelf', validProfile, { user: invited }))).toBe('/portal');
+		expect(await redirectTarget(post('acceptAsSelf', validProfile, { user: invited }))).toBe(
+			'/portal'
+		);
 		expect(await clientRow()).toMatchObject({ ...validProfile, userId: invited.id });
 	});
 });

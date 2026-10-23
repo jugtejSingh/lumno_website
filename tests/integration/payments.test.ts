@@ -80,19 +80,32 @@ describe('charges and balance', () => {
 	it('getMonthlyPaymentSummary buckets by created month', async () => {
 		await addCharge(therapistId, { clientId, amount: 1000 });
 		const now = new Date();
-		const summary = await getMonthlyPaymentSummary(therapistId, now.getUTCFullYear(), now.getUTCMonth());
+		const summary = await getMonthlyPaymentSummary(
+			therapistId,
+			now.getUTCFullYear(),
+			now.getUTCMonth()
+		);
 		expect(summary).toEqual({ paid: 0, unpaid: 1000, total: 1000 });
 	});
 });
 
 describe('client-visible payments', () => {
-	it('hides an unpaid charge for a session that has not happened yet', async () => {
+	it('hides an unpaid charge for a session more than 2 days away', async () => {
 		const future = await mkAppointment(therapistId, clientId, {
-			startAt: new Date(Date.now() + 86_400_000),
-			endAt: new Date(Date.now() + 86_400_000 + 3_600_000)
+			startAt: new Date(Date.now() + 3 * 86_400_000),
+			endAt: new Date(Date.now() + 3 * 86_400_000 + 3_600_000)
 		});
 		await addCharge(therapistId, { clientId, appointmentId: future.id, amount: 1000 });
 		expect((await listVisiblePaymentsForClient(clientId, 1, 5)).rows).toHaveLength(0);
+	});
+
+	it('shows an unpaid charge from 2 days before the session', async () => {
+		const soon = await mkAppointment(therapistId, clientId, {
+			startAt: new Date(Date.now() + 86_400_000),
+			endAt: new Date(Date.now() + 86_400_000 + 3_600_000)
+		});
+		await addCharge(therapistId, { clientId, appointmentId: soon.id, amount: 1000 });
+		expect((await listVisiblePaymentsForClient(clientId, 1, 5)).rows).toHaveLength(1);
 	});
 
 	it('shows an unpaid charge once the session is over', async () => {
@@ -127,7 +140,12 @@ describe('client-visible payments', () => {
 
 describe('packs', () => {
 	it('createPack is usable straight away, even unpaid, and counts as owed until its price is paid', async () => {
-		const result = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const result = await createPack(therapistId, {
+			clientId,
+			sessionCount: 4,
+			amount: 4000,
+			paid: false
+		});
 		const pack = result.pack!;
 		expect(pack.status).toBe('active');
 		expect(await getActivePackForClient(clientId)).toMatchObject({ id: pack.id, remaining: 4 });
@@ -139,7 +157,12 @@ describe('packs', () => {
 	});
 
 	it('createPack writes one purchase row carrying the price, not tied to any session', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 4,
+			amount: 4000,
+			paid: false
+		});
 
 		const rows = await purchaseRows(pack!.id);
 		expect(rows).toHaveLength(1);
@@ -155,7 +178,12 @@ describe('packs', () => {
 	});
 
 	it('a pack created as paid has a paid purchase row and is not owed', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 1,
+			amount: 1000,
+			paid: true
+		});
 
 		const [purchase] = await purchaseRows(pack!.id);
 		expect(purchase.status).toBe('paid');
@@ -165,14 +193,24 @@ describe('packs', () => {
 	});
 
 	it('remaining decreases as appointments are booked against the pack', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 2,
+			amount: 2000,
+			paid: true
+		});
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 
 		expect((await getActivePackForClient(clientId))!.remaining).toBe(1);
 	});
 
 	it('completePackIfExhausted flips the pack to completed at zero remaining', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 1,
+			amount: 1000,
+			paid: true
+		});
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 
 		await completePackIfExhausted(pack!.id);
@@ -180,7 +218,12 @@ describe('packs', () => {
 	});
 
 	it('paying for a completed pack leaves it completed', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: false });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 1,
+			amount: 1000,
+			paid: false
+		});
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 		await completePackIfExhausted(pack!.id);
 
@@ -192,13 +235,23 @@ describe('packs', () => {
 
 	it('createPack refuses a second pack while the first still has credit', async () => {
 		await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
-		const second = await createPack(therapistId, { clientId, sessionCount: 2, amount: 2000, paid: true });
+		const second = await createPack(therapistId, {
+			clientId,
+			sessionCount: 2,
+			amount: 2000,
+			paid: true
+		});
 
 		expect(second).toMatchObject({ error: 'client_has_active_pack', remaining: 2 });
 	});
 
 	it('updatePack cannot set sessionCount below what is already consumed', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 3, amount: 3000, paid: true });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 3,
+			amount: 3000,
+			paid: true
+		});
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 		await mkAppointment(therapistId, clientId, {
 			packId: pack!.id,
@@ -239,11 +292,21 @@ describe('pack ownership and owed totals', () => {
 	});
 
 	it('allows a new pack once the previous one is used up', async () => {
-		const first = await createPack(therapistId, { clientId, sessionCount: 1, amount: 1000, paid: true });
+		const first = await createPack(therapistId, {
+			clientId,
+			sessionCount: 1,
+			amount: 1000,
+			paid: true
+		});
 		await mkAppointment(therapistId, clientId, { packId: first.pack!.id });
 		await completePackIfExhausted(first.pack!.id);
 
-		const second = await createPack(therapistId, { clientId, sessionCount: 5, amount: 4500, paid: true });
+		const second = await createPack(therapistId, {
+			clientId,
+			sessionCount: 5,
+			amount: 4500,
+			paid: true
+		});
 		expect(second.pack).toMatchObject({ status: 'active', sessionCount: 5 });
 	});
 
@@ -264,7 +327,12 @@ describe('pack ownership and owed totals', () => {
 	});
 
 	it('a used-up pack that was never paid for is still owed', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 1, amount: 900, paid: false });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 1,
+			amount: 900,
+			paid: false
+		});
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 		await completePackIfExhausted(pack!.id);
 
@@ -273,7 +341,12 @@ describe('pack ownership and owed totals', () => {
 	});
 
 	it('a cancelled unpaid pack is not owed: its unpaid purchase row goes with it', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 4,
+			amount: 4000,
+			paid: false
+		});
 		await cancelPack(therapistId, pack!.id);
 
 		expect(await purchaseRows(pack!.id)).toEqual([]);
@@ -283,7 +356,12 @@ describe('pack ownership and owed totals', () => {
 	});
 
 	it('cancelling a paid pack keeps its purchase row as the record of the payment', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: true });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 4,
+			amount: 4000,
+			paid: true
+		});
 		await cancelPack(therapistId, pack!.id);
 
 		const rows = await purchaseRows(pack!.id);
@@ -292,16 +370,29 @@ describe('pack ownership and owed totals', () => {
 	});
 
 	it('cancelling leaves an unpaid purchase row with a Razorpay order in flight', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 4,
+			amount: 4000,
+			paid: false
+		});
 		const [purchase] = await purchaseRows(pack!.id);
-		await db.update(payment).set({ razorpayOrderId: 'order_test_1' }).where(eq(payment.id, purchase.id));
+		await db
+			.update(payment)
+			.set({ razorpayOrderId: 'order_test_1' })
+			.where(eq(payment.id, purchase.id));
 
 		await cancelPack(therapistId, pack!.id);
 		expect(await purchaseRows(pack!.id)).toHaveLength(1);
 	});
 
 	it('cancelPack does nothing to another therapist’s pack', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 4,
+			amount: 4000,
+			paid: false
+		});
 		const other = await mkTherapist();
 
 		await cancelPack(other.id, pack!.id);
@@ -319,7 +410,12 @@ describe('pack ownership and owed totals', () => {
 	});
 
 	it('listPacksForTherapist reports remaining sessions per pack', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 3, amount: 3000, paid: true });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 3,
+			amount: 3000,
+			paid: true
+		});
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 
 		const packs = await listPacksForTherapist(therapistId);
@@ -336,7 +432,12 @@ describe('pack ownership and owed totals', () => {
 	it('listPacksForTherapist only lists this therapist’s packs', async () => {
 		const other = await mkTherapist();
 		const otherClient = await mkClient(other.id);
-		await createPack(other.id, { clientId: otherClient.id, sessionCount: 2, amount: 2000, paid: true });
+		await createPack(other.id, {
+			clientId: otherClient.id,
+			sessionCount: 2,
+			amount: 2000,
+			paid: true
+		});
 
 		expect(await listPacksForTherapist(therapistId)).toEqual([]);
 	});

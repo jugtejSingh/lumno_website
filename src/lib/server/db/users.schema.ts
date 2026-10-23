@@ -111,8 +111,8 @@ export const client = pgTable(
 		// upcoming session; in the past = how long since their last one. Drives the rebook
 		// reminder ladder below without a per-tick query over the appointment table.
 		lastSessionAt: timestamp('last_session_at', { withTimezone: true }),
-		// ladder position for the "come back and rebook" nag: 0 none, 1 sent the 4-day nudge,
-		// 2 sent the 11-day nudge (and repeats every 14d after, still at stage 2).
+		// ladder position for the "come back and rebook" nag: 0 none, 1 sent the 14-day nudge,
+		// 2 sent the 28-day nudge (the last one until they book again).
 		rebookReminderStage: integer('rebook_reminder_stage').notNull().default(0),
 		lastRebookReminderAt: timestamp('last_rebook_reminder_at', { withTimezone: true }),
 		createdAt: timestamp('created_at').defaultNow().notNull(),

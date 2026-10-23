@@ -168,7 +168,10 @@ export async function sendPhoneCode(clientId: string): Promise<SendCodeResult> {
 	try {
 		// lumno_otp's body is "OTP Code: {{1}}. This is your OTP code for {{2}}." and its
 		// copy-code button takes the code again
-		await sendWhatsAppTemplate(pending.phone, 'lumno_otp', 'en_US', [code, 'Lumno'], code);
+		await sendWhatsAppTemplate(pending.phone, 'lumno_otp', 'en_US', {
+			body: [code, 'Lumno'],
+			button: code
+		});
 	} catch (err) {
 		logError('phoneVerification.send', err, { clientId });
 		// Nobody received this code, so drop it; otherwise the cooldown would block an

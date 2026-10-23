@@ -5,12 +5,30 @@ import { db } from '$lib/server/db';
 import { appointment, client } from '$lib/server/db/schema';
 import type { WeeklyDay, DesignedSlot } from '$lib/server/availabilitySlots';
 import { load as layoutLoad } from '../../src/routes/(portal)/+layout.server';
-import { load as homeLoad, actions as homeActions } from '../../src/routes/(portal)/portal/+page.server';
-import { load as calendarLoad, actions as calendarActions } from '../../src/routes/(portal)/portal/calendar/+page.server';
-import { load as detailsLoad, actions as detailsActions } from '../../src/routes/(portal)/portal/details/+page.server';
+import {
+	load as homeLoad,
+	actions as homeActions
+} from '../../src/routes/(portal)/portal/+page.server';
+import {
+	load as calendarLoad,
+	actions as calendarActions
+} from '../../src/routes/(portal)/portal/calendar/+page.server';
+import {
+	load as detailsLoad,
+	actions as detailsActions
+} from '../../src/routes/(portal)/portal/details/+page.server';
 import { createPack } from '$lib/server/payments';
 import { setBookingNote } from '$lib/server/bookingNote';
-import { resetDb, mkTherapist, mkClient, mkUser, mkAppointment, mkPack, mkEvent, mkWeek } from './helpers';
+import {
+	resetDb,
+	mkTherapist,
+	mkClient,
+	mkUser,
+	mkAppointment,
+	mkPack,
+	mkEvent,
+	mkWeek
+} from './helpers';
 
 // The client portal: what the layout ships to the browser, and the client's own actions.
 
@@ -53,7 +71,11 @@ async function runRoute(load: (event: any) => unknown, path: string, query: stri
 	const locals = { user: clientUser, clientId };
 	const parentData = await runLayout(locals);
 	const data = await load(
-		mkEvent({ locals, url: `http://localhost${path}?${query}`, parent: async () => parentData }) as never
+		mkEvent({
+			locals,
+			url: `http://localhost${path}?${query}`,
+			parent: async () => parentData
+		}) as never
 	);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- load's return is void | PageData
 	return data as Record<string, any>;
@@ -72,24 +94,46 @@ function runDetails() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each route's actions have different keys
-function postTo(actions: Record<string, (event: any) => unknown>, action: string, fields: Record<string, string>, asClientId: string | null) {
-	return actions[action](mkEvent({ locals: { user: clientUser, clientId: asClientId }, fields }) as never);
+function postTo(
+	actions: Record<string, (event: any) => unknown>,
+	action: string,
+	fields: Record<string, string>,
+	asClientId: string | null
+) {
+	return actions[action](
+		mkEvent({ locals: { user: clientUser, clientId: asClientId }, fields }) as never
+	);
 }
 
-function postCalendar(action: string, fields: Record<string, string>, asClientId: string | null = clientId) {
+function postCalendar(
+	action: string,
+	fields: Record<string, string>,
+	asClientId: string | null = clientId
+) {
 	return postTo(calendarActions, action, fields, asClientId);
 }
 
-function postDetails(action: string, fields: Record<string, string>, asClientId: string | null = clientId) {
+function postDetails(
+	action: string,
+	fields: Record<string, string>,
+	asClientId: string | null = clientId
+) {
 	return postTo(detailsActions, action, fields, asClientId);
 }
 
-function postHome(action: string, fields: Record<string, string>, asClientId: string | null = clientId) {
+function postHome(
+	action: string,
+	fields: Record<string, string>,
+	asClientId: string | null = clientId
+) {
 	return postTo(homeActions, action, fields, asClientId);
 }
 
 async function statusOf(id: string) {
-	const [row] = await db.select({ status: appointment.status }).from(appointment).where(eq(appointment.id, id));
+	const [row] = await db
+		.select({ status: appointment.status })
+		.from(appointment)
+		.where(eq(appointment.id, id));
 	return row.status;
 }
 
@@ -138,9 +182,22 @@ describe('portal layout', () => {
 	});
 
 	it('ships exactly the allow-listed client fields — no notes, tags or rate', async () => {
-		const data = (await runLayout({ user: clientUser, clientId })) as { client: Record<string, unknown> };
+		const data = (await runLayout({ user: clientUser, clientId })) as {
+			client: Record<string, unknown>;
+		};
 		expect(Object.keys(data.client).sort()).toEqual(
-			['city', 'country', 'dateOfBirth', 'gender', 'id', 'name', 'phone', 'state', 'therapistId', 'timezone'].sort()
+			[
+				'city',
+				'country',
+				'dateOfBirth',
+				'gender',
+				'id',
+				'name',
+				'phone',
+				'state',
+				'therapistId',
+				'timezone'
+			].sort()
 		);
 		const serialized = JSON.stringify(data);
 		expect(serialized).not.toContain('therapist-only note');
@@ -167,7 +224,13 @@ describe('portal load', () => {
 
 	it('details passes the profile through blank', async () => {
 		const data = await runDetails();
-		expect(data.clientProfile).toEqual({ dateOfBirth: '', gender: '', city: '', state: '', country: '' });
+		expect(data.clientProfile).toEqual({
+			dateOfBirth: '',
+			gender: '',
+			city: '',
+			state: '',
+			country: ''
+		});
 	});
 
 	it('does not leak therapist-only fields in page data either', async () => {
@@ -186,7 +249,9 @@ describe('portal load', () => {
 			await everyDay(threeHourly, 2);
 			ownId = (await mkAppointment(therapistId, clientId, { startAt: at(9), endAt: at(10) })).id;
 			const otherClient = await mkClient(therapistId, { name: 'Other Client' });
-			otherId = (await mkAppointment(therapistId, otherClient.id, { startAt: at(11), endAt: at(12) })).id;
+			otherId = (
+				await mkAppointment(therapistId, otherClient.id, { startAt: at(11), endAt: at(12) })
+			).id;
 		});
 
 		it('without the param the day shows as full', async () => {
@@ -225,7 +290,10 @@ describe('saveProfile', () => {
 	it('returns the validation message and writes nothing on a bad profile', async () => {
 		const result = await postDetails('saveProfile', { ...validProfile, city: '' });
 		expect(isActionFailure(result)).toBe(true);
-		expect((result as { data: unknown }).data).toEqual({ profileMessage: 'Enter your city or town.' });
+		expect((result as { data: unknown }).data).toEqual({
+			profileMessage: 'Enter your city or town.',
+			profileField: 'city'
+		});
 		const [row] = await db.select().from(client).where(eq(client.id, clientId));
 		expect(row.gender).toBeNull();
 	});
@@ -249,16 +317,23 @@ describe('cancelSession', () => {
 
 	it('the calendar page cancels too — same shared action', async () => {
 		const own = await mkAppointment(therapistId, clientId, { startAt: at(9), endAt: at(10) });
-		expect(isActionFailure(await postCalendar('cancelSession', { appointmentId: own.id }))).toBe(false);
+		expect(isActionFailure(await postCalendar('cancelSession', { appointmentId: own.id }))).toBe(
+			false
+		);
 		expect(await statusOf(own.id)).toBe('cancelled');
 	});
 
 	it('cannot cancel another client’s session with the same therapist', async () => {
 		const otherClient = await mkClient(therapistId, { name: 'Other Client' });
-		const theirs = await mkAppointment(therapistId, otherClient.id, { startAt: at(9), endAt: at(10) });
+		const theirs = await mkAppointment(therapistId, otherClient.id, {
+			startAt: at(9),
+			endAt: at(10)
+		});
 		const result = await postHome('cancelSession', { appointmentId: theirs.id });
 		expect(isActionFailure(result)).toBe(true);
-		expect((result as { data: unknown }).data).toEqual({ message: 'That session could not be found' });
+		expect((result as { data: unknown }).data).toEqual({
+			message: 'That session could not be found'
+		});
 		expect(await statusOf(theirs.id)).toBe('confirmed');
 	});
 
@@ -276,7 +351,11 @@ describe('rescheduleSession', () => {
 	it('moves the client’s own session to an open slot', async () => {
 		await everyDay(threeHourly, null);
 		const own = await mkAppointment(therapistId, clientId, { startAt: at(9), endAt: at(10) });
-		const result = await postCalendar('rescheduleSession', { ...dateFields, appointmentId: own.id, startTime: '11:00' });
+		const result = await postCalendar('rescheduleSession', {
+			...dateFields,
+			appointmentId: own.id,
+			startTime: '11:00'
+		});
 		expect(isActionFailure(result)).toBe(false);
 		expect(await statusOf(own.id)).toBe('rescheduled');
 	});
@@ -284,31 +363,60 @@ describe('rescheduleSession', () => {
 	it('cannot move another client’s session', async () => {
 		await everyDay(threeHourly, null);
 		const otherClient = await mkClient(therapistId, { name: 'Other Client' });
-		const theirs = await mkAppointment(therapistId, otherClient.id, { startAt: at(9), endAt: at(10) });
-		const result = await postCalendar('rescheduleSession', { ...dateFields, appointmentId: theirs.id, startTime: '11:00' });
-		expect((result as { data: unknown }).data).toEqual({ message: 'That session could not be found' });
+		const theirs = await mkAppointment(therapistId, otherClient.id, {
+			startAt: at(9),
+			endAt: at(10)
+		});
+		const result = await postCalendar('rescheduleSession', {
+			...dateFields,
+			appointmentId: theirs.id,
+			startTime: '11:00'
+		});
+		expect((result as { data: unknown }).data).toEqual({
+			message: 'That session could not be found'
+		});
 		expect(await statusOf(theirs.id)).toBe('confirmed');
 	});
 
 	it('rejects a missing session id, date or time', async () => {
 		const own = await mkAppointment(therapistId, clientId, { startAt: at(9), endAt: at(10) });
 		expect(
-			((await postCalendar('rescheduleSession', { ...dateFields, startTime: '11:00' })) as { data: unknown }).data
+			(
+				(await postCalendar('rescheduleSession', { ...dateFields, startTime: '11:00' })) as {
+					data: unknown;
+				}
+			).data
 		).toEqual({ message: 'That session could not be found' });
 		expect(
-			((await postCalendar('rescheduleSession', { appointmentId: own.id, startTime: '11:00' })) as { data: unknown }).data
+			(
+				(await postCalendar('rescheduleSession', {
+					appointmentId: own.id,
+					startTime: '11:00'
+				})) as { data: unknown }
+			).data
 		).toEqual({ message: 'Pick a day and a time slot' });
 		expect(
-			((await postCalendar('rescheduleSession', { ...dateFields, appointmentId: own.id, startTime: '25:00' })) as { data: unknown })
-				.data
+			(
+				(await postCalendar('rescheduleSession', {
+					...dateFields,
+					appointmentId: own.id,
+					startTime: '25:00'
+				})) as { data: unknown }
+			).data
 		).toEqual({ message: 'Pick a day and a time slot' });
 	});
 
 	it('rejects a time that is not an open slot', async () => {
 		await everyDay(threeHourly, null);
 		const own = await mkAppointment(therapistId, clientId, { startAt: at(9), endAt: at(10) });
-		const result = await postCalendar('rescheduleSession', { ...dateFields, appointmentId: own.id, startTime: '15:00' });
-		expect((result as { data: unknown }).data).toEqual({ message: 'That time is no longer available' });
+		const result = await postCalendar('rescheduleSession', {
+			...dateFields,
+			appointmentId: own.id,
+			startTime: '15:00'
+		});
+		expect((result as { data: unknown }).data).toEqual({
+			message: 'That time is no longer available'
+		});
 		expect(await statusOf(own.id)).toBe('confirmed');
 	});
 });
@@ -322,7 +430,12 @@ describe('calendar load: packs and booking note', () => {
 	});
 
 	it('shows the sessions remaining on the active pack', async () => {
-		const { pack } = await createPack(therapistId, { clientId, sessionCount: 4, amount: 4000, paid: false });
+		const { pack } = await createPack(therapistId, {
+			clientId,
+			sessionCount: 4,
+			amount: 4000,
+			paid: false
+		});
 		await mkAppointment(therapistId, clientId, { packId: pack!.id });
 
 		const data = await runCalendar(`year=${y}&month=${m}`);
@@ -357,7 +470,12 @@ describe('calendar load: packs and booking note', () => {
 
 	it('does not show another client’s pack', async () => {
 		const other = await mkClient(therapistId, { name: 'Other Client' });
-		await createPack(therapistId, { clientId: other.id, sessionCount: 2, amount: 2000, paid: true });
+		await createPack(therapistId, {
+			clientId: other.id,
+			sessionCount: 2,
+			amount: 2000,
+			paid: true
+		});
 
 		expect((await runCalendar(`year=${y}&month=${m}`)).packRemaining).toBeNull();
 	});
@@ -365,6 +483,8 @@ describe('calendar load: packs and booking note', () => {
 	it('passes the therapist’s booking note through as plain text', async () => {
 		await setBookingNote(therapistId, 'Pay before the session.\n<b>not html</b>');
 
-		expect((await runCalendar(`year=${y}&month=${m}`)).bookingNote).toBe('Pay before the session.\n<b>not html</b>');
+		expect((await runCalendar(`year=${y}&month=${m}`)).bookingNote).toBe(
+			'Pay before the session.\n<b>not html</b>'
+		);
 	});
 });
