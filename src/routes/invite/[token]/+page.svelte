@@ -25,7 +25,13 @@
 		country: ''
 	});
 
-	const PROFILE_FIELDS: (keyof ClientProfile)[] = ['dateOfBirth', 'gender', 'city', 'state', 'country'];
+	const PROFILE_FIELDS: (keyof ClientProfile)[] = [
+		'dateOfBirth',
+		'gender',
+		'city',
+		'state',
+		'country'
+	];
 
 	// The actions tag each failure with the `field` it belongs to (a profile key,
 	// 'phone', 'password' or 'google'), so it shows next to that input. Untagged ones
@@ -143,7 +149,7 @@
 					<ClientProfileFields bind:profile named={false} error={profileError} />
 					<PhoneInput
 						label="Phone (optional)"
-						hint="Your number is only used to send session reminders on WhatsApp. It is optional and can be skipped. WhatsApp numbers only, other numbers will not work."
+						hint="Optional. Once you verify it, we only use your number to send reminders on WhatsApp. It must be a WhatsApp number."
 						error={errorFor('phone')}
 						oninput={() => markEdited('phone')}
 						bind:value={phone}

@@ -29,12 +29,13 @@
 	<GuideCallout title="Make sure everything's settled before the next session">
 		<p>
 			Turn on <strong>Block portal bookings while a client owes you money</strong> in
-			<a href="/settings">Settings → Booking Rules</a>. A client with an unpaid invoice then can't book
-			a new session until it's paid. You can still add sessions for them yourself on the Calendar.
+			<a href="/settings">Settings → Booking Rules</a>. A client with an unpaid invoice then can't
+			book a new session until it's paid. You can still add sessions for them yourself on the
+			Calendar.
 		</p>
 		<p>
-			You can also cap <strong>Upcoming Sessions Per Client</strong> at 1, 2 or 3, so no one books
-			out your whole fortnight ahead of time.
+			You can also cap <strong>Upcoming Sessions Per Client</strong> at 1, 2 or 3, so no one books out
+			your whole fortnight ahead of time.
 		</p>
 		<p>
 			And you can set a <strong>Minimum Booking Notice</strong>, from 1 hour up to 7 days. With a
@@ -42,8 +43,8 @@
 			won't show as an option anymore.
 		</p>
 		<p>
-			<strong>How Far Ahead Clients Can Book</strong> sets how far ahead clients see slots: 1 week,
-			2 weeks, 3 weeks or 1 month (2 weeks by default).
+			<strong>How Far Ahead Clients Can Book</strong> sets how far ahead clients see slots: 1 week, 2
+			weeks, 3 weeks or 1 month (2 weeks by default).
 		</p>
 	</GuideCallout>
 
@@ -68,12 +69,13 @@
 			left, they're warned it'll be charged before they confirm.
 		</li>
 		<li>
-			<strong>A calendar of open slots</strong> for as far ahead as you allow in Settings. It only shows times that are
-			free. It never shows <em>why</em> a time is taken, so one client can't work out anything about
-			another client's sessions.
+			<strong>A calendar of open slots</strong> for as far ahead as you allow in Settings. It only
+			shows times that are free. It never shows <em>why</em> a time is taken, so one client can't work
+			out anything about another client's sessions.
 		</li>
 		<li>
-			<strong>Payments</strong>: their balance, unpaid invoices, your QR code and bank details, and a
+			<strong>Payments</strong>: their balance, unpaid invoices, your QR code and bank details, and
+			a
 			<strong>Pay now</strong> button if you've connected Razorpay.
 		</li>
 		<li>
@@ -85,7 +87,8 @@
 			(see <a href="#clients">Clients</a>).
 		</li>
 		<li>
-			<strong>Their details</strong>: they can add a phone number for WhatsApp reminders.
+			<strong>Their details</strong>: they can add and verify a phone number to get reminders on
+			WhatsApp.
 		</li>
 	</ul>
 </GuideSection>

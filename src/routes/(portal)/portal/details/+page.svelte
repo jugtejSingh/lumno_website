@@ -31,7 +31,7 @@
 		<form class="details-form" method="POST" action="?/saveDetails" use:enhance>
 			<PhoneInput name="phone" bind:value={phone} />
 			<div class="hint">
-				Optional. Give us a number and session reminders come by WhatsApp instead of email.
+				Optional. Add and verify a WhatsApp number and your reminders come there instead of email.
 			</div>
 			{#if phone && phone !== data.clientPhone && phone !== data.pendingPhone}
 				<div class="hint">Save to verify this number on WhatsApp.</div>

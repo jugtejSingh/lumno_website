@@ -12,10 +12,13 @@
 >
 	<ul>
 		<li>
-			<strong>Booking emails</strong>: when a session is booked, moved or cancelled, whether the client
-			did it or you did.
+			<strong>Booking emails</strong>: when a session is booked, moved or cancelled, whether the
+			client did it or you did.
 		</li>
-		<li><strong>Session reminders</strong>: an email 24 hours before each session, with a link to the client's portal.</li>
+		<li>
+			<strong>Session reminders</strong>: an email 24 hours before each session, with a link to the
+			client's portal.
+		</li>
 		<li>
 			<strong>Payment reminders</strong>: at most once a week, clients with an unpaid balance get an
 			email listing what they owe, with a link to their portal.
@@ -26,12 +29,13 @@
 			Only active clients get these, and they stop as soon as a new session is booked.
 		</li>
 		<li>
-			<strong>Google Meet links</strong>: added to online sessions and included in the booking email,
-			once Google Calendar is connected.
+			<strong>Google Meet links</strong>: added to online sessions and included in the booking
+			email, once Google Calendar is connected.
 		</li>
 	</ul>
 	<p>
-		Emails only go to clients who have an email address on file. Clients can also add a phone number
-		in their portal for WhatsApp reminders.
+		Emails only go to clients who have an email address on file. Clients can also add and verify a
+		phone number in their portal. Once it's verified, their reminders go by WhatsApp instead of
+		email.
 	</p>
 </GuideSection>
