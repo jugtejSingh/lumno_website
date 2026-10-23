@@ -90,14 +90,14 @@ describe('session reminders', () => {
 				day: 'Friday',
 				date_text: '23rd of October',
 				start_time: '10:00 AM',
-				end_time: "11:00 AM (your therapist's timezone)"
+				end_time: '11:00 AM (India Standard Time)'
 			}
 		});
 		expect(sendEmail).not.toHaveBeenCalled();
 		expect(await sessionSentAt(id)).not.toBeNull();
 	});
 
-	it("uses the client's own timezone when they've set one, with no note", async () => {
+	it("uses the client's own timezone when they've set one, and names it", async () => {
 		await mkSession({ phone: PHONE, timezone: 'America/New_York' });
 
 		await sendSessionReminders();
@@ -109,7 +109,7 @@ describe('session reminders', () => {
 			{ body: Record<string, string> }
 		];
 		expect(values[3].body.start_time).toBe('12:30 AM');
-		expect(values[3].body.end_time).toBe('1:30 AM');
+		expect(values[3].body.end_time).toBe('1:30 AM (Eastern Daylight Time)');
 		expect(values[3].body.day).toBe('Friday');
 	});
 
@@ -133,6 +133,20 @@ describe('session reminders', () => {
 		expect(sendWhatsAppTemplate).not.toHaveBeenCalled();
 		expect(sendEmail).toHaveBeenCalledTimes(1);
 		expect(await sessionSentAt(id)).not.toBeNull();
+	});
+
+	it("writes the email time in the client's timezone when set, otherwise the therapist's", async () => {
+		await mkSession({ email: 'ny@example.com', timezone: 'America/New_York' });
+		await mkSession({ email: 'ist@example.com' });
+
+		await sendSessionReminders();
+
+		const textByEmail: Record<string, string> = {};
+		for (const call of vi.mocked(sendEmail).mock.calls) {
+			textByEmail[call[0] as string] = JSON.stringify(call);
+		}
+		expect(textByEmail['ny@example.com']).toContain('12:30 AM (Eastern Daylight Time)');
+		expect(textByEmail['ist@example.com']).toContain('10:00 AM (India Standard Time)');
 	});
 
 	it('goes by email when WhatsApp is not configured', async () => {

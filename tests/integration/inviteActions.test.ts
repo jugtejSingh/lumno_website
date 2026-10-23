@@ -30,11 +30,16 @@ const validProfile = {
 	country: 'IN'
 };
 
+const TIMEZONE = 'Europe/London';
+
 function post(
 	action: keyof typeof actions,
 	fields: Record<string, string>,
 	locals: Record<string, unknown> = {}
 ) {
+	if (!('timezone' in fields)) {
+		fields = { ...fields, timezone: TIMEZONE };
+	}
 	return actions[action](
 		mkEvent({
 			locals,
@@ -122,6 +127,20 @@ describe('password action', () => {
 		expect(signUpEmail).not.toHaveBeenCalled();
 	});
 
+	it('rejects a bad timezone before any account is created', async () => {
+		const result = await post('password', {
+			password: 'hunter22hunter',
+			...validProfile,
+			timezone: 'Mars/Olympus'
+		});
+		expect((result as { data: unknown }).data).toEqual({
+			message: 'Pick your timezone.',
+			field: 'timezone'
+		});
+		expect(signUpEmail).not.toHaveBeenCalled();
+		expect((await clientRow()).timezone).toBeNull();
+	});
+
 	it('signs up, links the client, saves the profile and pending phone, and goes to the portal', async () => {
 		// no user with the invited email yet, so the action signs up; the mock creates the row
 		let createdId = '';
@@ -141,7 +160,7 @@ describe('password action', () => {
 		expect(row.userId).toBe(createdId);
 		expect(row.inviteToken).toBeNull();
 		// the number waits for verification; client.phone only ever holds a verified one
-		expect(row).toMatchObject({ ...validProfile, phone: null });
+		expect(row).toMatchObject({ ...validProfile, phone: null, timezone: TIMEZONE });
 		expect(await getPendingPhone(clientId)).toBe('+919876543210');
 	});
 
@@ -181,7 +200,7 @@ describe('google action', () => {
 		signInSocial.mockResolvedValue({ url: 'https://accounts.google.com/o/oauth2/auth?x=1' });
 		const location = await redirectTarget(post('google', validProfile));
 		expect(location).toBe('https://accounts.google.com/o/oauth2/auth?x=1');
-		expect(await clientRow()).toMatchObject(validProfile);
+		expect(await clientRow()).toMatchObject({ ...validProfile, timezone: TIMEZONE });
 		// not linked yet — that happens in acceptAsSelf once Google sends them back
 		expect((await clientRow()).userId).toBeNull();
 	});
@@ -222,6 +241,10 @@ describe('acceptAsSelf', () => {
 		expect(await redirectTarget(post('acceptAsSelf', validProfile, { user: invited }))).toBe(
 			'/portal'
 		);
-		expect(await clientRow()).toMatchObject({ ...validProfile, userId: invited.id });
+		expect(await clientRow()).toMatchObject({
+			...validProfile,
+			timezone: TIMEZONE,
+			userId: invited.id
+		});
 	});
 });

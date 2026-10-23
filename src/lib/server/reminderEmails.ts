@@ -13,13 +13,13 @@ import { payment } from '$lib/server/db/payments.schema';
 import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
 import { logError } from '$lib/server/log';
 import { isWhatsAppConfigured, sendWhatsAppTemplate } from '$lib/server/whatsapp';
-import { formatCurrency, formatTime, formatWhen, ordinal } from '$lib/format';
+import { formatCurrency, formatTime, formatWhenWithZone, ordinal, timeZoneName } from '$lib/format';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
 // session_reminder's named params. Times are in the client's timezone when they've set
-// one; otherwise the therapist's, and the message says so.
+// one; otherwise the therapist's. end_time names the timezone used, e.g. "(India Standard Time)".
 function sessionReminderParams(row: {
 	startAt: Date;
 	endAt: Date;
@@ -29,10 +29,8 @@ function sessionReminderParams(row: {
 	therapistTimezone: string;
 }): Record<string, string> {
 	let timezone = row.therapistTimezone;
-	let timezoneNote = " (your therapist's timezone)";
 	if (row.clientTimezone) {
 		timezone = row.clientTimezone;
-		timezoneNote = '';
 	}
 
 	const parts = new Intl.DateTimeFormat('en-US', {
@@ -65,7 +63,7 @@ function sessionReminderParams(row: {
 		day: weekday,
 		date_text: `${ordinal(dayOfMonth)} of ${month}`,
 		start_time: formatTime(row.startAt, timezone),
-		end_time: formatTime(row.endAt, timezone) + timezoneNote
+		end_time: `${formatTime(row.endAt, timezone)} (${timeZoneName(row.endAt, timezone)})`
 	};
 }
 
@@ -96,7 +94,12 @@ async function sendSessionReminderWhatsApp(phone: string, row: SessionReminderRo
 }
 
 async function sendSessionReminderEmail(email: string, row: SessionReminderRow): Promise<void> {
-	const when = formatWhen(row.startAt, row.timezone);
+	// same rule as WhatsApp: the client's timezone if set, otherwise the therapist's
+	let timezone = row.timezone;
+	if (row.clientTimezone) {
+		timezone = row.clientTimezone;
+	}
+	const when = formatWhenWithZone(row.startAt, timezone);
 	const modalityText = row.modality === 'online' ? 'Online' : 'In person';
 	const portalUrl = `${env.ORIGIN}/portal`;
 	// Online sessions keep "Join session" as the button (it's what they need at session

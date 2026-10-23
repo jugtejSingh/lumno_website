@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatTime, ordinal } from '../../src/lib/format';
+import { formatTime, formatWhenWithZone, ordinal, timeZoneName } from '../../src/lib/format';
 
 describe('ordinal', () => {
 	it('uses st, nd, rd for 1, 2, 3 and th otherwise', () => {
@@ -30,5 +30,41 @@ describe('formatTime', () => {
 
 	it('formats in the given timezone', () => {
 		expect(formatTime(at, 'America/New_York')).toBe('12:30 AM');
+	});
+});
+
+describe('timeZoneName', () => {
+	it('gives the full name, following daylight saving', () => {
+		expect(timeZoneName(new Date('2026-07-01T12:00:00Z'), 'Asia/Kolkata')).toBe(
+			'India Standard Time'
+		);
+		expect(timeZoneName(new Date('2026-01-15T12:00:00Z'), 'America/New_York')).toBe(
+			'Eastern Standard Time'
+		);
+		expect(timeZoneName(new Date('2026-07-01T12:00:00Z'), 'America/New_York')).toBe(
+			'Eastern Daylight Time'
+		);
+	});
+});
+
+describe('formatWhenWithZone', () => {
+	it('writes the time in that timezone and names it', () => {
+		const at = new Date('2026-10-23T04:30:00Z');
+		expect(formatWhenWithZone(at, 'Asia/Kolkata')).toBe(
+			'Fri, Oct 23, 10:00 AM (India Standard Time)'
+		);
+		expect(formatWhenWithZone(at, 'America/New_York')).toBe(
+			'Fri, Oct 23, 12:30 AM (Eastern Daylight Time)'
+		);
+	});
+
+	it('follows daylight saving: the same zone in winter is standard time', () => {
+		const winter = new Date('2026-12-15T15:00:00Z');
+		expect(formatWhenWithZone(winter, 'America/New_York')).toBe(
+			'Tue, Dec 15, 10:00 AM (Eastern Standard Time)'
+		);
+		expect(formatWhenWithZone(winter, 'Europe/London')).toBe(
+			'Tue, Dec 15, 3:00 PM (Greenwich Mean Time)'
+		);
 	});
 });

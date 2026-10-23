@@ -49,3 +49,23 @@ export function formatTime(at: Date, timezone: string): string {
 	const narrowNoBreakSpace = String.fromCharCode(0x202f);
 	return text.replaceAll(narrowNoBreakSpace, ' ');
 }
+// Full name of the timezone at that moment, e.g. "India Standard Time" or "Eastern
+// Daylight Time" (so it follows daylight saving).
+export function timeZoneName(at: Date, timezone: string): string {
+	const parts = new Intl.DateTimeFormat('en-US', {
+		timeZone: timezone,
+		timeZoneName: 'long'
+	}).formatToParts(at);
+	for (const part of parts) {
+		if (part.type === 'timeZoneName') {
+			return part.value;
+		}
+	}
+	return timezone;
+}
+
+// formatWhen plus the timezone's name, e.g. "Fri, Oct 23, 10:00 AM (India Standard Time)".
+// What client-facing emails show.
+export function formatWhenWithZone(at: Date, timezone: string): string {
+	return `${formatWhen(at, timezone)} (${timeZoneName(at, timezone)})`;
+}

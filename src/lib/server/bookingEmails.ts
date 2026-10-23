@@ -4,7 +4,7 @@ import { appointment, client, therapist, user } from '$lib/server/db/schema';
 import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
 import { logError } from '$lib/server/log';
 import { getNotificationSettings } from '$lib/server/settings';
-import { formatCurrency } from '$lib/format';
+import { formatCurrency, formatWhenWithZone } from '$lib/format';
 
 type AppointmentEmailKind = 'confirmed' | 'cancelled' | 'rescheduled';
 
@@ -17,17 +17,6 @@ type AppointmentEmailExtra = {
 
 function capitalise(text: string): string {
 	return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function formatWhen(at: Date, timezone: string): string {
-	return new Intl.DateTimeFormat('en-US', {
-		timeZone: timezone,
-		weekday: 'short',
-		month: 'short',
-		day: 'numeric',
-		hour: 'numeric',
-		minute: '2-digit'
-	}).format(at);
 }
 
 // Best-effort client notification for a booking/cancel/reschedule. Gated on the therapist's
@@ -48,6 +37,7 @@ export async function sendAppointmentEmail(
 				therapistId: appointment.therapistId,
 				clientEmail: client.email,
 				clientName: client.name,
+				clientTimezone: client.timezone,
 				therapistName: user.name,
 				therapistEmail: user.email,
 				timezone: therapist.timezone,
@@ -63,7 +53,12 @@ export async function sendAppointmentEmail(
 		const settings = await getNotificationSettings(row.therapistId);
 		if (!settings.sendBookingEmails) return;
 
-		const when = formatWhen(row.startAt, row.timezone);
+		// the client's timezone if they've set one, otherwise the therapist's
+		let timezone = row.timezone;
+		if (row.clientTimezone) {
+			timezone = row.clientTimezone;
+		}
+		const when = formatWhenWithZone(row.startAt, timezone);
 		const modalityText = row.modality === 'online' ? 'Online' : 'In person';
 
 		let feeLine = '';
@@ -92,7 +87,9 @@ export async function sendAppointmentEmail(
 			bodyHtml = `<p>Your session with ${escapeHtml(row.therapistName)} on ${when} has been cancelled.</p>${feeLine}`;
 			text = `Your session with ${row.therapistName} on ${when} has been cancelled.`;
 		} else {
-			const from = extra.previousStartAt ? formatWhen(extra.previousStartAt, row.timezone) : null;
+			const from = extra.previousStartAt
+				? formatWhenWithZone(extra.previousStartAt, timezone)
+				: null;
 			subject = 'Your session was rescheduled';
 			heading = 'Session rescheduled';
 			bodyHtml = `<p>Your session with ${escapeHtml(row.therapistName)} has been moved${from ? ` from ${from}` : ''} to ${when} (${modalityText}).</p>${feeLine}`;
@@ -109,7 +106,9 @@ export async function sendAppointmentEmail(
 // Confirmation for a guest booking (label: "session", "discovery call"), sent to the guest's own email (there is no client row to
 // join). Deliberately not gated on sendBookingEmails: the guest gave their email for exactly
 // this message, and it carries the Meet link. Never throws, same contract as above.
-export async function sendGuestBookingEmail(appointmentId: string, guestEmail: string,
+export async function sendGuestBookingEmail(
+	appointmentId: string,
+	guestEmail: string,
 	label = 'session'
 ): Promise<void> {
 	try {
@@ -129,7 +128,8 @@ export async function sendGuestBookingEmail(appointmentId: string, guestEmail: s
 			.where(eq(appointment.id, appointmentId));
 		if (!row) return;
 
-		const when = formatWhen(row.startAt, row.timezone);
+		// a guest has no client row, so no timezone of their own: the therapist's, named
+		const when = formatWhenWithZone(row.startAt, row.timezone);
 		const modalityText = row.modality === 'online' ? 'Online' : 'In person';
 		const greetingName = row.guestName ?? 'there';
 

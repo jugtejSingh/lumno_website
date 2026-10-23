@@ -72,8 +72,9 @@ unverified number gets no WhatsApp messages at all, except the OTP itself.
   reminder whichever channel it goes on.
 - `session_reminder` body: `therapist_name`, `mode` ("online"/"in-person"), `day`
   ("Friday"), `date_text` ("23rd of October"), `start_time`/`end_time` ("10:00 AM"). Times
-  use the client's timezone if set; otherwise the therapist's, and `end_time` gets
-  " (your therapist's timezone)". The email reminder uses the therapist's timezone.
+  use the client's timezone if set; otherwise the therapist's. `end_time` always ends with
+  the full name of the timezone used, e.g. "(India Standard Time)". The email reminder
+  uses the therapist's timezone.
 - Date/time helpers (`formatWhen`, `ordinal`, `formatTime`) live in `src/lib/format.ts`.
 - Rebook nudges (email-only): 14 days after the last session, once more at 28 days, then
   stop until they book again.

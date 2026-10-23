@@ -4,7 +4,13 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
-import { getInviteByToken, linkClientToUser, setClientProfile } from '$lib/server/clients';
+import {
+	getInviteByToken,
+	linkClientToUser,
+	setClientProfile,
+	setClientTimezone
+} from '$lib/server/clients';
+import { isValidTimeZone } from '$lib/server/timezone';
 import { describeAuthError, describeOAuthError } from '$lib/server/authErrors';
 import { parsePhone } from '$lib/phone';
 import { hasClientProfile, parseClientProfile } from '$lib/clientProfile';
@@ -19,6 +25,18 @@ async function loadValidInvite(token: string) {
 	if (!result.client.email) return null;
 	return { ...result.client, email: result.client.email };
 }
+
+// The client's own timezone (see TimezoneSelect.svelte), required at sign-up. null when
+// it's missing or not a real zone.
+function parseTimezone(formData: FormData): string | null {
+	const timezone = formData.get('timezone')?.toString() ?? '';
+	if (!isValidTimeZone(timezone)) {
+		return null;
+	}
+	return timezone;
+}
+
+const TIMEZONE_ERROR = { message: 'Pick your timezone.', field: 'timezone' };
 
 // Telling the visitor *why* the link is dead is safe: they already hold the
 // token, and the three cases each need a different next step.
@@ -92,6 +110,10 @@ export const actions: Actions = {
 		if ('error' in parsedProfile) {
 			return fail(400, { message: parsedProfile.error, field: parsedProfile.field });
 		}
+		const timezone = parseTimezone(formData);
+		if (!timezone) {
+			return fail(400, TIMEZONE_ERROR);
+		}
 
 		const [existingUser] = await db.select().from(user).where(eq(user.email, invite.email));
 
@@ -128,13 +150,15 @@ export const actions: Actions = {
 			// valid, so a retry from the same page will work.
 			logError('invite.link', error, { clientId: invite.id, userId });
 			return fail(500, {
-				message: "You're signed in, but the invite could not be attached to your account. Please try again."
+				message:
+					"You're signed in, but the invite could not be attached to your account. Please try again."
 			});
 		}
 		if (parsedPhone.phone) {
 			await savePhone(invite.id, parsedPhone.phone);
 		}
 		await setClientProfile(invite.id, parsedProfile.profile);
+		await setClientTimezone(invite.id, timezone);
 		return redirect(302, '/portal');
 	},
 
@@ -153,12 +177,17 @@ export const actions: Actions = {
 		if ('error' in parsedProfile) {
 			return fail(400, { message: parsedProfile.error, field: parsedProfile.field });
 		}
+		const timezone = parseTimezone(formData);
+		if (!timezone) {
+			return fail(400, TIMEZONE_ERROR);
+		}
 		// saved before we hand off to Google — the invite token already identifies this
 		// client row, so nothing needs stashing across the OAuth round trip
 		if (parsedPhone.phone) {
 			await savePhone(invite.id, parsedPhone.phone);
 		}
 		await setClientProfile(invite.id, parsedProfile.profile);
+		await setClientTimezone(invite.id, timezone);
 
 		let url: string;
 		try {
@@ -173,7 +202,10 @@ export const actions: Actions = {
 			});
 			if (!result.url) {
 				logError('invite.google', new Error('signInSocial returned no url'));
-				return fail(500, { message: 'Could not start Google sign-in. Please try again.', field: 'google' });
+				return fail(500, {
+					message: 'Could not start Google sign-in. Please try again.',
+					field: 'google'
+				});
 			}
 			url = result.url;
 		} catch (error) {
@@ -238,14 +270,20 @@ export const actions: Actions = {
 			return fail(403, { message: 'Log in with the invited email to accept.' });
 		}
 
-		// back from Google: the profile was saved by the google action already. Otherwise
-		// (already signed in, never went through that action) it's collected here.
+		// back from Google: the profile and timezone were saved by the google action already.
+		// Otherwise (already signed in, never went through that action) they're collected here.
 		if (!hasClientProfile(invite)) {
-			const parsedProfile = parseClientProfile(await event.request.formData());
+			const formData = await event.request.formData();
+			const parsedProfile = parseClientProfile(formData);
 			if ('error' in parsedProfile) {
 				return fail(400, { message: parsedProfile.error, field: parsedProfile.field });
 			}
+			const timezone = parseTimezone(formData);
+			if (!timezone) {
+				return fail(400, TIMEZONE_ERROR);
+			}
 			await setClientProfile(invite.id, parsedProfile.profile);
+			await setClientTimezone(invite.id, timezone);
 		}
 
 		try {

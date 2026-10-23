@@ -7,6 +7,7 @@
 	import ClientProfileHiddenInputs from '$lib/components/Clients/ClientProfileHiddenInputs.svelte';
 	import PhoneVerification from '$lib/components/Clients/PhoneVerification.svelte';
 	import PhoneInput from '$lib/components/utils/PhoneInput.svelte';
+	import TimezoneSelect from '$lib/components/Clients/TimezoneSelect.svelte';
 	import type { ClientProfile } from '$lib/clientProfile';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
@@ -16,6 +17,8 @@
 	// optional; saved as pending, and used for WhatsApp reminders once verified.
 	// Shared by the Google and password forms below via hidden inputs.
 	let phone = $state('');
+	// required; TimezoneSelect fills in the browser's guess
+	let timezone = $state('');
 	// required; mirrored into whichever form gets submitted
 	let profile = $state<ClientProfile>({
 		dateOfBirth: '',
@@ -127,6 +130,7 @@
 					{#if data.needsProfile}
 						<div class="form-hint-block">Your practitioner will see these details.</div>
 						<ClientProfileFields bind:profile error={profileError} />
+						<TimezoneSelect name="timezone" bind:value={timezone} error={errorFor('timezone')} />
 					{/if}
 					<Button type="submit" variant="primary">Accept invite</Button>
 				</form>
@@ -147,6 +151,7 @@
 				<div class="form-fields">
 					<div class="form-hint-block">About you — your practitioner will see these details.</div>
 					<ClientProfileFields bind:profile named={false} error={profileError} />
+					<TimezoneSelect bind:value={timezone} error={errorFor('timezone')} />
 					<PhoneInput
 						label="Phone (optional)"
 						hint="Optional. Once you verify it, we only use your number to send reminders on WhatsApp. It must be a WhatsApp number."
@@ -164,6 +169,7 @@
 
 				<form class="google-form" method="POST" action="?/google" use:enhance>
 					<input type="hidden" name="phone" value={phone} />
+					<input type="hidden" name="timezone" value={timezone} />
 					<ClientProfileHiddenInputs {profile} />
 					<div class="form-hint-block">
 						Either continue with Google for passwordless login, or write in a password below.
@@ -177,6 +183,7 @@
 
 				<form class="form-fields" method="POST" action="?/password" use:enhance>
 					<input type="hidden" name="phone" value={phone} />
+					<input type="hidden" name="timezone" value={timezone} />
 					<ClientProfileHiddenInputs {profile} />
 					<Input
 						label="Password"
