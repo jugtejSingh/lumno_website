@@ -23,6 +23,7 @@
 <div class="page">
 	<div class="header">
 		<Logo />
+		<a href="/" class="home-link">← Back to home</a>
 	</div>
 
 	<div class="center">
@@ -58,6 +59,17 @@
 		padding: 20px clamp(20px, 5vw, 48px);
 		border-bottom: 2px solid var(--border-subtle);
 		background: var(--surface-canvas);
+	}
+
+	.home-link {
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--text-link);
+		text-decoration: none;
+	}
+
+	.home-link:hover {
+		text-decoration: underline;
 	}
 
 	.center {
