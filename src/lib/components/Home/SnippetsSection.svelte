@@ -104,6 +104,38 @@
 			</Card>
 		</div>
 	</SnippetRow>
+
+	<SnippetRow
+		eyebrow="Privacy"
+		title="Your clients' trust, protected"
+		desc="Every client detail and session note is encrypted, kept confidential, and visible only to you. Our AI features are private too — they never store your notes and never train on them."
+		cta="Read our privacy policy"
+		href="/privacy"
+	>
+		<div class="mockup">
+			<Card>
+				<ul class="privacy-list">
+					<li>
+						<span class="privacy-check">✓</span>
+						Encrypted when sent and when stored
+					</li>
+					<li>
+						<span class="privacy-check">✓</span>
+						Only you see your clients
+					</li>
+					<li>
+						<span class="privacy-check">✓</span>
+						AI keeps nothing
+						<Tag color="sage">zero retention</Tag>
+					</li>
+					<li>
+						<span class="privacy-check">✓</span>
+						Never used to train AI
+					</li>
+				</ul>
+			</Card>
+		</div>
+	</SnippetRow>
 </section>
 
 <style>
@@ -237,5 +269,29 @@
 		font-weight: 700;
 		color: var(--sage-600);
 		margin-right: 6px;
+	}
+
+	.privacy-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.privacy-list li {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-size: 14px;
+		font-weight: 600;
+		padding: 8px 0;
+	}
+
+	.privacy-list li + li {
+		border-top: 2px dotted var(--beige-400);
+	}
+
+	.privacy-check {
+		color: var(--sage-600);
+		font-weight: 700;
 	}
 </style>

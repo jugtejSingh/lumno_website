@@ -66,13 +66,15 @@ async function callOpenRouter(
 			body: JSON.stringify({
 				model: env.OPENROUTER_MODEL || 'z-ai/glm-5.3-flash',
 				// Tried in this order, then any other GLM-5.3 Flash host if all four are down.
-				// Deliberately NOT zdr: of these four only Baseten and Crusoe are on OpenRouter's ZDR
-				// list (checked 2026-09-25), so zdr: true would skip Together and DigitalOcean.
-				// data_collection 'deny' still rules out providers that train on prompts.
+				// zdr: true restricts every attempt (fallbacks included) to zero-data-retention
+				// endpoints — the privacy policy promises this, so don't drop it. All four are on
+				// OpenRouter's ZDR list (checked 2026-10-26). data_collection 'deny' also rules out
+				// providers that train on prompts.
 				provider: {
 					order: ['together', 'baseten', 'digitalocean', 'crusoe'],
 					allow_fallbacks: true,
-					data_collection: 'deny'
+					data_collection: 'deny',
+					zdr: true
 				},
 				messages: [{ role: 'system', content: systemPrompt }, ...messages],
 				...(jsonMode ? { response_format: { type: 'json_object' } } : {})
