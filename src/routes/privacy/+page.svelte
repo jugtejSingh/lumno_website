@@ -199,11 +199,6 @@
 				only what their practitioner has shared with them. The database can be reached only from our
 				servers, never directly from a browser.
 			</li>
-			<li>
-				<strong>Strictly limited access:</strong> only the people who run Lumno can access our
-				production systems, and that access is protected by authentication and access controls. We do
-				not look at your data except when needed to provide support or keep the service running.
-			</li>
 		</ul>
 
 		<h2>Data retention & deletion</h2>
