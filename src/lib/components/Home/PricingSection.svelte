@@ -8,7 +8,7 @@
 		<div class="copy">
 			<h2 class="display">Want to check it out?</h2>
 			<p class="lede">
-				Don't worry, you don't have to pay. Lumno is free to start, with no card and no catch.
+				Don't worry, you don't have to pay. Lumno is free forever, with no card and no catch.
 			</p>
 			<div class="action">
 				<Button href="/login?tab=register" variant="primary" size="lg"

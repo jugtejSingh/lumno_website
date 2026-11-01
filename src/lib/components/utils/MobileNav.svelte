@@ -219,6 +219,35 @@
 		color: var(--text-on-accent);
 	}
 
+	/* logins mirror the desktop pop / secondary buttons so they don't read as plain links */
+	.drawer-links :global([data-kind^='login']) {
+		margin-top: 6px;
+		border: 2px solid var(--outline);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-xs);
+		justify-content: center;
+	}
+
+	.drawer-links :global([data-kind='login-client']) {
+		background: var(--accent-pop);
+		color: var(--text-on-accent);
+	}
+
+	.drawer-links :global([data-kind='login-client']:hover) {
+		background: var(--accent-pop-hover);
+		color: var(--text-on-accent);
+	}
+
+	.drawer-links :global([data-kind='login-practitioner']) {
+		background: var(--surface-card);
+		color: var(--text-primary);
+	}
+
+	.drawer-links :global([data-kind='login-practitioner']:hover) {
+		background: var(--coral-100);
+		color: var(--text-primary);
+	}
+
 	.drawer-links :global([data-kind='quiet']) {
 		margin-top: 6px;
 		padding-top: 12px;

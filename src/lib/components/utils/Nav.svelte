@@ -16,8 +16,8 @@
 	<MobileNav>
 		<a href="/#features">Features</a>
 		<a href="/pricing">Pricing</a>
-		<a href="/login/client">Client login</a>
-		<a href="/login">Practitioner login</a>
+		<a href="/login/client" data-kind="login-client">Client login</a>
+		<a href="/login" data-kind="login-practitioner">Practitioner login</a>
 		<a href="/login?tab=register" data-kind="cta">Get started for free</a>
 	</MobileNav>
 </header>
