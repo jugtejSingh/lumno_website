@@ -29,7 +29,8 @@
 		justify-content: space-between;
 		gap: 12px;
 		flex-wrap: wrap;
-		padding: 20px clamp(16px, 5vw, 48px);
+		/* content capped at 1200px; the border and background still run full width. Hero uses the same gutter */
+		padding: 20px max(clamp(16px, 5vw, 48px), calc((100% - 1200px) / 2));
 		border-bottom: 2px solid var(--border-subtle);
 		background: var(--surface-canvas);
 	}
@@ -49,7 +50,7 @@
 
 	.nav-links > a:hover {
 		color: var(--text-primary);
-		text-decoration: underline wavy var(--coral-500);
+		text-decoration: underline var(--coral-500);
 		text-underline-offset: 5px;
 	}
 

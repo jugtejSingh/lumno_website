@@ -2,168 +2,26 @@
 	import Nav from '$lib/components/utils/Nav.svelte';
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Hero from '$lib/components/Home/Hero.svelte';
+	import WeekSection from '$lib/components/Home/WeekSection.svelte';
 	import FeaturesSection from '$lib/components/Home/FeaturesSection.svelte';
-	import SnippetsSection from '$lib/components/Home/SnippetsSection.svelte';
 	import CtaBand from '$lib/components/Home/CtaBand.svelte';
-	import type { PreviewPanel, Feature } from '$lib/types/home';
-
-	const panels: PreviewPanel[] = [
-		{
-			kind: 'booking',
-			label: 'Booking',
-			weeks: [
-				[
-					{ day: null },
-					{ day: null },
-					{ day: null },
-					{ day: 1 },
-					{ day: 2 },
-					{ day: 3 },
-					{ day: 4 }
-				],
-				[
-					{ day: 5 },
-					{ day: 6 },
-					{ day: 7 },
-					{ day: 8, sessions: [{ time: '11:00', name: 'Maria Chen', color: 'plum' }] },
-					{ day: 9 },
-					{ day: 10 },
-					{ day: 11 }
-				],
-				[
-					{ day: 12 },
-					{ day: 13 },
-					{
-						day: 14,
-						isToday: true,
-						sessions: [
-							{ time: '9:30', name: 'Priya Nair', color: 'sage' },
-							{ time: '2:00', name: 'Maria Chen', color: 'plum' },
-							{ time: '4:30', name: 'James Okoro', color: 'coral' }
-						]
-					},
-					{ day: 15 },
-					{ day: 16, sessions: [{ time: '1:00', name: 'James Okoro', color: 'coral' }] },
-					{ day: 17 },
-					{ day: 18 }
-				],
-				[
-					{ day: 19 },
-					{ day: 20 },
-					{ day: 21, sessions: [{ time: '10:00', name: 'Diego Alvarez', color: 'sage' }] },
-					{ day: 22 },
-					{ day: 23 },
-					{ day: 24 },
-					{ day: 25 }
-				],
-				[
-					{ day: 26 },
-					{ day: 27 },
-					{ day: 28 },
-					{ day: 29 },
-					{ day: 30 },
-					{ day: 31 },
-					{ day: null }
-				]
-			]
-		},
-		{
-			kind: 'payments',
-			label: 'Payments',
-			collected: '₹2,340',
-			paymentsLeft: 4,
-			breakdown: [
-				{ client: 'Maria Chen', amount: '₹480.00', status: 'paid' },
-				{ client: 'Priya Nair', amount: '₹360.00', status: 'paid' },
-				{ client: 'James Okoro', amount: '₹120.00', status: 'owed', reminderSent: true },
-				{ client: 'Diego Alvarez', amount: '₹80.00', status: 'owed', reminderSent: false }
-			]
-		},
-		{
-			kind: 'notes',
-			label: 'Notes',
-			client: 'Priya Nair',
-			rawNote:
-				'client doing better today. progress good. still needs more practice, around 6/10 now. went over last weeks stuff again. gave some exercises hw',
-			cleanedNote:
-				'Client is doing better and making good progress, currently around 6/10. Some more practice is still needed. Reviewed last week\'s material again. Assigned exercises as homework.',
-			homework: 'Repeat this week\'s exercises daily and note how each one goes.'
-		}
-	];
-
-	const features: Feature[] = [
-		{
-			title: 'Dashboard',
-			desc: "No more piecing your day together — today's sessions, notes due, and what needs attention, all in one place.",
-			cta: 'Open dashboard',
-			href: '/dashboard',
-			icon: 'dashboard',
-			accent: 'plum'
-		},
-		{
-			title: 'Calendar & bookings',
-			desc: 'No back-and-forth to schedule. Bookings go straight into your calendar with a Google Meet link created for you.',
-			cta: 'Open calendar',
-			href: '/calendar',
-			icon: 'calendar',
-			accent: 'coral'
-		},
-		{
-			title: 'Payments',
-			desc: "No more confusion over who's paid and who owes you — see it update automatically as it happens.",
-			cta: 'Open payments',
-			href: '/payments',
-			icon: 'payments',
-			accent: 'sage'
-		},
-		{
-			title: 'Reminders',
-			desc: "No more manually texting clients — upcoming sessions, payments due, and clients who haven't booked in a while all get a friendly nudge.",
-			cta: 'Open calendar',
-			href: '/calendar',
-			icon: 'reminders',
-			accent: 'citrus'
-		},
-		{
-			title: 'Client notes',
-			desc: 'No more Word docs and WhatsApp — write or dictate, AI cleans it up, and it gets sent and saved in minutes.',
-			cta: 'Open notes',
-			href: '/notes',
-			icon: 'notes',
-			accent: 'plum'
-		},
-		{
-			title: 'Clients',
-			desc: 'Every client on one list, with their contact details and history a click away.',
-			cta: 'Open clients',
-			href: '/clients',
-			icon: 'clients',
-			accent: 'plum'
-		},
-		{
-			title: 'Community',
-			desc: 'Find colleagues on Lumno and refer a client who needs a different fit.',
-			cta: 'Open community',
-			href: '/community',
-			icon: 'referrals',
-			accent: 'coral'
-		},
-		{
-			title: 'Simple login',
-			desc: 'Log in or set up your practice in about two minutes.',
-			cta: 'Log in',
-			href: '/login',
-			icon: 'login',
-			accent: 'sage'
-		}
-	];
+	import { features } from '$lib/data/features';
+	import TestimonialsSection from '$lib/components/Home/TestimonialsSection.svelte';
+	import { testimonials } from '$lib/data/testimonials';
+	import PrivacySection from '$lib/components/Home/PrivacySection.svelte';
+	import PricingSection from '$lib/components/Home/PricingSection.svelte';
+	import FaqSection from '$lib/components/Home/FaqSection.svelte';
 </script>
 
 <div class="page">
 	<Nav />
-	<Hero {panels} />
+	<Hero />
+	<WeekSection />
 	<FeaturesSection {features} />
-	<SnippetsSection />
+	<TestimonialsSection {testimonials} />
+	<PrivacySection />
+	<PricingSection />
+	<FaqSection />
 	<CtaBand />
 	<Footer />
 </div>
@@ -173,6 +31,7 @@
 		min-height: 100vh;
 		background: var(--wallpaper) var(--surface-app);
 		color: var(--text-primary);
-		overflow-x: hidden;
+		/* clip, not hidden: hidden makes .page a scroll box, which freezes the week lists' scroll fade */
+		overflow-x: clip;
 	}
 </style>

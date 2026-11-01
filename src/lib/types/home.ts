@@ -1,37 +1,11 @@
-export type BookingDay = {
-	day: number | null;
-	isToday?: boolean;
-	sessions?: { time: string; name: string; color: 'plum' | 'coral' | 'sage' }[];
-};
-
-export type BookingPreview = {
-	kind: 'booking';
-	label: string;
-	weeks: BookingDay[][];
-};
-
-export type PaymentsPreview = {
-	kind: 'payments';
-	label: string;
-	collected: string;
-	paymentsLeft: number;
-	breakdown: { client: string; amount: string; status: 'paid' | 'owed'; reminderSent?: boolean }[];
-};
-
-export type NotesPreview = {
-	kind: 'notes';
-	label: string;
-	client: string;
-	rawNote: string;
-	cleanedNote: string;
-	homework: string;
-};
-
-export type PreviewPanel = BookingPreview | PaymentsPreview | NotesPreview;
+import type { Component } from 'svelte';
 
 export type Feature = {
+	// short label for the tab that opens this feature
+	tab: string;
 	title: string;
 	desc: string;
+	points: string[];
 	cta: string;
 	href: string;
 	icon:
@@ -41,15 +15,22 @@ export type Feature = {
 		| 'notes'
 		| 'clients'
 		| 'referrals'
-		| 'login'
-		| 'reminders';
+		| 'reminders'
+		| 'heart';
 	accent: 'plum' | 'coral' | 'sage' | 'citrus';
+	// true for the jobs Lumno does without the therapist lifting a finger
+	automatic: boolean;
+	visual: Component;
 };
 
-export type Snippet = {
-	eyebrow: string;
-	title: string;
-	desc: string;
-	cta: string;
-	href: string;
+export type Testimonial = {
+	quote: string;
+	name: string;
+	// handle without the @, used to link the name to their Instagram
+	instagram: string;
+	// a line or two about them shown under the name, e.g. practice and city
+	about: string;
+	// path under /static, e.g. '/testimonials/name.jpg'; initials are shown when missing
+	image?: string;
+	accent: 'plum' | 'coral' | 'sage' | 'citrus';
 };

@@ -3,7 +3,7 @@
 :root{--wallpaper:radial-gradient(rgb(139 74 43 / 0.13) 1.2px,transparent 1.2px) 0 0 / 22px 22px}
 body{background:var(--wallpaper) var(--surface-app);color:var(--text-primary);font-family:var(--font-body)}
 a{color:var(--text-link);text-decoration:none}
-a:hover{color:var(--beige-700);text-decoration:underline;text-decoration-style:wavy;text-underline-offset:3px}
+a:hover{color:var(--beige-700);text-decoration:underline;text-underline-offset:3px}
 ::selection{background:var(--plum-300);color:var(--beige-900)}
 input:not([type=checkbox]):not([type=radio]):focus,select:focus,textarea:focus{background-color:var(--coral-100)}
 input[type=checkbox],input[type=radio]{accent-color:var(--coral-500)}
