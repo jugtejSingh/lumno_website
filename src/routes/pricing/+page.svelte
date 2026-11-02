@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Nav from '$lib/components/utils/Nav.svelte';
+	import GoogleTag from '$lib/components/utils/GoogleTag.svelte';
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Card from '$lib/components/utils/Card.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
@@ -123,7 +124,15 @@
 				// The real entitlement flip happens async via the webhook once the
 				// first charge confirms — this is just UX feedback that checkout
 				// finished, not proof the plan changed yet.
-				handler: () => goto('/settings?checkout=processing'),
+				handler: () => {
+					// Google Ads "Subscribe" conversion. gtag is loaded by <GoogleTag /> on this page.
+					if (window.gtag) {
+						window.gtag('event', 'conversion', {
+							send_to: 'AW-18542650696/zA7ACJiCxbAdEMjK6YlF'
+						});
+					}
+					goto('/settings?checkout=processing');
+				},
 				modal: { ondismiss: () => (loadingTier = null) }
 			});
 			checkout.open();
@@ -138,6 +147,8 @@
 	<title>Pricing — Lumno</title>
 	<meta name="description" content="Simple, transparent pricing for practitioners running their practice on Lumno." />
 </svelte:head>
+
+<GoogleTag />
 
 <div class="page">
 	<Nav />

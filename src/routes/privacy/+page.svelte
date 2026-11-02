@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Nav from '$lib/components/utils/Nav.svelte';
+	import GoogleTag from '$lib/components/utils/GoogleTag.svelte';
 	import Footer from '$lib/components/utils/Footer.svelte';
 </script>
 
@@ -8,11 +9,13 @@
 	<meta name="description" content="How Lumno collects, uses, and protects your data." />
 </svelte:head>
 
+<GoogleTag />
+
 <div class="page">
 	<Nav />
 	<main class="legal">
 		<h1 class="display">Privacy Policy</h1>
-		<p class="updated">Last updated: October 26, 2026</p>
+		<p class="updated">Last updated: November 2, 2026</p>
 
 		<p>
 			Lumno ("we", "us") is practice-management software for therapists and other practitioners.
@@ -62,8 +65,11 @@
 			note with them.
 		</p>
 		<p>
-			We do not sell data, show ads, or run analytics that track people across the web. We collect
-			only what we need to provide the service.
+			We do not sell data or show ads. Our public pages (home, pricing and legal pages) use Google
+			Ads conversion tracking, which sets Google cookies, so we can see whether our ads lead to
+			sign-ups. This tracking never runs inside the app or client portal, so nothing about your
+			practice, clients, sessions or notes is ever sent to Google. We collect only what we need to
+			provide the service.
 		</p>
 
 		<h2>Google user data</h2>
@@ -135,7 +141,9 @@
 			<li>
 				<strong>Google</strong>, only when a practitioner connects Google Calendar, receives that
 				practitioner's appointment times and attendee details to create calendar events and Meet
-				links.
+				links. Separately, Google Ads receives visit and conversion data (pages viewed, whether a
+				subscription was bought, and Google cookie identifiers) to measure our ads, from our
+				<strong>public pages only</strong>, never from inside the app or client portal.
 			</li>
 			<li>
 				<strong>Razorpay</strong> processes payments and receives the details needed to take and pay

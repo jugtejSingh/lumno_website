@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Nav from '$lib/components/utils/Nav.svelte';
+	import GoogleTag from '$lib/components/utils/GoogleTag.svelte';
 	import Footer from '$lib/components/utils/Footer.svelte';
 </script>
 
@@ -7,6 +8,8 @@
 	<title>Terms of Service — Lumno</title>
 	<meta name="description" content="The terms governing use of Lumno." />
 </svelte:head>
+
+<GoogleTag />
 
 <div class="page">
 	<Nav />

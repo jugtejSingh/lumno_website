@@ -27,6 +27,9 @@ declare global {
 	// Loaded at runtime from https://checkout.razorpay.com/v1/checkout.js
 	// (pricing/+page.svelte) — no official types package for the web widget.
 	interface Window {
+		// Google Ads tag (lib/components/utils/GoogleTag.svelte) — public pages only.
+		dataLayer: unknown[];
+		gtag?: (...args: unknown[]) => void;
 		Razorpay: new (options: {
 			key: string;
 			subscription_id?: string; // subscription checkout (pricing page)

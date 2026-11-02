@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Nav from '$lib/components/utils/Nav.svelte';
+	import GoogleTag from '$lib/components/utils/GoogleTag.svelte';
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Hero from '$lib/components/Home/Hero.svelte';
 	import WeekSection from '$lib/components/Home/WeekSection.svelte';
@@ -12,6 +13,8 @@
 	import PricingSection from '$lib/components/Home/PricingSection.svelte';
 	import FaqSection from '$lib/components/Home/FaqSection.svelte';
 </script>
+
+<GoogleTag />
 
 <div class="page">
 	<Nav />
