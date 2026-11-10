@@ -182,8 +182,8 @@ export async function getClientPaymentTotals(therapistId: string, clientId: stri
 	const [paymentRow] = await db
 		.select({
 			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${chargeIsVisible()}), 0)::int`,
-			paidThisMonth: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${payment.createdAt} >= ${monthStart.toISOString()}), 0)::int`,
-			paidThisYear: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${payment.createdAt} >= ${yearStart.toISOString()}), 0)::int`
+			paidThisMonth: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and coalesce(${payment.paidAt}, ${payment.createdAt}) >= ${monthStart.toISOString()}), 0)::int`,
+			paidThisYear: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and coalesce(${payment.paidAt}, ${payment.createdAt}) >= ${yearStart.toISOString()}), 0)::int`
 		})
 		.from(payment)
 		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
@@ -630,22 +630,22 @@ export async function listOutstandingBalancesByClient(therapistId: string): Prom
 
 export type MonthlyPaymentSummary = { paid: number; unpaid: number; total: number };
 
-// Bucketed by when the charge was created — a therapist's "this month" is what
-// originated this month, paid or not, same as any other created_at-scoped report.
+// Paid money is bucketed by when it was paid (paidAt; createdAt for legacy rows with no
+// paidAt) — a session booked weeks ago and ticked paid today is this month's income.
+// Unpaid is what originated this month and is still owed. Total is the two together.
 export async function getMonthlyPaymentSummary(therapistId: string, year: number, month: number): Promise<MonthlyPaymentSummary> {
 	const monthStart = new Date(Date.UTC(year, month, 1));
 	const monthEnd = new Date(Date.UTC(year, month + 1, 1));
+	const paidOn = sql`coalesce(${payment.paidAt}, ${payment.createdAt})`;
 
 	const [row] = await db
 		.select({
-			paid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid'), 0)::int`,
-			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${chargeIsVisible()}), 0)::int`
+			paid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${paidOn} >= ${monthStart.toISOString()} and ${paidOn} < ${monthEnd.toISOString()}), 0)::int`,
+			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${chargeIsVisible()} and ${payment.createdAt} >= ${monthStart.toISOString()} and ${payment.createdAt} < ${monthEnd.toISOString()}), 0)::int`
 		})
 		.from(payment)
 		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
-		.where(
-			and(eq(payment.therapistId, therapistId), gte(payment.createdAt, monthStart), lt(payment.createdAt, monthEnd))
-		);
+		.where(eq(payment.therapistId, therapistId));
 
 	const paid = row?.paid ?? 0;
 	const unpaid = row?.unpaid ?? 0;
