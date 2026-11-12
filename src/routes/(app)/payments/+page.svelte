@@ -7,6 +7,7 @@
 	import ClientPaymentsDialog from '$lib/components/Payments/ClientPaymentsDialog.svelte';
 	import ClientSidebar from '$lib/components/Payments/ClientSidebar.svelte';
 	import Pager from '$lib/components/utils/Pager.svelte';
+	import PeriodSwitch from '$lib/components/Payments/PeriodSwitch.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$lib/enhance';
@@ -68,10 +69,12 @@
 			</div>
 		{/if}
 
+		<PeriodSwitch options={data.periodOptions} period={data.period} />
+
 		<div class="stat-row">
-			<StatCard label="Paid this month" value={formatCurrency(data.summary.paid, data.currency)} accent="sage" />
-			<StatCard label="Unpaid this month" value={formatCurrency(data.summary.unpaid, data.currency)} accent="citrus" />
-			<StatCard label="Total this month" value={formatCurrency(data.summary.total, data.currency)} accent="plum" />
+			<StatCard label="Unpaid" value={formatCurrency(data.summary.unpaid, data.currency)} accent="citrus" />
+			<StatCard label="Paid" value={formatCurrency(data.summary.paid, data.currency)} accent="sage" />
+			<StatCard label="Total" value={formatCurrency(data.summary.total, data.currency)} accent="plum" />
 		</div>
 
 		<div class="columns">
@@ -96,7 +99,10 @@
 			</div>
 
 			<div class="column">
-				<div class="section-title">Who owes what</div>
+				<div class="section-title owes-title">
+					<span>Who owes you · all time</span>
+					<span class="balance-owed">{formatCurrency(data.balancesOwedTotal, data.currency)}</span>
+				</div>
 				<div class="balance-list">
 					{#each data.balances as b (b.key)}
 						<Card interactive={!!b.clientId}>
@@ -234,6 +240,13 @@
 		.stat-row > :global(:last-child:nth-child(odd)) {
 			grid-column: 1 / -1;
 		}
+	}
+
+	.owes-title {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 12px;
 	}
 
 	.section-title {

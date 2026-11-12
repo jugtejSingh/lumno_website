@@ -131,12 +131,12 @@ describe('load', () => {
 });
 
 describe('update action', () => {
-	const valid = { name: 'Sam Renamed', status: 'paused', rate: '1500', tags: ' a, b ,,c ' };
+	const valid = { name: 'Sam Renamed', status: 'paused', rate: '1500' };
 
-	it('saves name, rate, tags and status', async () => {
+	it('saves name, rate and status', async () => {
 		expect(isActionFailure(await post('update', valid))).toBe(false);
 		const row = await rowOf(clientId);
-		expect(row).toMatchObject({ name: 'Sam Renamed', status: 'paused', rate: 1500, tags: ['a', 'b', 'c'] });
+		expect(row).toMatchObject({ name: 'Sam Renamed', status: 'paused', rate: 1500 });
 	});
 
 	it('a blank rate clears it', async () => {

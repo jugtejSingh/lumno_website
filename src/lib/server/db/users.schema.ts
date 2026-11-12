@@ -92,6 +92,8 @@ export const client = pgTable(
 		// therapist-written notes keyed by heading id (therapistSettings.clientFieldHeadings).
 		// Values for a deleted heading are left here, just no longer shown.
 		customFields: jsonb('custom_fields').$type<ClientFieldValues>().notNull().default({}),
+		// UNUSED since 2026-11-12: client tags were removed from the app; the column is kept
+		// so existing data survives. See docs/client_tags_removed.md.
 		tags: text('tags').array().notNull().default([]),
 		// per-session rate in whole units of the therapist's currency (see therapist.currency)
 		rate: integer('rate'),

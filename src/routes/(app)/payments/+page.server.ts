@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
-	getMonthlyPaymentSummary,
+	getPaymentSummary,
 	listOutstandingBalancesByClient,
 	setPaymentStatus,
 	addCharge,
@@ -12,6 +12,7 @@ import {
 	parseAmount
 } from '$lib/server/payments';
 import { listClients } from '$lib/server/clients';
+import { parsePeriod, periodOptions } from '$lib/server/period';
 import { listDoubleCharges, dismissDoubleCharge } from '$lib/server/sessionPayments';
 
 const BALANCES_PER_PAGE = 5;
@@ -24,14 +25,21 @@ export const load: PageServerLoad = async (event) => {
 	const now = new Date();
 	const balancesPage = Math.max(1, Number(event.url.searchParams.get('balancesPage')) || 1);
 	const packsPage = Math.max(1, Number(event.url.searchParams.get('packsPage')) || 1);
+	const period = parsePeriod(event.url.searchParams.get('period'), therapist.timezone, now);
 
 	const [summary, balances, clients, doubleChargeRows, allPacks] = await Promise.all([
-		getMonthlyPaymentSummary(therapist.id, now.getFullYear(), now.getMonth()),
+		getPaymentSummary(therapist.id, period.start, period.end),
 		listOutstandingBalancesByClient(therapist.id),
 		listClients(therapist.id),
 		listDoubleCharges(therapist.id),
 		listPacksForTherapist(therapist.id)
 	]);
+
+	// all-time total owed, across every page of the "Who owes you" list
+	let balancesOwedTotal = 0;
+	for (const balance of balances) {
+		balancesOwedTotal += balance.owed;
+	}
 
 	// only packs with sessions still to use; what was paid for them is in the payment history
 	const packs: {
@@ -88,9 +96,12 @@ export const load: PageServerLoad = async (event) => {
 		packsTotal: packs.length,
 		packsPerPage: PACKS_PER_PAGE,
 		summary,
+		period: { kind: period.kind, value: period.value, label: period.label, prev: period.prev, next: period.next },
+		periodOptions: periodOptions(therapist.timezone, now),
 		balances: balances.slice((balancesPage - 1) * BALANCES_PER_PAGE, balancesPage * BALANCES_PER_PAGE),
 		balancesPage,
 		balancesTotal: balances.length,
+		balancesOwedTotal,
 		balancesPerPage: BALANCES_PER_PAGE,
 		currency: therapist.currency,
 		clients: clients.map((c) => ({ id: c.id, name: c.name }))

@@ -28,7 +28,6 @@ function input(n: number): NewClientInput {
 		name: `Client ${n}`,
 		email: `client-${n}@example.com`,
 		customFields: {},
-		tags: [],
 		rate: 1000
 	};
 }
@@ -150,7 +149,6 @@ describe('free plan client cap', () => {
 			await updateClient(therapistId, c.id, {
 				name: c.name,
 				customFields: {},
-				tags: [],
 				rate: c.rate,
 				status: 'active'
 			});

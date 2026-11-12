@@ -22,7 +22,6 @@ const newClientInput = (over: Partial<NewClientInput> = {}): NewClientInput => (
 	name: 'Sam Client',
 	email: 'sam@example.com',
 	customFields: {},
-	tags: [],
 	rate: 1200,
 	...over
 });

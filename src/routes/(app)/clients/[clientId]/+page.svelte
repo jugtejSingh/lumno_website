@@ -31,23 +31,25 @@
 	// svelte-ignore state_referenced_locally
 	let editCustomFields = $state({ ...data.client.customFields });
 	// svelte-ignore state_referenced_locally
-	let editTags = $state([...data.client.tags]);
-	// svelte-ignore state_referenced_locally
 	let editStatus = $state(data.client.status);
 
 	let paymentTotals = $state({ owed: 0, paidThisMonth: 0, paidThisYear: 0 });
 	let historyList: { refresh: () => void } | undefined = $state();
+
+	// put the edit form back on the client's stored values
+	function syncDraftsFromData() {
+		editName = data.client.name;
+		editRate = data.client.rate?.toString() ?? '';
+		editCustomFields = { ...data.client.customFields };
+		editStatus = data.client.status;
+	}
 
 	// svelte-ignore state_referenced_locally
 	let lastClientId = data.client.id;
 	$effect(() => {
 		if (data.client.id === lastClientId) return;
 		lastClientId = data.client.id;
-		editName = data.client.name;
-		editRate = data.client.rate?.toString() ?? '';
-		editCustomFields = { ...data.client.customFields };
-		editTags = [...data.client.tags];
-		editStatus = data.client.status;
+		syncDraftsFromData();
 		tab = 'info';
 		paymentTotals = { owed: 0, paidThisMonth: 0, paidThisYear: 0 };
 	});
@@ -142,8 +144,13 @@
 					method="POST"
 					action="?/update"
 					use:enhance={() => {
-						return async ({ update }) => {
-							await update();
+						return async ({ result, update }) => {
+							// no reset: a form reset snaps the boxes back to page-load values, and
+							// the next save would post those, wiping what was just saved
+							await update({ reset: false });
+							if (result.type === 'success') {
+								syncDraftsFromData();
+							}
 						};
 					}}
 				>
@@ -152,7 +159,6 @@
 						bind:rate={editRate}
 						bind:customFields={editCustomFields}
 						fieldHeadings={data.fieldHeadings}
-						bind:tags={editTags}
 						bind:status={editStatus}
 						showEmail={false}
 						{statusOptions}

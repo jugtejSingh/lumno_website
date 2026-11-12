@@ -53,7 +53,8 @@ export async function seedTherapist(request: APIRequestContext) {
 	const account = await signUp(request, 'Dana Reyes');
 	const [therapistRow] = await db
 		.insert(schema.therapist)
-		.values({ userId: account.userId, slug: `e2e-${randomUUID().slice(0, 8)}` })
+		// welcome already seen, so its modal does not cover the page under test
+		.values({ userId: account.userId, slug: `e2e-${randomUUID().slice(0, 8)}`, welcomeSeenAt: new Date() })
 		.returning();
 	await db.insert(schema.therapistSettings).values({ therapistId: therapistRow.id });
 	await db.insert(schema.paymentSettings).values({ therapistId: therapistRow.id });

@@ -16,7 +16,6 @@ export type NewClientInput = {
 	name: string;
 	email: string;
 	customFields: ClientFieldValues;
-	tags: string[];
 	rate: number | null;
 };
 
@@ -219,7 +218,6 @@ export async function setClientStatus(therapistId: string, clientId: string, sta
 export type ClientUpdateInput = {
 	name: string;
 	customFields: ClientFieldValues;
-	tags: string[];
 	rate: number | null;
 	status: ClientStatus;
 };
@@ -243,7 +241,6 @@ export async function updateClient(therapistId: string, clientId: string, input:
 			.set({
 				name: input.name,
 				customFields: input.customFields,
-				tags: input.tags,
 				rate: input.rate,
 				status: input.status,
 				deactivatedAt: input.status === 'left' ? new Date() : null

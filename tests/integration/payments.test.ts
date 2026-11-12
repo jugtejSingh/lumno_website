@@ -12,13 +12,14 @@ import {
 	listOutstandingBalancesByClient,
 	getClientPaymentTotals,
 	listPaymentsForClientPage,
-	getMonthlyPaymentSummary,
+	getPaymentSummary,
 	listVisiblePaymentsForClient,
 	getBalanceDueForClient
 } from '$lib/server/payments';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { payment } from '$lib/server/db/schema';
+import { parsePeriod } from '$lib/server/period';
 import { resetDb, mkTherapist, mkClient, mkAppointment } from './helpers';
 
 let therapistId: string;
@@ -77,15 +78,110 @@ describe('charges and balance', () => {
 		expect(rows.map((r) => r.note)).toEqual(['second', 'third', 'first']);
 	});
 
-	it('getMonthlyPaymentSummary buckets by created month', async () => {
+	it('getPaymentSummary counts an ad-hoc charge from the day it was added', async () => {
 		await addCharge(therapistId, { clientId, amount: 1000 });
-		const now = new Date();
-		const summary = await getMonthlyPaymentSummary(
-			therapistId,
-			now.getUTCFullYear(),
-			now.getUTCMonth()
-		);
+		const summary = await getPaymentSummary(therapistId, new Date(Date.now() - 86_400_000), null);
 		expect(summary).toEqual({ paid: 0, unpaid: 1000, total: 1000 });
+	});
+});
+
+describe('payment summary by period', () => {
+	const DAY = 86_400_000;
+	const tz = 'Asia/Kolkata';
+	const now = new Date('2026-11-12T04:30:00Z');
+
+	// a session charge with its created / paid dates set by hand
+	async function sessionCharge(startAt: Date, amount: number, dates: { createdAt?: Date; paidAt?: Date } = {}) {
+		const appt = await mkAppointment(therapistId, clientId, { startAt, endAt: new Date(startAt.getTime() + 3_600_000) });
+		const p = await addCharge(therapistId, { clientId, appointmentId: appt.id, amount });
+		const set: Partial<typeof payment.$inferInsert> = {};
+		if (dates.createdAt) {
+			set.createdAt = dates.createdAt;
+		}
+		if (dates.paidAt) {
+			set.status = 'paid';
+			set.paidAt = dates.paidAt;
+		}
+		if (Object.keys(set).length > 0) {
+			await db.update(payment).set(set).where(eq(payment.id, p.id));
+		}
+		return p;
+	}
+
+	async function summaryFor(raw: string) {
+		const period = parsePeriod(raw, tz, now);
+		return getPaymentSummary(therapistId, period.start, period.end);
+	}
+
+	it('booked 30 Oct, session 6 Nov, paid 3 Dec: counts in November and 2026 only', async () => {
+		await sessionCharge(new Date('2026-11-06T05:00:00Z'), 1500, {
+			createdAt: new Date('2026-10-30T05:00:00Z'),
+			paidAt: new Date('2026-12-03T05:00:00Z')
+		});
+
+		expect(await summaryFor('month:2026-11')).toEqual({ paid: 1500, unpaid: 0, total: 1500 });
+		expect(await summaryFor('month:2026-10')).toEqual({ paid: 0, unpaid: 0, total: 0 });
+		expect(await summaryFor('year:2026')).toEqual({ paid: 1500, unpaid: 0, total: 1500 });
+		// rolling window: in while 6 Nov is inside it, out once it isn't
+		expect((await getPaymentSummary(therapistId, new Date('2026-11-01T00:00:00Z'), null)).paid).toBe(1500);
+		expect((await getPaymentSummary(therapistId, new Date('2026-11-07T00:00:00Z'), null)).paid).toBe(0);
+	});
+
+	it('a 45-day-late payment stays in the session month', async () => {
+		await sessionCharge(new Date('2026-08-10T05:00:00Z'), 900, { paidAt: new Date('2026-09-24T05:00:00Z') });
+
+		expect((await summaryFor('month:2026-08')).paid).toBe(900);
+		expect((await summaryFor('month:2026-09')).paid).toBe(0);
+	});
+
+	it('an unpaid session that has not started is not counted; once started it is', async () => {
+		await sessionCharge(new Date(Date.now() + 2 * 3_600_000), 1000);
+		await sessionCharge(new Date(Date.now() - 2 * 3_600_000), 700);
+
+		const summary = await getPaymentSummary(therapistId, new Date(Date.now() - 30 * DAY), null);
+		expect(summary).toEqual({ paid: 0, unpaid: 700, total: 700 });
+	});
+
+	it('a prepaid session next week counts as paid in the last 30 days; unpaid it counts nowhere', async () => {
+		const prepaid = await sessionCharge(new Date(Date.now() + 7 * DAY), 1200, { paidAt: new Date() });
+		const since = new Date(Date.now() - 30 * DAY);
+		expect(await getPaymentSummary(therapistId, since, null)).toEqual({ paid: 1200, unpaid: 0, total: 1200 });
+
+		await db.update(payment).set({ status: 'unpaid', paidAt: null }).where(eq(payment.id, prepaid.id));
+		expect(await getPaymentSummary(therapistId, since, null)).toEqual({ paid: 0, unpaid: 0, total: 0 });
+	});
+
+	it('a cancelled future session still counts as unpaid', async () => {
+		const appt = await mkAppointment(therapistId, clientId, {
+			startAt: new Date(Date.now() + 3 * DAY),
+			endAt: new Date(Date.now() + 3 * DAY + 3_600_000),
+			status: 'cancelled'
+		});
+		await addCharge(therapistId, { clientId, appointmentId: appt.id, amount: 500 });
+
+		expect((await getPaymentSummary(therapistId, new Date(Date.now() - DAY), null)).unpaid).toBe(500);
+	});
+});
+
+describe('who owes you', () => {
+	it('includes an unpaid charge older than 365 days', async () => {
+		const old = new Date(Date.now() - 400 * 86_400_000);
+		const appt = await mkAppointment(therapistId, clientId, { startAt: old, endAt: new Date(old.getTime() + 3_600_000) });
+		await addCharge(therapistId, { clientId, appointmentId: appt.id, amount: 800 });
+
+		expect(await listOutstandingBalancesByClient(therapistId)).toEqual([
+			{ key: clientId, clientId, name: 'Test Client', owed: 800 }
+		]);
+	});
+
+	it('leaves out an unpaid session that has not started, even within the 2-day portal window', async () => {
+		const soon = new Date(Date.now() + 86_400_000);
+		const appt = await mkAppointment(therapistId, clientId, { startAt: soon, endAt: new Date(soon.getTime() + 3_600_000) });
+		await addCharge(therapistId, { clientId, appointmentId: appt.id, amount: 800 });
+
+		expect(await listOutstandingBalancesByClient(therapistId)).toEqual([]);
+		// the client portal still shows it as due
+		expect((await listVisiblePaymentsForClient(clientId, 1, 5)).rows).toHaveLength(1);
 	});
 });
 

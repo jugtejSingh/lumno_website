@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Card from '$lib/components/utils/Card.svelte';
 	import Avatar from '$lib/components/utils/Avatar.svelte';
-	import Tag from '$lib/components/utils/Tag.svelte';
 	import Badge from '$lib/components/utils/Badge.svelte';
 	import Input from '$lib/components/utils/Input.svelte';
 	import Button from '$lib/components/utils/Button.svelte';
@@ -109,11 +108,6 @@
 								<div class="rate">{formatCurrency(c.rate, currency)} / session</div>
 							{/if}
 						</div>
-						<div class="tag-row">
-							{#each c.tags as t (t)}
-								<Tag>{t}</Tag>
-							{/each}
-						</div>
 					</div>
 					<div class="actions">
 						<Button href={`/clients/${c.id}`} variant="secondary" size="sm">View</Button>
@@ -173,7 +167,6 @@
 			bind:rate={newRate}
 			bind:customFields={newCustomFields}
 			fieldHeadings={data.fieldHeadings}
-			showDetails={false}
 			errors={form?.fieldErrors ?? {}}
 		/>
 		{#if form?.message}
@@ -287,12 +280,6 @@
 	.rate::before {
 		content: '·';
 		margin-right: 8px;
-	}
-
-	.tag-row {
-		display: flex;
-		gap: 6px;
-		flex-wrap: wrap;
 	}
 
 	.actions {

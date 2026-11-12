@@ -89,10 +89,6 @@ export const actions: Actions = {
 		const name = formData.get('name')?.toString().trim() ?? '';
 		const rateRaw = formData.get('rate')?.toString().trim() || '';
 		const status = formData.get('status')?.toString() ?? '';
-		const tags = (formData.get('tags')?.toString() ?? '')
-			.split(',')
-			.map((t) => t.trim())
-			.filter(Boolean);
 
 		if (!name.includes(' ')) {
 			return fail(400, { fieldErrors: { name: 'Please enter their first and last name.' } });
@@ -113,7 +109,6 @@ export const actions: Actions = {
 			name,
 			rate: rateRaw ? Number(rateRaw) : null,
 			customFields: mergeClientFieldValues(existingFields, headings, formData),
-			tags,
 			status: status as ClientStatus
 		});
 		if (result && 'error' in result && result.error !== undefined) {

@@ -160,3 +160,48 @@ describe('load packs list', () => {
 		expect((await loadPage()).packs).toEqual([]);
 	});
 });
+
+describe('load period switch', () => {
+	async function loadPeriod(period: string) {
+		const event = mkEvent({ url: `http://localhost/payments?period=${period}`, parent: async () => ({ therapist }) });
+		return (await load(event as never)) as unknown as {
+			period: { kind: string; value: string; label: string; prev?: string; next?: string };
+			summary: { paid: number; unpaid: number; total: number };
+		};
+	}
+
+	it('loads each period kind', async () => {
+		expect((await loadPeriod('30d')).period.kind).toBe('30d');
+		expect((await loadPeriod('365d')).period.kind).toBe('365d');
+		expect((await loadPeriod('month:2026-01')).period).toMatchObject({ kind: 'month', label: 'January 2026' });
+		expect((await loadPeriod('year:2025')).period).toMatchObject({ kind: 'year', label: '2025', next: 'year:2026' });
+	});
+
+	it('a bad period falls back to 30d', async () => {
+		expect((await loadPeriod('month:9999-01')).period.kind).toBe('30d');
+		expect((await loadPeriod('nonsense')).period.kind).toBe('30d');
+	});
+
+	it('the summary follows the chosen period', async () => {
+		const at = new Date('2025-03-10T05:00:00Z');
+		const appt = await mkAppointment(therapist.id, clientId, { startAt: at, endAt: new Date(at.getTime() + 3_600_000) });
+		await db.insert(payment).values({ therapistId: therapist.id, clientId, appointmentId: appt.id, amount: 600 });
+
+		expect((await loadPeriod('month:2025-03')).summary).toEqual({ paid: 0, unpaid: 600, total: 600 });
+		expect((await loadPeriod('month:2025-04')).summary.total).toBe(0);
+		expect((await loadPeriod('30d')).summary.total).toBe(0);
+	});
+});
+
+describe('load who owes you total', () => {
+	it('sums every balance across all pages', async () => {
+		for (let i = 0; i < 7; i++) {
+			const c = await mkClient(therapist.id);
+			await db.insert(payment).values({ therapistId: therapist.id, clientId: c.id, amount: 100 });
+		}
+		const event = mkEvent({ parent: async () => ({ therapist }) });
+		const data = (await load(event as never)) as unknown as { balances: unknown[]; balancesOwedTotal: number };
+		expect(data.balances).toHaveLength(5);
+		expect(data.balancesOwedTotal).toBe(700);
+	});
+});

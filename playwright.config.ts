@@ -28,7 +28,9 @@ export default defineConfig({
 			DIRECT_DATABASE_URL: process.env.DATABASE_URL_TEST,
 			ORIGIN: 'http://localhost:4173',
 			// fake key so nothing real is emailed; sends fail loudly instead
-			RESEND_API: 'test'
+			RESEND_API: 'test',
+			// dev-only bypass of the per-IP rate limiter (see hooks.server.ts)
+			E2E: '1'
 		}
 	},
 	use: {

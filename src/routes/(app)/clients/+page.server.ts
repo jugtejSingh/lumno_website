@@ -50,9 +50,7 @@ export const actions: Actions = {
 				name,
 				email,
 				rate: rateRaw ? Number(rateRaw) : null,
-				customFields: mergeClientFieldValues({}, headings, formData),
-				// tags are filled in later via Edit client
-				tags: []
+				customFields: mergeClientFieldValues({}, headings, formData)
 			},
 			event.url.origin
 		);

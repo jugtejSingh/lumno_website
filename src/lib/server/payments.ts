@@ -28,6 +28,13 @@ function chargeIsVisible() {
 	);
 }
 
+// Therapist-side rule: an unpaid session charge only counts as owed once the session has
+// started. Ad-hoc charges, pack purchases and cancelled sessions count straight away.
+// The client portal keeps chargeIsVisible (2 days ahead). Must left-join `appointment`.
+function countsAsUnpaid() {
+	return or(isNull(payment.appointmentId), eq(appointment.status, 'cancelled'), lte(appointment.startAt, new Date()));
+}
+
 export function parseAmount(raw: FormDataEntryValue | null): number | null {
 	const amount = Number(raw);
 	// amount is a whole-rupee integer column — a fractional value would otherwise
@@ -612,7 +619,7 @@ export async function listOutstandingBalancesByClient(therapistId: string): Prom
 		.from(payment)
 		.leftJoin(client, eq(payment.clientId, client.id))
 		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
-		.where(and(eq(payment.therapistId, therapistId), eq(payment.status, 'unpaid'), chargeIsVisible()))
+		.where(and(eq(payment.therapistId, therapistId), eq(payment.status, 'unpaid'), countsAsUnpaid()))
 		.groupBy(payment.clientId, client.name, payment.customName);
 
 	const byKey = new Map<string, ClientBalanceSummary>();
@@ -628,20 +635,22 @@ export async function listOutstandingBalancesByClient(therapistId: string): Prom
 	return [...byKey.values()].sort((a, b) => b.owed - a.owed);
 }
 
-export type MonthlyPaymentSummary = { paid: number; unpaid: number; total: number };
+export type PaymentSummary = { paid: number; unpaid: number; total: number };
 
-// Paid money is bucketed by when it was paid (paidAt; createdAt for legacy rows with no
-// paidAt) — a session booked weeks ago and ticked paid today is this month's income.
-// Unpaid is what originated this month and is still owed. Total is the two together.
-export async function getMonthlyPaymentSummary(therapistId: string, year: number, month: number): Promise<MonthlyPaymentSummary> {
-	const monthStart = new Date(Date.UTC(year, month, 1));
-	const monthEnd = new Date(Date.UTC(year, month + 1, 1));
-	const paidOn = sql`coalesce(${payment.paidAt}, ${payment.createdAt})`;
+// Every charge is placed by its session date; booking and payment dates never matter.
+// Charges with no session use the date they were added. `end` null = no upper bound, so a
+// prepaid future session already shows as paid in the rolling windows.
+export async function getPaymentSummary(therapistId: string, start: Date, end: Date | null): Promise<PaymentSummary> {
+	const placedAt = sql`coalesce(${appointment.startAt}, ${payment.createdAt})`;
+	let inPeriod = sql`${placedAt} >= ${start.toISOString()}`;
+	if (end !== null) {
+		inPeriod = sql`${inPeriod} and ${placedAt} < ${end.toISOString()}`;
+	}
 
 	const [row] = await db
 		.select({
-			paid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${paidOn} >= ${monthStart.toISOString()} and ${paidOn} < ${monthEnd.toISOString()}), 0)::int`,
-			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${chargeIsVisible()} and ${payment.createdAt} >= ${monthStart.toISOString()} and ${payment.createdAt} < ${monthEnd.toISOString()}), 0)::int`
+			paid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${inPeriod}), 0)::int`,
+			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${countsAsUnpaid()} and ${inPeriod}), 0)::int`
 		})
 		.from(payment)
 		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))

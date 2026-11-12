@@ -4,7 +4,8 @@ import * as Sentry from '@sentry/sveltekit';
 import { randomUUID } from 'node:crypto';
 import { logError } from '$lib/server/log';
 import { eq } from 'drizzle-orm';
-import { building } from '$app/environment';
+import { building, dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { therapist } from '$lib/server/db/schema';
@@ -17,7 +18,15 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 // legitimately retry fast — IP throttling them only risks dropping a retry.
 const RATE_LIMIT_EXEMPT_PREFIXES = ['/webhooks/', '/api/cron/'];
 
+// Playwright's dev server sets E2E=1: one test file sends more than the 30 req/min
+// limit, and every hit also lands in the real Upstash Redis. `dev` is false in any
+// built server, so a stray E2E var in production can't switch the limiter off.
+const skipRateLimitForE2E = dev && env.E2E === '1';
+
 const handleRateLimit: Handle = async ({ event, resolve }) => {
+	if (skipRateLimitForE2E) {
+		return resolve(event);
+	}
 	const isExempt = RATE_LIMIT_EXEMPT_PREFIXES.some((prefix) =>
 		event.url.pathname.startsWith(prefix)
 	);

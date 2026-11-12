@@ -9,7 +9,7 @@
 		{
 			question: 'Can I keep track of the things my practice cares about?',
 			answer:
-				'Yes. Make up to 20 of your own fields, like "Presenting concerns" or "Medication", and they show up on every client. Add tags, set a different rate per client, and only you ever see them.'
+				'Yes. Make up to 20 of your own fields, like "Presenting concerns" or "Medication", and they show up on every client. Set a different rate per client, and only you ever see them.'
 		},
 		{
 			question: 'Can anyone book a session with me?',
