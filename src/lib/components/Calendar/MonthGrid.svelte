@@ -34,7 +34,7 @@
 				{#if cell.day !== null}
 					<div class="cell-num" class:today={cell.isToday}>{cell.day}</div>
 					<div class="cell-sessions">
-						{#each cell.sessions as s (s.time + s.name)}
+						{#each cell.sessions as s (s.id)}
 							<div
 								class="session-chip"
 								class:dim={s.status === 'cancelled' || s.status === 'rescheduled'}
