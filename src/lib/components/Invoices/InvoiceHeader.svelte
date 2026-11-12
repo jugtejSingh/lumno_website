@@ -1,11 +1,24 @@
+<!-- styles inlined into server-rendered HTML for the emailed PDF (invoicePdf.ts) -->
+<svelte:options css="injected" />
+
 <script lang="ts">
 	import { formatInvoiceDate } from '$lib/invoice';
 
-	let { title, number, date }: { title: string; number: string; date: string } = $props();
+	let {
+		title,
+		number,
+		date,
+		logoUrl = null
+	}: { title: string; number: string; date: string; logoUrl?: string | null } = $props();
 </script>
 
 <header class="header">
-	<h2 class="title">{title}</h2>
+	<div class="brand">
+		{#if logoUrl}
+			<img class="logo" src={logoUrl} alt="Logo" />
+		{/if}
+		<h2 class="title">{title}</h2>
+	</div>
 	<dl class="meta">
 		<div>
 			<dt>Invoice no.</dt>
@@ -26,6 +39,21 @@
 		gap: 16px;
 		padding-bottom: 14px;
 		border-bottom: 2px solid var(--invoice-ink);
+	}
+
+	.brand {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		min-width: 0;
+	}
+
+	.logo {
+		display: block;
+		max-width: 160px;
+		max-height: 56px;
+		object-fit: contain;
+		object-position: left center;
 	}
 
 	.title {

@@ -16,6 +16,7 @@ import {
 } from '$lib/server/razorpay';
 import { getAccessToken } from '$lib/server/razorpayConnection';
 import { logError } from '$lib/server/log';
+import { autoIssueInvoice } from '$lib/server/invoices';
 
 // Portal invoice payment — a client pays an unpaid `payment` row via Razorpay
 // Checkout, running on the THERAPIST'S connected merchant account (partner OAuth).
@@ -140,7 +141,8 @@ export async function handleSessionInvoicePaid(opts: {
 			id: payment.id,
 			status: payment.status,
 			amount: payment.amount,
-			paidVia: payment.paidVia
+			paidVia: payment.paidVia,
+			therapistId: payment.therapistId
 		})
 		.from(payment)
 		.where(eq(payment.razorpayOrderId, opts.orderId));
@@ -178,7 +180,7 @@ export async function handleSessionInvoicePaid(opts: {
 		);
 	}
 
-	await db
+	const updated = await db
 		.update(payment)
 		.set({
 			status: 'paid',
@@ -186,7 +188,12 @@ export async function handleSessionInvoicePaid(opts: {
 			razorpayPaymentId: opts.razorpayPaymentId,
 			paidAt: new Date()
 		})
-		.where(and(eq(payment.id, row.id), eq(payment.status, 'unpaid')));
+		.where(and(eq(payment.id, row.id), eq(payment.status, 'unpaid')))
+		.returning({ id: payment.id });
+	// only the call that actually flipped it issues the invoice
+	if (updated.length > 0) {
+		await autoIssueInvoice(row.therapistId, row.id);
+	}
 }
 
 async function recordReconcileException(

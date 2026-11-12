@@ -12,10 +12,15 @@ import {
 import { getClientFieldHeadings, mergeClientFieldValues } from '$lib/server/clientFields';
 import { listUpcomingAppointmentsForClient, listPastAppointmentsForClient } from '$lib/server/appointments';
 import { addCharge, deletePayment, setPaymentStatus, updatePayment } from '$lib/server/payments';
+import { autoIssueInvoice } from '$lib/server/invoices';
 import { resourceActions } from '$lib/server/resourceActions';
 import { therapistScope } from '$lib/server/resources';
 import { listClientsWithNotes } from '$lib/server/notes';
 import { noteActions } from '$lib/server/noteActions';
+import { billingDraft, getClientBilling, saveClientBilling } from '$lib/server/clientBilling';
+import { getInvoiceSettings, isInrTherapist } from '$lib/server/invoiceSettings';
+import { parseClientBillingDetailsForm, parseClientBillingTaxForm } from '$lib/invoiceValidation';
+import { DEFAULT_GST_RATE } from '$lib/invoice';
 
 const updateErrorMessages = {
 	not_found: 'Client not found',
@@ -63,6 +68,20 @@ export const load: PageServerLoad = async (event) => {
 		sharedNotes: []
 	};
 
+	// GST invoices are India-only
+	let billing = null;
+	if (therapist.currency === 'INR') {
+		const [billingRow, settingsRow] = await Promise.all([
+			getClientBilling(client.id),
+			getInvoiceSettings(therapist.id)
+		]);
+		let defaultGstRate = DEFAULT_GST_RATE;
+		if (settingsRow) {
+			defaultGstRate = String(settingsRow.defaultGstRate);
+		}
+		billing = { initial: billingDraft(billingRow), defaultGstRate };
+	}
+
 	return {
 		client,
 		fieldHeadings,
@@ -71,7 +90,8 @@ export const load: PageServerLoad = async (event) => {
 		pastSessions,
 		notes: clientNotes.notes,
 		sharedNotes: clientNotes.sharedNotes,
-		currency: therapist.currency
+		currency: therapist.currency,
+		billing
 	};
 };
 
@@ -121,6 +141,32 @@ export const actions: Actions = {
 		}
 	},
 
+	// billingField/billingMessage, not field/message, so it doesn't show in the page banner
+	saveBilling: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const clientId = event.params.clientId;
+		if (!(await getClient(therapistId, clientId))) {
+			return fail(404, { billingField: '', billingMessage: updateErrorMessages.not_found });
+		}
+		if (!(await isInrTherapist(therapistId))) {
+			return fail(403, {
+				billingField: '',
+				billingMessage: 'Invoices are only available for INR practices'
+			});
+		}
+		const formData = await event.request.formData();
+		const details = parseClientBillingDetailsForm(formData);
+		if ('field' in details) {
+			return fail(400, { billingField: details.field, billingMessage: details.message });
+		}
+		const tax = parseClientBillingTaxForm(formData);
+		if ('field' in tax) {
+			return fail(400, { billingField: tax.field, billingMessage: tax.message });
+		}
+		await saveClientBilling(clientId, details.details, tax.tax);
+		return { billingSaved: true };
+	},
+
 	delete: async (event) => {
 		const therapistId = event.locals.therapistId!;
 		await deleteClient(therapistId, event.params.clientId);
@@ -165,6 +211,7 @@ export const actions: Actions = {
 		if (!found) {
 			return fail(404, { message: PAYMENT_NOT_FOUND });
 		}
+		await autoIssueInvoice(therapistId, paymentId);
 	},
 
 	updatePayment: async (event) => {

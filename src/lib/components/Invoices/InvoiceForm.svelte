@@ -1,13 +1,12 @@
 <script lang="ts">
 	import Card from '$lib/components/utils/Card.svelte';
-	import Textarea from '$lib/components/utils/Textarea.svelte';
 	import InvoiceMetaFields from './InvoiceMetaFields.svelte';
 	import InvoicePartySummary from './InvoicePartySummary.svelte';
 	import InvoiceLinesEditor from './InvoiceLinesEditor.svelte';
 	import type { InvoiceDraft } from '$lib/invoice';
 
-	// Only per-invoice fields live on the form; saved details sit behind the
-	// summaries' dialogs.
+	// Your details and the footer come from invoice settings and can't be
+	// changed per invoice; the buyer, lines, date and tax type can.
 	let { invoice = $bindable() }: { invoice: InvoiceDraft } = $props();
 </script>
 
@@ -17,17 +16,11 @@
 		<InvoicePartySummary
 			title="Your details"
 			nameLabel="Legal name"
-			gstinInfo="Leave blank if you're not GST-registered — the invoice becomes a Bill of Supply."
-			emptyText="Add your business details to appear on the invoice."
+			gstinInfo=""
+			emptyText="Add your business details in invoice settings."
+			editHref="/settings/invoices"
 			bind:party={invoice.seller}
-		>
-			<Textarea
-				label="Footer"
-				info="Bank or UPI details, payment terms, a thank-you line."
-				rows={3}
-				bind:value={invoice.footer}
-			/>
-		</InvoicePartySummary>
+		/>
 		<InvoicePartySummary
 			title="Bill to"
 			nameLabel="Company or client name"

@@ -58,7 +58,11 @@ export async function sendEmail(
 	to: string,
 	subject: string,
 	html: string,
-	opts: { text?: string; replyTo?: string } = {}
+	opts: {
+		text?: string;
+		replyTo?: string;
+		attachments?: { filename: string; content: Buffer }[];
+	} = {}
 ) {
 	const { error } = await resend.emails.send({
 		from: env.EMAIL_FROM,
@@ -66,7 +70,8 @@ export async function sendEmail(
 		subject,
 		html,
 		text: opts.text,
-		replyTo: opts.replyTo
+		replyTo: opts.replyTo,
+		attachments: opts.attachments
 	});
 	if (error) {
 		// no recipient address in the message — it ends up in the logs

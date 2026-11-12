@@ -1,7 +1,18 @@
+<!-- styles inlined into server-rendered HTML for the emailed PDF (invoicePdf.ts) -->
+<svelte:options css="injected" />
+
 <script lang="ts">
 	import { stateName, type InvoiceParty } from '$lib/invoice';
 
 	let { seller, buyer }: { seller: InvoiceParty; buyer: InvoiceParty } = $props();
+
+	// same fallback as placeOfSupply in $lib/invoice: no buyer state → the seller's
+	const supplyState = $derived.by(() => {
+		if (buyer.stateCode !== '') {
+			return buyer.stateCode;
+		}
+		return seller.stateCode;
+	});
 </script>
 
 {#snippet party(heading: string, details: InvoiceParty)}
@@ -17,6 +28,9 @@
 		{#if details.stateCode}
 			<div>State: {stateName(details.stateCode)} ({details.stateCode})</div>
 		{/if}
+		{#each details.extraFields ?? [] as field, index (index)}
+			<div>{field.label}: {field.value}</div>
+		{/each}
 	</div>
 {/snippet}
 
@@ -27,8 +41,8 @@
 
 <div class="supply">
 	<span class="heading">Place of supply</span>
-	{#if buyer.stateCode}
-		{stateName(buyer.stateCode)} ({buyer.stateCode})
+	{#if supplyState}
+		{stateName(supplyState)} ({supplyState})
 	{:else}
 		—
 	{/if}

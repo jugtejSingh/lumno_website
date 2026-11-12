@@ -8,3 +8,4 @@ export * from './billing.schema';
 export * from './ai.schema';
 export * from './resources.schema';
 export * from './phoneVerification.schema';
+export * from './invoices.schema';

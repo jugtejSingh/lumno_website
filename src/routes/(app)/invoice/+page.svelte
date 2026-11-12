@@ -1,30 +1,69 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import Button from '$lib/components/utils/Button.svelte';
+	import Card from '$lib/components/utils/Card.svelte';
 	import InvoiceForm from '$lib/components/Invoices/InvoiceForm.svelte';
 	import InvoiceDocument from '$lib/components/Invoices/InvoiceDocument.svelte';
-	import { emptyInvoice, todayInTimezone } from '$lib/invoice';
-	import type { PageData } from './$types';
+	import { enhance } from '$lib/enhance';
+	import { emptyInvoice } from '$lib/invoice';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// ponytail: lives only in the page — a refresh starts over. Saved template
-	// and client details come in later steps of docs/invoice.md.
-	// svelte-ignore state_referenced_locally
-	let invoice = $state(emptyInvoice(todayInTimezone(data.therapist.timezone)));
+	// seeded once; a failed issue keeps what's on screen
+	let invoice = $state(
+		structuredClone(
+			untrack(() => {
+				if (data.needsSettings) {
+					return emptyInvoice('');
+				}
+				return data.draft;
+			})
+		)
+	);
 </script>
 
 <svelte:head>
-	<title>Invoice — Lumno</title>
+	<title>Issue Invoice — Lumno</title>
 </svelte:head>
 
-<div class="invoice-page">
-	<div class="editor">
-		<h1>Invoice</h1>
-		<InvoiceForm bind:invoice />
+{#if data.needsSettings}
+	<Card>
+		<div class="setup">
+			<h1>Set up invoices first</h1>
+			<p>Add your legal name, address and state, and how invoices are numbered.</p>
+			<Button href="/settings/invoices">Invoice settings</Button>
+		</div>
+	</Card>
+{:else}
+	<div class="invoice-page">
+		<div class="editor">
+			<h1>Issue invoice</h1>
+			<form
+				method="POST"
+				action="?/issue"
+				use:enhance={() => {
+					return async ({ update }) => {
+						await update({ reset: false });
+					};
+				}}
+			>
+				<input type="hidden" name="paymentId" value={data.paymentId} />
+				<input type="hidden" name="invoice" value={JSON.stringify(invoice)} />
+				<InvoiceForm bind:invoice />
+				{#if form?.message}
+					<p class="error" role="alert">{form.message}</p>
+				{/if}
+				<div class="actions">
+					<Button type="submit">Issue invoice</Button>
+				</div>
+			</form>
+		</div>
+		<div class="preview">
+			<InvoiceDocument {invoice} />
+		</div>
 	</div>
-	<div class="preview">
-		<InvoiceDocument {invoice} />
-	</div>
-</div>
+{/if}
 
 <style>
 	.invoice-page {
@@ -40,6 +79,30 @@
 		font-weight: 600;
 		font-size: 20px;
 		color: var(--text-primary);
+	}
+
+	.setup {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.setup h1,
+	.setup p {
+		margin: 0;
+	}
+
+	.error {
+		margin: 16px 0 0;
+		color: var(--danger, #b42318);
+		font-size: 14px;
+	}
+
+	.actions {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 16px;
 	}
 
 	.preview {

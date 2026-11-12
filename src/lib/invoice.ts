@@ -10,6 +10,8 @@ export type InvoiceParty = {
 	address: string;
 	gstin: string;
 	stateCode: string;
+	// printed under the party (PAN, PO number…); copied from settings / client billing
+	extraFields: { label: string; value: string }[];
 };
 
 // amount and gstRate stay as typed text so a half-typed "12." isn't rewritten
@@ -112,7 +114,7 @@ export function stateName(code: string): string {
 }
 
 export function emptyParty(): InvoiceParty {
-	return { name: '', address: '', gstin: '', stateCode: '' };
+	return { name: '', address: '', gstin: '', stateCode: '', extraFields: [] };
 }
 
 export function emptyLine(): InvoiceLine {
@@ -161,9 +163,17 @@ export function parseRate(text: string): number {
 	return value;
 }
 
+// The buyer's state; with none known, GST places the supply in the seller's state.
+export function placeOfSupply(draft: InvoiceDraft): string {
+	if (draft.buyer.stateCode !== '') {
+		return draft.buyer.stateCode;
+	}
+	return draft.seller.stateCode;
+}
+
 // Order from docs/invoice.md: explicit choice, then no seller GSTIN means no
-// GST, then same state splits CGST/SGST, anything else (other state, outside
-// India, state not picked yet) is IGST.
+// GST, then a supply inside the seller's state (incl. a buyer with no state)
+// splits CGST/SGST, anything else (other state, outside India) is IGST.
 export function resolveTaxType(draft: InvoiceDraft): TaxType {
 	if (draft.taxType !== 'auto') {
 		return draft.taxType;
@@ -171,10 +181,35 @@ export function resolveTaxType(draft: InvoiceDraft): TaxType {
 	if (draft.seller.gstin.trim() === '') {
 		return 'none';
 	}
-	if (draft.seller.stateCode !== '' && draft.seller.stateCode === draft.buyer.stateCode) {
+	if (draft.seller.stateCode !== '' && draft.seller.stateCode === placeOfSupply(draft)) {
 		return 'cgst_sgst';
 	}
 	return 'igst';
+}
+
+// Indian financial year (April–March) of a YYYY-MM-DD date: "2026-11-02" → "2026-27".
+export function financialYearOf(date: string): string {
+	const year = Number(date.slice(0, 4));
+	const month = Number(date.slice(5, 7));
+	let startYear = year;
+	if (month < 4) {
+		startYear = year - 1;
+	}
+	const endYear = String((startYear + 1) % 100).padStart(2, '0');
+	return `${startYear}-${endYear}`;
+}
+
+// "ANV", "2026-27", 13 → "ANV/2026-27/0013"; no prefix → "2026-27/0013"
+export function formatInvoiceNumber(
+	prefix: string | null,
+	financialYear: string,
+	sequence: number
+): string {
+	const padded = String(sequence).padStart(4, '0');
+	if (prefix) {
+		return `${prefix}/${financialYear}/${padded}`;
+	}
+	return `${financialYear}/${padded}`;
 }
 
 // Amounts are GST-inclusive: back-calculate the taxable value and give the

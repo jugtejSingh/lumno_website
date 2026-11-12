@@ -6,7 +6,8 @@ import {
 	paymentPack,
 	appointment,
 	client,
-	razorpayReconcileException
+	razorpayReconcileException,
+	invoice
 } from '$lib/server/db/schema';
 
 // Callers that need pack-consumption or reschedule-link updates to be atomic with an
@@ -111,6 +112,8 @@ export type ClientPaymentHistoryRow = {
 	// set while an unresolved cancel_refund flag sits on this (paid) row — see removeSessionChargeOnCancel
 	refundDue: number | null;
 	refundFlagId: string | null;
+	// the invoice issued for this payment, if any (one per payment)
+	invoiceId: string | null;
 };
 
 // The full paid + unpaid charge history for one client, newest first — backs the
@@ -140,10 +143,13 @@ export async function listPaymentsForClientPage(
 				appointmentStartAt: appointment.startAt,
 				appointmentModality: appointment.modality,
 				refundDue: sql<number | null>`(${razorpayReconcileException.detail})::int`,
-				refundFlagId: razorpayReconcileException.id
+				refundFlagId: razorpayReconcileException.id,
+				invoiceId: invoice.id
 			})
 			.from(payment)
 			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+			// invoice.paymentId is unique, so this never multiplies rows
+			.leftJoin(invoice, eq(invoice.paymentId, payment.id))
 			// unique on (paymentId, kind), so this never multiplies rows
 			.leftJoin(
 				razorpayReconcileException,

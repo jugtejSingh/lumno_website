@@ -175,6 +175,13 @@
 										<Button type="submit" variant="primary" size="sm">Mark refunded</Button>
 									</form>
 								{/if}
+								{#if currency === 'INR'}
+									{#if p.invoiceId}
+										<Button variant="secondary" size="sm" href="/invoice/{p.invoiceId}">Invoice</Button>
+									{:else}
+										<Button variant="secondary" size="sm" href="/invoice?payment={p.id}">Issue invoice</Button>
+									{/if}
+								{/if}
 								<form
 									method="POST"
 									action="?/deletePayment"

@@ -5,6 +5,7 @@
 	import Badge from '$lib/components/utils/Badge.svelte';
 	import ClientProfileFields from '$lib/components/Clients/ClientProfileFields.svelte';
 	import PhoneVerification from '$lib/components/Clients/PhoneVerification.svelte';
+	import ClientBillingFields from '$lib/components/Invoices/ClientBillingFields.svelte';
 	import { enhance } from '$lib/enhance';
 	import type { ActionData, PageData } from './$types';
 
@@ -15,6 +16,15 @@
 	let phone = $state(data.pendingPhone || data.clientPhone);
 	let timezone = $state(data.clientTimezone);
 	let profile = $state(structuredClone(data.clientProfile));
+
+	let billing = $state(structuredClone(data.billing));
+
+	function billingErrorFor(field: string): string {
+		if (form && 'billingMessage' in form && form.billingMessage && form.billingField === field) {
+			return form.billingMessage;
+		}
+		return '';
+	}
 
 	// saveProfile tags its failure with the field it belongs to, shown under that field
 	const profileError = $derived.by(() => {
@@ -83,6 +93,33 @@
 			<Button type="submit" variant="primary" size="sm">Save</Button>
 		</form>
 	</Card>
+	{#if billing}
+		<Card>
+			<form
+				class="billing-form"
+				method="POST"
+				action="?/saveBilling"
+				use:enhance={() => {
+					return async ({ update }) => {
+						await update({ reset: false });
+					};
+				}}
+			>
+				<div class="field-label">Billing details</div>
+				<div class="hint">
+					Printed on the invoices {data.therapistName} sends you. All optional — fill these in if
+					you need invoices in a company's name or with a GSTIN.
+				</div>
+				<ClientBillingFields bind:billing errorFor={billingErrorFor} />
+				{#if form && 'billingSaved' in form && form.billingSaved}
+					<div class="hint">Saved.</div>
+				{/if}
+				<div>
+					<Button type="submit" variant="primary" size="sm">Save</Button>
+				</div>
+			</form>
+		</Card>
+	{/if}
 </div>
 
 <style>
@@ -124,6 +161,12 @@
 		font-size: 14px;
 		font-weight: 700;
 		color: var(--accent-danger, #c0392b);
+	}
+
+	.billing-form {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
 	}
 
 	.details-form {

@@ -1,3 +1,6 @@
+<!-- styles inlined into server-rendered HTML for the emailed PDF (invoicePdf.ts) -->
+<svelte:options css="injected" />
+
 <script lang="ts">
 	import { formatRupees, type ComputedLine, type TaxType } from '$lib/invoice';
 

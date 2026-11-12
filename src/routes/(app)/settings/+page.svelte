@@ -781,6 +781,16 @@
 				info="Same as the QR code: shown to clients next to unpaid invoices, and you mark those invoices paid yourself."
 				bind:value={payBankDetails}
 			/>
+
+			{#if rzp.currencySupported}
+				<div class="section-title">GST Invoices</div>
+				<div class="helper">
+					Your GSTIN, address, invoice numbering, logo and footer for the GST invoices you issue.
+				</div>
+				<div>
+					<Button href="/settings/invoices" variant="secondary" size="sm">Invoice Settings</Button>
+				</div>
+			{/if}
 		</div>
 	</Card>
 

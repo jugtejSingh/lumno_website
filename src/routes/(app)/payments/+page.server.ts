@@ -11,6 +11,7 @@ import {
 	listPacksForTherapist,
 	parseAmount
 } from '$lib/server/payments';
+import { autoIssueInvoice } from '$lib/server/invoices';
 import { listClients } from '$lib/server/clients';
 import { listDoubleCharges, dismissDoubleCharge } from '$lib/server/sessionPayments';
 
@@ -106,6 +107,7 @@ export const actions: Actions = {
 		if (!found) {
 			return fail(404, { message: PAYMENT_NOT_FOUND });
 		}
+		await autoIssueInvoice(therapistId, paymentId);
 	},
 
 	addCharge: async (event) => {

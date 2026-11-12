@@ -38,7 +38,10 @@
 <fieldset class="meta">
 	<legend>Invoice details</legend>
 	<div class="row">
-		<Input label="Invoice number" placeholder="ANV/2026-27/001" bind:value={invoice.number} />
+		<div class="number">
+			<span class="number-label">Invoice number</span>
+			<span class="number-value">Assigned when you issue</span>
+		</div>
 		<Input label="Date" type="date" bind:value={invoice.date} />
 	</div>
 	<Select
@@ -66,6 +69,24 @@
 		color: var(--text-primary);
 		margin-bottom: 12px;
 		padding: 0;
+	}
+
+	.number {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.number-label {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.number-value {
+		font-size: 14px;
+		color: var(--text-secondary);
+		padding: 10px 0;
 	}
 
 	.row {

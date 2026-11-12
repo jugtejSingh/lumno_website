@@ -15,7 +15,7 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 // Server-to-server callbacks that verify their own signature/secret and can
 // legitimately retry fast — IP throttling them only risks dropping a retry.
-const RATE_LIMIT_EXEMPT_PREFIXES = ['/webhooks/', '/api/cron/'];
+const RATE_LIMIT_EXEMPT_PREFIXES = ['/webhooks/', '/api/cron/', '/api/internal/'];
 
 const handleRateLimit: Handle = async ({ event, resolve }) => {
 	const isExempt = RATE_LIMIT_EXEMPT_PREFIXES.some((prefix) =>

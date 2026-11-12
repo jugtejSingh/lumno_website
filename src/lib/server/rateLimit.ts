@@ -40,3 +40,11 @@ export const phoneOtpNumberRatelimit = new Ratelimit({
 	limiter: Ratelimit.fixedWindow(3, '1 d'),
 	prefix: 'ratelimit:phone-otp-number'
 });
+
+// Manual invoice emails, keyed by invoice id. Each send renders a PDF in Chromium
+// and lands in someone's inbox; automatic sends and cron retries don't count.
+export const invoiceEmailRatelimit = new Ratelimit({
+	redis,
+	limiter: Ratelimit.slidingWindow(3, '1 h'),
+	prefix: 'ratelimit:invoice-email'
+});

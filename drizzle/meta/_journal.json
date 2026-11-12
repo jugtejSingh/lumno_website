@@ -43,6 +43,27 @@
       "when": 1792677691594,
       "tag": "0005_superb_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793708044737,
+      "tag": "0006_foamy_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793716243885,
+      "tag": "0007_open_magik",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793717216327,
+      "tag": "0008_absent_mach_iv",
+      "breakpoints": true
     }
   ]
 }

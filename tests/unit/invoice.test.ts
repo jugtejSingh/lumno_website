@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
 	computeInvoice,
 	emptyInvoice,
+	financialYearOf,
 	formatInvoiceDate,
+	formatInvoiceNumber,
 	parseAmountToPaise,
 	resolveTaxType,
 	type InvoiceDraft
@@ -104,5 +106,26 @@ describe('formatInvoiceDate', () => {
 	it('formats YYYY-MM-DD and rejects anything else', () => {
 		expect(formatInvoiceDate('2026-11-02')).toBe('02 Nov 2026');
 		expect(formatInvoiceDate('')).toBe('');
+	});
+});
+
+describe('place of supply', () => {
+	it('a buyer with no state is taxed in the seller state', () => {
+		expect(resolveTaxType(draft({ buyerState: '' }))).toBe('cgst_sgst');
+	});
+});
+
+describe('financialYearOf', () => {
+	it('runs April to March', () => {
+		expect(financialYearOf('2026-04-01')).toBe('2026-27');
+		expect(financialYearOf('2027-03-31')).toBe('2026-27');
+		expect(financialYearOf('2099-12-01')).toBe('2099-00');
+	});
+});
+
+describe('formatInvoiceNumber', () => {
+	it('pads to four digits, prefix optional', () => {
+		expect(formatInvoiceNumber('ANV', '2026-27', 13)).toBe('ANV/2026-27/0013');
+		expect(formatInvoiceNumber(null, '2026-27', 1)).toBe('2026-27/0001');
 	});
 });

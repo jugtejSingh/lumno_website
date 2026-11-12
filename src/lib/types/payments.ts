@@ -19,6 +19,8 @@ export type ClientPaymentHistoryRow = {
 	appointmentModality: 'online' | 'in_person' | null;
 	refundDue: number | null;
 	refundFlagId: string | null;
+	// the invoice issued for this payment, if any (one per payment)
+	invoiceId: string | null;
 };
 
 export type ClientPaymentTotals = { owed: number; paidThisMonth: number; paidThisYear: number };

@@ -3,6 +3,13 @@ import type { Actions, PageServerLoad } from './$types';
 import { setClientProfile, setClientTimezone } from '$lib/server/clients';
 import { parsePhone } from '$lib/phone';
 import { parseClientProfile } from '$lib/clientProfile';
+import { parseClientBillingDetailsForm } from '$lib/invoiceValidation';
+import {
+	billingDraft,
+	getClientBilling,
+	isInrClient,
+	saveClientBilling
+} from '$lib/server/clientBilling';
 import {
 	getPendingPhone,
 	savePhone,
@@ -11,9 +18,16 @@ import {
 } from '$lib/server/phoneVerification';
 
 export const load: PageServerLoad = async (event) => {
-	const { client } = await event.parent();
+	const { client, currency } = await event.parent();
+
+	// GST invoices are India-only; details only — tax type/rate are the therapist's
+	let billing = null;
+	if (currency === 'INR') {
+		billing = billingDraft(await getClientBilling(client.id)).details;
+	}
 
 	return {
+		billing,
 		// verified number (or '') and the one waiting to be verified (or '')
 		clientPhone: client.phone ?? '',
 		pendingPhone: (await getPendingPhone(client.id)) ?? '',
@@ -64,6 +78,27 @@ export const actions: Actions = {
 			return fail(400, { profileMessage: parsedProfile.error, profileField: parsedProfile.field });
 		}
 		await setClientProfile(event.locals.clientId, parsedProfile.profile);
+	},
+
+	// the client's own billing details. Never reads taxType/gstRate/autoSend from
+	// the form: saveClientBilling without `tax` leaves those columns alone.
+	saveBilling: async (event) => {
+		const clientId = event.locals.clientId;
+		if (!clientId) {
+			return fail(403, { billingField: '', billingMessage: 'Not a client' });
+		}
+		if (!(await isInrClient(clientId))) {
+			return fail(403, {
+				billingField: '',
+				billingMessage: 'Invoices are only available for INR practices'
+			});
+		}
+		const parsed = parseClientBillingDetailsForm(await event.request.formData());
+		if ('field' in parsed) {
+			return fail(400, { billingField: parsed.field, billingMessage: parsed.message });
+		}
+		await saveClientBilling(clientId, parsed.details);
+		return { billingSaved: true };
 	},
 
 	// WhatsApp code to the client's pending number (see PhoneVerification.svelte)

@@ -13,14 +13,21 @@
 
 	let feedbackOpen = $state(false);
 
-	const links = [
-		{ href: '/portal', label: 'Home' },
-		{ href: '/portal/calendar', label: 'Calendar' },
-		{ href: '/portal/payments', label: 'Payments' },
-		{ href: '/portal/notes', label: 'Notes' },
-		{ href: '/portal/resources', label: 'Resources' },
-		{ href: '/portal/details', label: 'Your details' }
-	];
+	// currency comes from the /portal layout below this one; GST invoices are INR-only
+	const links = $derived.by(() => {
+		const list = [
+			{ href: '/portal', label: 'Home' },
+			{ href: '/portal/calendar', label: 'Calendar' },
+			{ href: '/portal/payments', label: 'Payments' }
+		];
+		if (page.data.currency === 'INR') {
+			list.push({ href: '/portal/invoices', label: 'Invoices' });
+		}
+		list.push({ href: '/portal/notes', label: 'Notes' });
+		list.push({ href: '/portal/resources', label: 'Resources' });
+		list.push({ href: '/portal/details', label: 'Your details' });
+		return list;
+	});
 </script>
 
 <div class="app-shell">

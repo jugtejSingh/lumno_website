@@ -5,16 +5,15 @@
 	import InvoicePartyFields from './InvoicePartyFields.svelte';
 	import { stateName, type InvoiceParty } from '$lib/invoice';
 
-	// Details that stay the same across invoices: shown as a read-only summary,
-	// edited in a dialog so the form itself only holds per-invoice fields.
-	// ponytail: edits only change this page until invoice_settings /
-	// client_billing exist; then the dialog saves them permanently.
+	// A party shown as a summary. Edits in the dialog change this invoice only;
+	// with `editHref` there is no dialog, just a link to where it's saved.
 	let {
 		title,
 		nameLabel,
 		gstinInfo,
 		emptyText,
 		party = $bindable(),
+		editHref,
 		children
 	}: {
 		title: string;
@@ -22,6 +21,7 @@
 		gstinInfo: string;
 		emptyText: string;
 		party: InvoiceParty;
+		editHref?: string;
 		// extra fields shown in the dialog under the party fields
 		children?: Snippet;
 	} = $props();
@@ -57,13 +57,17 @@
 			<p class="meta">{stateText} · {gstinText}</p>
 		{/if}
 	</div>
-	<Button variant="secondary" size="sm" onclick={() => (open = true)}>
-		{#if isEmpty}
-			Add details
-		{:else}
-			Edit details
-		{/if}
-	</Button>
+	{#if editHref}
+		<Button variant="secondary" size="sm" href={editHref}>Change in settings</Button>
+	{:else}
+		<Button variant="secondary" size="sm" onclick={() => (open = true)}>
+			{#if isEmpty}
+				Add details
+			{:else}
+				Edit details
+			{/if}
+		</Button>
+	{/if}
 </section>
 
 <Dialog {open} {title} onclose={() => (open = false)}>

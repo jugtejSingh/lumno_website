@@ -1,0 +1,1 @@
+ALTER TABLE "client_billing" ADD COLUMN "auto_invoice" boolean DEFAULT false NOT NULL;

@@ -11,6 +11,7 @@
 	import PaymentHistoryList from '$lib/components/Payments/PaymentHistoryList.svelte';
 	import ClientResources from '$lib/components/Resources/ClientResources.svelte';
 	import ClientNotesPanel from '$lib/components/Notes/ClientNotesPanel.svelte';
+	import ClientBillingCard from '$lib/components/Invoices/ClientBillingCard.svelte';
 	import { enhance } from '$lib/enhance';
 	import { formatCurrency } from '$lib/format';
 	import type { ActionData, PageData } from './$types';
@@ -50,6 +51,13 @@
 		editStatus = data.client.status;
 		tab = 'info';
 		paymentTotals = { owed: 0, paidThisMonth: 0, paidThisYear: 0 };
+	});
+
+	const billingError = $derived.by(() => {
+		if (form && 'billingMessage' in form && form.billingMessage) {
+			return { field: form.billingField ?? '', message: form.billingMessage };
+		}
+		return null;
 	});
 
 	function toneFor(status: string): 'success' | 'warning' | 'danger' {
@@ -160,6 +168,17 @@
 					/>
 					<Button type="submit" variant="primary">Save changes</Button>
 				</form>
+
+				{#if data.billing}
+					<!-- remount per client: the card seeds its drafts once -->
+					{#key data.client.id}
+						<ClientBillingCard
+							initial={data.billing.initial}
+							defaultGstRate={data.billing.defaultGstRate}
+							error={billingError}
+						/>
+					{/key}
+				{/if}
 			{:else if tab === 'sessions'}
 				<ClientSessionsList upcoming={data.upcomingSessions} past={data.pastSessions} />
 			{:else if tab === 'payments'}

@@ -96,3 +96,17 @@ export async function headObject(
 		throw err;
 	}
 }
+
+// Server-side read, for embedding an image in a server-rendered PDF.
+export async function getObject(key: string): Promise<{ bytes: Uint8Array; contentType: string }> {
+	const result = await s3().send(new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
+	if (!result.Body) {
+		throw new Error('empty object body');
+	}
+	const bytes = await result.Body.transformToByteArray();
+	let contentType = 'application/octet-stream';
+	if (result.ContentType) {
+		contentType = result.ContentType;
+	}
+	return { bytes, contentType };
+}
