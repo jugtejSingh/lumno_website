@@ -6,6 +6,7 @@ import {
 	paymentPack,
 	appointment,
 	client,
+	paymentRefund,
 	razorpayReconcileException
 } from '$lib/server/db/schema';
 
@@ -112,6 +113,7 @@ export type ClientPaymentHistoryRow = {
 	amount: number;
 	note: string | null;
 	status: 'unpaid' | 'paid';
+	paidVia: 'manual' | 'razorpay';
 	createdAt: Date;
 	appointmentStartAt: Date | null;
 	appointmentModality: 'online' | 'in_person' | null;
@@ -143,6 +145,7 @@ export async function listPaymentsForClientPage(
 				amount: payment.amount,
 				note: payment.note,
 				status: payment.status,
+				paidVia: payment.paidVia,
 				createdAt: payment.createdAt,
 				appointmentStartAt: appointment.startAt,
 				appointmentModality: appointment.modality,
@@ -233,13 +236,17 @@ export type ClientVisiblePayment = {
 	// only on a paid row whose session was cancelled: what's owed back, and when it was sent
 	refundDue: number | null;
 	refundedAt: Date | null;
+	// the therapist's actual refund on this payment (pending or processed), if any
+	refundAmount: number | null;
+	refundStatus: 'pending' | 'processed' | 'failed' | null;
 };
 
 // The client-facing version of the above: what they still owe, plus refunds owed back to
 // them. An unpaid charge becomes visible 2 days before the session it's for (see
 // chargeIsVisible); ad-hoc charges (no appointment) and cancelled sessions don't wait on anything.
 // A paid charge is only shown while it carries a cancellation refund — pending, or marked
-// refunded within the last 30 days.
+// refunded within the last 30 days — or a refund the therapist sent (pending, or settled
+// within the same 30 days).
 export async function listVisiblePaymentsForClient(
 	clientId: string,
 	page: number,
@@ -256,8 +263,17 @@ export async function listVisiblePaymentsForClient(
 			and(
 				isNotNull(razorpayReconcileException.id),
 				or(isNull(razorpayReconcileException.resolvedAt), gte(razorpayReconcileException.resolvedAt, refundedCutoff))
+			),
+			and(
+				isNotNull(paymentRefund.id),
+				or(eq(paymentRefund.status, 'pending'), gte(paymentRefund.updatedAt, refundedCutoff))
 			)
 		)
+	);
+	// the partial unique index allows one live refund per payment, so this never multiplies rows
+	const liveRefund = and(
+		eq(paymentRefund.paymentId, payment.id),
+		inArray(paymentRefund.status, ['pending', 'processed'])
 	);
 	// unique on (paymentId, kind), so this never multiplies rows
 	const refundFlag = and(
@@ -275,11 +291,14 @@ export async function listVisiblePaymentsForClient(
 				appointmentStartAt: appointment.startAt,
 				status: payment.status,
 				refundDue: sql<number | null>`(${razorpayReconcileException.detail})::int`,
-				refundedAt: razorpayReconcileException.resolvedAt
+				refundedAt: razorpayReconcileException.resolvedAt,
+				refundAmount: paymentRefund.amount,
+				refundStatus: paymentRefund.status
 			})
 			.from(payment)
 			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
 			.leftJoin(razorpayReconcileException, refundFlag)
+			.leftJoin(paymentRefund, liveRefund)
 			.where(where)
 			// newest session first; charge date when there's no session
 			.orderBy(desc(sql`coalesce(${appointment.startAt}, ${payment.createdAt})`))
@@ -290,6 +309,7 @@ export async function listVisiblePaymentsForClient(
 			.from(payment)
 			.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
 			.leftJoin(razorpayReconcileException, refundFlag)
+			.leftJoin(paymentRefund, liveRefund)
 			.where(where)
 	]);
 

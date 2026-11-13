@@ -320,7 +320,9 @@ export async function fetchSubMerchantOrder(
 export interface SubMerchantPayment {
 	id: string;
 	status: string; // 'captured' | 'authorized' | 'failed' | 'refunded'
-	amount: number;
+	amount: number; // paise
+	amount_refunded: number; // paise
+	order_id: string | null;
 }
 
 export async function fetchSubMerchantOrderPayments(
@@ -337,6 +339,136 @@ export async function fetchSubMerchantOrderPayments(
 		);
 	}
 	const body = (await res.json()) as { items?: SubMerchantPayment[] };
+	return body.items ?? [];
+}
+
+// Read one payment back from the therapist's account — the refund flow's proof
+// that the money was actually captured (docs/refunds.md).
+export async function fetchSubMerchantPayment(
+	accessToken: string,
+	paymentId: string
+): Promise<SubMerchantPayment> {
+	const res = await fetch(`${API_BASE}/payments/${paymentId}`, {
+		headers: { Authorization: `Bearer ${accessToken}` },
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+	});
+	if (!res.ok) {
+		throw new Error(`Razorpay payment fetch failed: ${res.status} ${await errorReason(res)}`.trim());
+	}
+	return (await res.json()) as SubMerchantPayment;
+}
+
+// The only notes we put on session payments and refunds, so either can be traced
+// from the Razorpay dashboard (docs/refunds.md "Razorpay notes").
+export interface RazorpayTraceNotes {
+	razorpay_payment_id: string;
+	razorpay_order_id: string;
+}
+
+// Written onto a payment after capture — neither id exists when the order is created.
+export async function updateSubMerchantPaymentNotes(
+	accessToken: string,
+	paymentId: string,
+	notes: RazorpayTraceNotes
+): Promise<void> {
+	const res = await fetch(`${API_BASE}/payments/${paymentId}`, {
+		method: 'PATCH',
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ notes }),
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+	});
+	if (!res.ok) {
+		throw new Error(`Razorpay payment notes update failed: ${res.status} ${await errorReason(res)}`.trim());
+	}
+}
+
+export interface SubMerchantRefund {
+	id: string;
+	payment_id: string;
+	amount: number; // paise
+	receipt: string | null;
+	status: string; // 'pending' | 'processed' | 'failed'
+}
+
+// Razorpay answered and said no (4xx) — the refund definitely didn't happen, so the
+// caller can mark its row 'failed'. Any other error from createSubMerchantRefund
+// (timeout, network drop, 5xx) means the outcome is unknown: leave the row 'pending'.
+export class RazorpayRefundRefusedError extends Error {
+	readonly status: number;
+	readonly reason: string;
+	constructor(status: number, reason: string) {
+		super(`Razorpay refund refused: ${status} ${reason}`.trim());
+		this.status = status;
+		this.reason = reason;
+	}
+}
+
+// Refund a payment on the therapist's account. amountMinor is integer paise.
+// receipt is our payment_refund row id — how a timed-out attempt is matched back later.
+export async function createSubMerchantRefund(opts: {
+	accessToken: string;
+	paymentId: string;
+	amountMinor: number;
+	receipt: string;
+	notes: RazorpayTraceNotes;
+}): Promise<SubMerchantRefund> {
+	const res = await fetch(`${API_BASE}/payments/${opts.paymentId}/refund`, {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${opts.accessToken}`,
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			amount: opts.amountMinor,
+			speed: 'normal',
+			receipt: opts.receipt,
+			notes: opts.notes
+		}),
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+	});
+	if (res.status >= 400 && res.status < 500) {
+		throw new RazorpayRefundRefusedError(res.status, await errorReason(res));
+	}
+	if (!res.ok) {
+		throw new Error(`Razorpay refund create failed: ${res.status} ${await errorReason(res)}`.trim());
+	}
+	return (await res.json()) as SubMerchantRefund;
+}
+
+// Read one refund back — resolves a row left 'pending' because Razorpay said so.
+export async function fetchSubMerchantRefund(
+	accessToken: string,
+	refundId: string
+): Promise<SubMerchantRefund> {
+	const res = await fetch(`${API_BASE}/refunds/${refundId}`, {
+		headers: { Authorization: `Bearer ${accessToken}` },
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+	});
+	if (!res.ok) {
+		throw new Error(`Razorpay refund fetch failed: ${res.status} ${await errorReason(res)}`.trim());
+	}
+	return (await res.json()) as SubMerchantRefund;
+}
+
+// Every refund on one payment — resolves a row left 'pending' by a timeout, by
+// looking for a refund whose receipt is that row's id.
+export async function fetchSubMerchantPaymentRefunds(
+	accessToken: string,
+	paymentId: string
+): Promise<SubMerchantRefund[]> {
+	const res = await fetch(`${API_BASE}/payments/${paymentId}/refunds`, {
+		headers: { Authorization: `Bearer ${accessToken}` },
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+	});
+	if (!res.ok) {
+		throw new Error(
+			`Razorpay payment refunds fetch failed: ${res.status} ${await errorReason(res)}`.trim()
+		);
+	}
+	const body = (await res.json()) as { items?: SubMerchantRefund[] };
 	return body.items ?? [];
 }
 

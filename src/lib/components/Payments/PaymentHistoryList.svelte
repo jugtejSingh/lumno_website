@@ -5,6 +5,7 @@
 	import Button from '$lib/components/utils/Button.svelte';
 	import Badge from '$lib/components/utils/Badge.svelte';
 	import Pager from '$lib/components/utils/Pager.svelte';
+	import RefundPanel from './RefundPanel.svelte';
 	import { formatCurrency } from '$lib/format';
 	import { toast } from 'svelte-sonner';
 	import type { ClientPaymentHistoryRow, ClientPaymentTotals } from '$lib/types/payments';
@@ -101,10 +102,30 @@
 		{:else}
 			paid
 		{/if}
+		{#if p.refund && p.refund.status === 'processed'}
+			<Badge tone="success">refunded {formatCurrency(p.refund.amount, currency)}</Badge>
+		{:else if p.refund && p.refund.status === 'pending'}
+			<Badge tone="warning">refund {formatCurrency(p.refund.amount, currency)} pending</Badge>
+		{:else if p.refund && p.refund.status === 'failed'}
+			<Badge tone="danger">refund failed</Badge>
+		{/if}
 		{#if p.refundDue}
 			<Badge tone="warning">refund {formatCurrency(p.refundDue, currency)}</Badge>
 		{/if}
 	</span>
+{/snippet}
+
+<!-- Paid / Refunded / Remaining once a refund is live; the failed reason otherwise -->
+{#snippet refundLine(p: ClientPaymentHistoryRow)}
+	{#if p.refund && p.refund.status !== 'failed'}
+		<div class="refund-line">
+			Paid {formatCurrency(p.amount, currency)} · Refunded {formatCurrency(p.refund.amount, currency)}
+			{#if p.refund.method === 'manual'}(manual){/if}
+			· Remaining {formatCurrency(p.amount - p.refund.amount, currency)}
+		</div>
+	{:else if p.refund && p.refund.status === 'failed' && p.refund.failureReason}
+		<div class="refund-line refund-line-failed">Last refund failed: {p.refund.failureReason}</div>
+	{/if}
 {/snippet}
 
 <div class="history">
@@ -126,6 +147,16 @@
 					<details class="row" class:is-unpaid={p.status === 'unpaid'}>
 						<summary class="row-head">{@render rowHead(p)}</summary>
 						<div class="row-body">
+							{@render refundLine(p)}
+							{#if p.status === 'paid' && (!p.refund || p.refund.status === 'failed')}
+								<RefundPanel
+									paymentId={p.id}
+									amount={p.amount}
+									paidVia={p.paidVia}
+									{currency}
+									onchange={load}
+								/>
+							{/if}
 							<form
 								method="POST"
 								action="?/updatePayment"
@@ -194,6 +225,9 @@
 				{:else}
 					<div class="row" class:is-unpaid={p.status === 'unpaid'}>
 						<div class="row-head row-head-static">{@render rowHead(p)}</div>
+						{#if p.refund}
+							<div class="row-body">{@render refundLine(p)}</div>
+						{/if}
 					</div>
 				{/if}
 			{/each}
@@ -303,6 +337,16 @@
 		gap: 8px;
 		padding: 10px;
 		border-top: 2px dotted var(--beige-400);
+	}
+
+	.refund-line {
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--text-primary);
+	}
+
+	.refund-line-failed {
+		color: var(--text-muted);
 	}
 
 	.row-edit-fields {

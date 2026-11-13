@@ -12,7 +12,8 @@ import {
 import {
 	createSubMerchantOrder,
 	fetchSubMerchantOrder,
-	fetchSubMerchantOrderPayments
+	fetchSubMerchantOrderPayments,
+	updateSubMerchantPaymentNotes
 } from '$lib/server/razorpay';
 import { getAccessToken } from '$lib/server/razorpayConnection';
 import { logError } from '$lib/server/log';
@@ -97,7 +98,9 @@ export async function startInvoiceCheckout(
 			accessToken,
 			amountMinor,
 			receipt: paymentId,
-			notes: { paymentId, therapistId: row.therapistId, clientId }
+			// no notes: the two Razorpay ids don't exist yet — they're written onto the
+			// payment after capture (tagPaymentNotes). receipt keeps our payment id.
+			notes: {}
 		});
 		orderId = order.id;
 	} catch (err) {
@@ -138,6 +141,7 @@ export async function handleSessionInvoicePaid(opts: {
 	const [row] = await db
 		.select({
 			id: payment.id,
+			therapistId: payment.therapistId,
 			status: payment.status,
 			amount: payment.amount,
 			paidVia: payment.paidVia
@@ -166,6 +170,7 @@ export async function handleSessionInvoicePaid(opts: {
 			paymentId: row.id,
 			razorpayPaymentId: opts.razorpayPaymentId
 		});
+		await tagPaymentNotes(row.therapistId, opts.razorpayPaymentId, opts.orderId);
 		return;
 	}
 	if (row.amount * 100 !== opts.amountMinor) {
@@ -187,6 +192,28 @@ export async function handleSessionInvoicePaid(opts: {
 			paidAt: new Date()
 		})
 		.where(and(eq(payment.id, row.id), eq(payment.status, 'unpaid')));
+
+	// after the row is marked paid, so a slow or failed notes call can never hold it up
+	await tagPaymentNotes(row.therapistId, opts.razorpayPaymentId, opts.orderId);
+}
+
+// Write the two Razorpay ids onto the captured payment so it can be traced from the
+// dashboard (docs/refunds.md "Razorpay notes"). Best effort: a failure is logged and
+// swallowed — it must never undo or block marking the row paid.
+async function tagPaymentNotes(
+	therapistId: string,
+	razorpayPaymentId: string,
+	orderId: string
+): Promise<void> {
+	try {
+		const accessToken = await getAccessToken(therapistId);
+		await updateSubMerchantPaymentNotes(accessToken, razorpayPaymentId, {
+			razorpay_payment_id: razorpayPaymentId,
+			razorpay_order_id: orderId
+		});
+	} catch (err) {
+		logError('sessionPayments.tagPaymentNotes', err, { razorpayPaymentId, orderId });
+	}
 }
 
 async function recordReconcileException(

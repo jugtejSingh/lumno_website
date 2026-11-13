@@ -50,6 +50,11 @@
 					<div class="row-info">
 						<div class="row-title">{inv.date}</div>
 						<div class="row-sub">{inv.note ?? `Session with ${data.therapistName}`}</div>
+						{#if inv.refund && inv.refund.remaining !== null}
+							<div class="row-sub">
+								Paid {inv.amount} · Refunded {inv.refund.amount} · Remaining {inv.refund.remaining}
+							</div>
+						{/if}
 					</div>
 					<div class="amount">{inv.amount}</div>
 					{#if inv.refund === null}

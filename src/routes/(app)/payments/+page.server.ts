@@ -14,6 +14,7 @@ import {
 import { listClients } from '$lib/server/clients';
 import { parsePeriod, periodOptions } from '$lib/server/period';
 import { listDoubleCharges, dismissDoubleCharge } from '$lib/server/sessionPayments';
+import { recordManualRefund, refundViaRazorpay } from '$lib/server/paymentRefunds';
 
 const BALANCES_PER_PAGE = 5;
 const PACKS_PER_PAGE = 5;
@@ -201,5 +202,35 @@ export const actions: Actions = {
 		if (!found) {
 			return fail(404, { message: 'That alert could not be found. Refresh and try again.' });
 		}
+	},
+
+	refundRazorpay: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const paymentId = formData.get('paymentId')?.toString() ?? '';
+		const amount = parseAmount(formData.get('amount'));
+		if (amount === null) {
+			return fail(400, { message: 'Enter the refund as a whole number of rupees.' });
+		}
+		const outcome = await refundViaRazorpay(therapistId, paymentId, amount);
+		if (!outcome.ok) {
+			return fail(400, { message: outcome.message });
+		}
+		return { refundStatus: outcome.status };
+	},
+
+	refundManual: async (event) => {
+		const therapistId = event.locals.therapistId!;
+		const formData = await event.request.formData();
+		const paymentId = formData.get('paymentId')?.toString() ?? '';
+		const amount = parseAmount(formData.get('amount'));
+		if (amount === null) {
+			return fail(400, { message: 'Enter the refund as a whole number of rupees.' });
+		}
+		const outcome = await recordManualRefund(therapistId, paymentId, amount);
+		if (!outcome.ok) {
+			return fail(400, { message: outcome.message });
+		}
+		return { refundStatus: outcome.status };
 	}
 };
