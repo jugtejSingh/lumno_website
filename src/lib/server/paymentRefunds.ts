@@ -186,6 +186,40 @@ export async function resolvePendingRefund(therapistId: string, paymentId: strin
 	}
 }
 
+// Every pending Razorpay refund, optionally only on one client's payments.
+async function listPendingRazorpayRefunds(clientId: string | null) {
+	const conditions = [eq(paymentRefund.method, 'razorpay'), eq(paymentRefund.status, 'pending')];
+	if (clientId !== null) {
+		conditions.push(eq(payment.clientId, clientId));
+	}
+	return db
+		.select({ therapistId: paymentRefund.therapistId, paymentId: paymentRefund.paymentId })
+		.from(paymentRefund)
+		.innerJoin(payment, eq(paymentRefund.paymentId, payment.id))
+		.where(and(...conditions));
+}
+
+// ponytail: one Razorpay round trip per pending refund, in series. Pending rows are rare;
+// batch per therapist if that ever stops being true.
+async function settlePending(rows: { therapistId: string; paymentId: string }[]): Promise<void> {
+	for (const row of rows) {
+		await resolvePendingRefund(row.therapistId, row.paymentId);
+	}
+}
+
+// The client portal: settle this client's pending refunds so they see "refunded" as soon
+// as Razorpay has finished, not only after the therapist next opens their history.
+export async function settlePendingRefundsForClient(clientId: string): Promise<void> {
+	const rows = await listPendingRazorpayRefunds(clientId);
+	await settlePending(rows);
+}
+
+// Daily cron backstop for refunds nobody has looked at.
+export async function settleAllPendingRefunds(): Promise<void> {
+	const rows = await listPendingRazorpayRefunds(null);
+	await settlePending(rows);
+}
+
 export async function refundViaRazorpay(
 	therapistId: string,
 	paymentId: string,

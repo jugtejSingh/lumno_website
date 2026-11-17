@@ -147,68 +147,11 @@
 					<details class="row" class:is-unpaid={p.status === 'unpaid'}>
 						<summary class="row-head">{@render rowHead(p)}</summary>
 						<div class="row-body">
-							{@render refundLine(p)}
-							{#if p.status === 'paid' && (!p.refund || p.refund.status === 'failed')}
-								<RefundPanel
-									paymentId={p.id}
-									amount={p.amount}
-									paidVia={p.paidVia}
-									{currency}
-									onchange={load}
-								/>
-							{/if}
-							<form
-								method="POST"
-								action="?/updatePayment"
-								use:enhance={() => {
-									return async ({ update }) => {
-										await update();
-										await load();
-									};
-								}}
-							>
-								<input type="hidden" name="paymentId" value={p.id} />
-								<div class="row-edit-fields">
-									<Input name="amount" value={String(p.amount)} />
-									<Input name="note" value={p.note ?? ''} placeholder="Note" />
-									<Button type="submit" variant="secondary" size="sm">Save</Button>
-								</div>
-							</form>
-							<div class="row-actions">
-								{#if p.status === 'unpaid'}
-									<form
-										method="POST"
-										action="?/markPaid"
-										use:enhance={() => {
-											return async ({ update }) => {
-												await update();
-												await load();
-											};
-										}}
-									>
-										<input type="hidden" name="paymentId" value={p.id} />
-										<Button type="submit" variant="primary" size="sm">Mark paid</Button>
-									</form>
-								{/if}
-								{#if p.refundFlagId}
-									<!-- same action as the /payments banner's Dismiss, so clearing either clears both -->
-									<form
-										method="POST"
-										action="?/dismissDoubleCharge"
-										use:enhance={() => {
-											return async ({ update }) => {
-												await update();
-												await load();
-											};
-										}}
-									>
-										<input type="hidden" name="exceptionId" value={p.refundFlagId} />
-										<Button type="submit" variant="primary" size="sm">Mark refunded</Button>
-									</form>
-								{/if}
+							<section class="body-section">
+								<h4 class="section-title">Details</h4>
 								<form
 									method="POST"
-									action="?/deletePayment"
+									action="?/updatePayment"
 									use:enhance={() => {
 										return async ({ update }) => {
 											await update();
@@ -217,9 +160,90 @@
 									}}
 								>
 									<input type="hidden" name="paymentId" value={p.id} />
-									<Button type="submit" variant="secondary" size="sm">Delete</Button>
+									<div class="row-edit-fields">
+										<!-- a paid amount is the record of money received: note only, the server refuses too -->
+										{#if p.status === 'unpaid'}
+											<Input name="amount" label="Amount" value={String(p.amount)} />
+										{:else}
+											<div class="locked-amount">
+												<span class="locked-label">Amount</span>
+												<span class="locked-value">{formatCurrency(p.amount, currency)}</span>
+											</div>
+										{/if}
+										<Input name="note" label="Note" value={p.note ?? ''} placeholder="Add a note" />
+										<Button type="submit" variant="secondary" size="sm">Save</Button>
+									</div>
 								</form>
-							</div>
+							</section>
+
+							{#if p.status === 'paid'}
+								<section class="body-section refund-section">
+									<h4 class="section-title">Refund</h4>
+									{@render refundLine(p)}
+									{#if !p.refund || p.refund.status === 'failed'}
+										<RefundPanel
+											paymentId={p.id}
+											amount={p.amount}
+											paidVia={p.paidVia}
+											{currency}
+											onchange={load}
+										/>
+									{/if}
+								</section>
+							{/if}
+
+							{#if p.status === 'unpaid' || p.refundFlagId}
+								<div class="row-actions">
+									{#if p.status === 'unpaid'}
+										<form
+											method="POST"
+											action="?/markPaid"
+											use:enhance={() => {
+												return async ({ update }) => {
+													await update();
+													await load();
+												};
+											}}
+										>
+											<input type="hidden" name="paymentId" value={p.id} />
+											<Button type="submit" variant="primary" size="sm">Mark paid</Button>
+										</form>
+									{/if}
+									{#if p.refundFlagId}
+										<!-- same action as the /payments banner's Dismiss, so clearing either clears both -->
+										<form
+											method="POST"
+											action="?/dismissDoubleCharge"
+											use:enhance={() => {
+												return async ({ update }) => {
+													await update();
+													await load();
+												};
+											}}
+										>
+											<input type="hidden" name="exceptionId" value={p.refundFlagId} />
+											<Button type="submit" variant="primary" size="sm">Mark refunded</Button>
+										</form>
+									{/if}
+									{#if p.status === 'unpaid'}
+										<!-- paid / refunded rows are the record of money received; the server refuses too -->
+										<form
+											class="danger-action"
+											method="POST"
+											action="?/deletePayment"
+											use:enhance={() => {
+												return async ({ update }) => {
+													await update();
+													await load();
+												};
+											}}
+										>
+											<input type="hidden" name="paymentId" value={p.id} />
+											<Button type="submit" variant="secondary" size="sm">Delete</Button>
+										</form>
+									{/if}
+								</div>
+							{/if}
 						</div>
 					</details>
 				{:else}
@@ -298,6 +322,10 @@
 		background: transparent;
 	}
 
+	details[open] > .row-head {
+		background: var(--surface-canvas);
+	}
+
 	.row-date {
 		font-size: 13px;
 		font-weight: 700;
@@ -334,9 +362,32 @@
 	.row-body {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		padding: 10px;
+		gap: 12px;
+		padding: 12px;
 		border-top: 2px dotted var(--beige-400);
+	}
+
+	.body-section {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.section-title {
+		margin: 0;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+
+	/* refunds move money, so they get their own box instead of sitting among the edit fields */
+	.refund-section {
+		padding: 10px 12px;
+		border-radius: var(--radius-sm);
+		background: var(--surface-canvas);
+		border: 1px solid var(--border-subtle);
 	}
 
 	.refund-line {
@@ -346,7 +397,7 @@
 	}
 
 	.refund-line-failed {
-		color: var(--text-muted);
+		color: var(--danger);
 	}
 
 	.row-edit-fields {
@@ -356,20 +407,52 @@
 		flex-wrap: wrap;
 	}
 
-	.row-edit-fields :global(.field:first-child) {
-		width: 90px;
+	.row-edit-fields > :global(.field:first-child),
+	.locked-amount {
+		width: 110px;
 	}
 
-	.row-edit-fields :global(.field:nth-child(2)) {
+	.row-edit-fields :global(.field:has(input[name='note'])) {
 		flex: 1;
-		min-width: 120px;
+		min-width: 140px;
 	}
 
+	.locked-amount {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.locked-label {
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--text-secondary);
+	}
+
+	.locked-value {
+		font-family: var(--font-mono);
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--text-primary);
+		padding: 6px 0;
+	}
+
+	/* the row's verbs live on one bar at the bottom; Delete sits apart on the right */
 	.row-actions {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		flex-wrap: wrap;
+		padding-top: 10px;
+		border-top: 1px solid var(--border-subtle);
+	}
+
+	.danger-action {
+		margin-left: auto;
+	}
+
+	.danger-action :global(.btn) {
+		color: var(--danger);
 	}
 
 	/* phones: date + amount on the first line, note + status under it, so nothing
@@ -400,8 +483,8 @@
 			grid-row: 2;
 		}
 
-		.row-edit-fields :global(.field:first-child),
-		.row-edit-fields :global(.field:nth-child(2)) {
+		.row-edit-fields > :global(.field),
+		.locked-amount {
 			width: 100%;
 			flex: 1 0 100%;
 		}

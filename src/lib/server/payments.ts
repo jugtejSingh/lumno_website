@@ -36,6 +36,19 @@ function countsAsUnpaid() {
 	return or(isNull(payment.appointmentId), eq(appointment.status, 'cancelled'), lte(appointment.startAt, new Date()));
 }
 
+// Join condition for a payment's pending or processed refund. The partial unique index
+// allows one per payment, so joining it never multiplies rows.
+function liveRefundOnPayment() {
+	return and(eq(paymentRefund.paymentId, payment.id), inArray(paymentRefund.status, ['pending', 'processed']));
+}
+
+// What the therapist keeps from a payment: its amount minus any pending or processed
+// refund. Pending counts as gone, since that money is already on its way back.
+// The query must left-join paymentRefund on liveRefundOnPayment().
+function keptAmount() {
+	return sql`(${payment.amount} - coalesce(${paymentRefund.amount}, 0))`;
+}
+
 export function parseAmount(raw: FormDataEntryValue | null): number | null {
 	const amount = Number(raw);
 	// amount is a whole-rupee integer column — a fractional value would otherwise
@@ -72,40 +85,72 @@ export async function updatePayment(
 	therapistId: string,
 	paymentId: string,
 	input: { amount?: number; note?: string | null }
-) {
+): Promise<'updated' | 'not_found' | 'paid'> {
 	const set: PgUpdateSetSource<typeof payment> = { ...input };
+	const conditions = [eq(payment.id, paymentId), eq(payment.therapistId, therapistId)];
 	if (input.amount !== undefined) {
-		// A Razorpay order is minted for a fixed amount, so an order attached to this
-		// row is now stale — drop it and the next "Pay now" creates a fresh one (the
-		// orphaned order just expires). Paid rows keep theirs: that's the audit link.
-		set.razorpayOrderId = sql`case when ${payment.status} = 'unpaid' then null else ${payment.razorpayOrderId} end`;
-		set.razorpayOrderCreatedAt = sql`case when ${payment.status} = 'unpaid' then null else ${payment.razorpayOrderCreatedAt} end`;
+		// A paid amount is the record of money received, so only an unpaid charge can be
+		// repriced. The check sits in the update itself, so a payment captured in the same
+		// moment is kept. Its Razorpay order was minted for the old amount, so drop it and
+		// the next "Pay now" creates a fresh one (the orphaned order just expires).
+		conditions.push(eq(payment.status, 'unpaid'));
+		set.razorpayOrderId = null;
+		set.razorpayOrderCreatedAt = null;
 	}
 	const rows = await db
 		.update(payment)
 		.set(set)
-		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)))
+		.where(and(...conditions))
 		.returning({ id: payment.id });
-	return rows.length > 0;
+	if (rows.length > 0) {
+		return 'updated';
+	}
+
+	const [existing] = await db
+		.select({ id: payment.id })
+		.from(payment)
+		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)));
+	if (existing) {
+		return 'paid';
+	}
+	return 'not_found';
 }
 
-// All three return whether a row was actually touched, so the actions can tell a
+// Both return whether a row was actually touched, so the actions can tell a
 // stale/foreign id apart from success instead of silently doing nothing.
-export async function setPaymentStatus(therapistId: string, paymentId: string, status: 'paid' | 'unpaid') {
+// Only ever marks paid: a paid row may carry a refund, so there's no going back to unpaid.
+export async function setPaymentStatus(therapistId: string, paymentId: string, status: 'paid') {
 	const rows = await db
 		.update(payment)
-		.set({ status, paidAt: status === 'paid' ? new Date() : null })
+		.set({ status, paidAt: new Date() })
 		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)))
 		.returning({ id: payment.id });
 	return rows.length > 0;
 }
 
-export async function deletePayment(therapistId: string, paymentId: string) {
+// Only an unpaid charge can be deleted. A paid row is the record of money received, and a
+// refunded payment is always still a paid row, so this also keeps refund records intact.
+// The status check sits in the delete itself, so a payment captured in the same moment is kept.
+export async function deletePayment(
+	therapistId: string,
+	paymentId: string
+): Promise<'deleted' | 'not_found' | 'paid'> {
 	const rows = await db
 		.delete(payment)
-		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)))
+		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId), eq(payment.status, 'unpaid')))
 		.returning({ id: payment.id });
-	return rows.length > 0;
+	if (rows.length > 0) {
+		return 'deleted';
+	}
+
+	const [existing] = await db
+		.select({ id: payment.id })
+		.from(payment)
+		.where(and(eq(payment.id, paymentId), eq(payment.therapistId, therapistId)));
+	if (existing) {
+		return 'paid';
+	}
+	return 'not_found';
 }
 
 export type ClientPaymentHistoryRow = {
@@ -189,14 +234,16 @@ export async function getClientPaymentTotals(therapistId: string, clientId: stri
 	const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 	const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
+	const kept = keptAmount();
 	const [paymentRow] = await db
 		.select({
 			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${chargeIsVisible()}), 0)::int`,
-			paidThisMonth: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and coalesce(${payment.paidAt}, ${payment.createdAt}) >= ${monthStart.toISOString()}), 0)::int`,
-			paidThisYear: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and coalesce(${payment.paidAt}, ${payment.createdAt}) >= ${yearStart.toISOString()}), 0)::int`
+			paidThisMonth: sql<number>`coalesce(sum(${kept}) filter (where ${payment.status} = 'paid' and coalesce(${payment.paidAt}, ${payment.createdAt}) >= ${monthStart.toISOString()}), 0)::int`,
+			paidThisYear: sql<number>`coalesce(sum(${kept}) filter (where ${payment.status} = 'paid' and coalesce(${payment.paidAt}, ${payment.createdAt}) >= ${yearStart.toISOString()}), 0)::int`
 		})
 		.from(payment)
 		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+		.leftJoin(paymentRefund, liveRefundOnPayment())
 		.where(and(eq(payment.therapistId, therapistId), eq(payment.clientId, clientId)));
 
 	return {
@@ -270,11 +317,7 @@ export async function listVisiblePaymentsForClient(
 			)
 		)
 	);
-	// the partial unique index allows one live refund per payment, so this never multiplies rows
-	const liveRefund = and(
-		eq(paymentRefund.paymentId, payment.id),
-		inArray(paymentRefund.status, ['pending', 'processed'])
-	);
+	const liveRefund = liveRefundOnPayment();
 	// unique on (paymentId, kind), so this never multiplies rows
 	const refundFlag = and(
 		eq(razorpayReconcileException.paymentId, payment.id),
@@ -669,11 +712,12 @@ export async function getPaymentSummary(therapistId: string, start: Date, end: D
 
 	const [row] = await db
 		.select({
-			paid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'paid' and ${inPeriod}), 0)::int`,
+			paid: sql<number>`coalesce(sum(${keptAmount()}) filter (where ${payment.status} = 'paid' and ${inPeriod}), 0)::int`,
 			unpaid: sql<number>`coalesce(sum(${payment.amount}) filter (where ${payment.status} = 'unpaid' and ${countsAsUnpaid()} and ${inPeriod}), 0)::int`
 		})
 		.from(payment)
 		.leftJoin(appointment, eq(payment.appointmentId, appointment.id))
+		.leftJoin(paymentRefund, liveRefundOnPayment())
 		.where(eq(payment.therapistId, therapistId));
 
 	const paid = row?.paid ?? 0;

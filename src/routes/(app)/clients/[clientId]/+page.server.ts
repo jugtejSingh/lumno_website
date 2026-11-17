@@ -31,6 +31,8 @@ const resendErrorMessages = {
 const validStatuses: ClientStatus[] = ['active', 'paused', 'left'];
 
 const PAYMENT_NOT_FOUND = 'That payment could not be found — it may have been deleted. Refresh and try again.';
+const PAID_NOT_DELETABLE = 'A paid or refunded payment can’t be deleted — it’s the record of money received.';
+const PAID_NOT_REPRICEABLE = 'A paid payment’s amount can’t be changed — only its note.';
 
 function parseAmount(raw: FormDataEntryValue | null): number | null {
 	const amount = Number(raw);
@@ -166,16 +168,24 @@ export const actions: Actions = {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
 		const paymentId = formData.get('paymentId')?.toString() ?? '';
-		const amount = parseAmount(formData.get('amount'));
 		const note = formData.get('note')?.toString().trim() || null;
 
-		if (amount === null) {
-			return fail(400, { message: 'Enter an amount greater than 0' });
+		// a paid row's form has no amount field: its note is the only thing left to edit
+		const input: { amount?: number; note: string | null } = { note };
+		if (formData.has('amount')) {
+			const amount = parseAmount(formData.get('amount'));
+			if (amount === null) {
+				return fail(400, { message: 'Enter an amount greater than 0' });
+			}
+			input.amount = amount;
 		}
 
-		const found = await updatePayment(therapistId, paymentId, { amount, note });
-		if (!found) {
+		const result = await updatePayment(therapistId, paymentId, input);
+		if (result === 'not_found') {
 			return fail(404, { message: PAYMENT_NOT_FOUND });
+		}
+		if (result === 'paid') {
+			return fail(400, { message: PAID_NOT_REPRICEABLE });
 		}
 	},
 
@@ -183,9 +193,12 @@ export const actions: Actions = {
 		const therapistId = event.locals.therapistId!;
 		const formData = await event.request.formData();
 		const paymentId = formData.get('paymentId')?.toString() ?? '';
-		const found = await deletePayment(therapistId, paymentId);
-		if (!found) {
+		const result = await deletePayment(therapistId, paymentId);
+		if (result === 'not_found') {
 			return fail(404, { message: PAYMENT_NOT_FOUND });
+		}
+		if (result === 'paid') {
+			return fail(400, { message: PAID_NOT_DELETABLE });
 		}
 	}
 };

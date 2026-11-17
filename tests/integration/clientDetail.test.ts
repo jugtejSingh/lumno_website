@@ -268,6 +268,18 @@ describe('payment actions', () => {
 		expect((await paymentsOf(clientId))[0].amount).toBe(900);
 	});
 
+	it('updatePayment on a paid row edits the note but refuses a new amount', async () => {
+		const p = await mkPayment(therapist.id, clientId, { amount: 500, status: 'paid' });
+		await post('updatePayment', { paymentId: p.id, note: 'cash' });
+		expect((await paymentsOf(clientId))[0]).toMatchObject({ amount: 500, note: 'cash' });
+
+		expect(failure(await post('updatePayment', { paymentId: p.id, amount: '900', note: 'cash' }))).toEqual({
+			status: 400,
+			data: { message: 'A paid payment’s amount can’t be changed — only its note.' }
+		});
+		expect((await paymentsOf(clientId))[0].amount).toBe(500);
+	});
+
 	it('deletePayment removes it, but not another therapist’s payment', async () => {
 		const mine = await mkPayment(therapist.id, clientId);
 		const other = await mkTherapist();

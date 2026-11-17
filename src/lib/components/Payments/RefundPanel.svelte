@@ -176,8 +176,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+		padding: 10px 12px;
 		font-size: 13px;
+		line-height: 1.45;
 		color: var(--text-primary);
+		background: var(--surface-card);
+		border: 1px solid var(--border-subtle);
+		border-left: 4px solid var(--warning);
+		border-radius: var(--radius-sm);
 	}
 
 	.refund-error {

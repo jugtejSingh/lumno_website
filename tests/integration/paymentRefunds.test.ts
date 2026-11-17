@@ -10,7 +10,9 @@ vi.mock('$lib/server/razorpayConnection', async (importOriginal) => {
 
 const { actions } = await import('../../src/routes/(app)/payments/+page.server');
 const { GET: getHistory } = await import('../../src/routes/(app)/payments/clients/[clientId]/+server');
-const { listVisiblePaymentsForClient } = await import('$lib/server/payments');
+const { listVisiblePaymentsForClient, getPaymentSummary, getClientPaymentTotals } = await import('$lib/server/payments');
+const { settlePendingRefundsForClient, settleAllPendingRefunds } = await import('$lib/server/paymentRefunds');
+const { payment } = await import('$lib/server/db/schema');
 const { db } = await import('$lib/server/db');
 const { paymentRefund, razorpayReconcileException } = await import('$lib/server/db/schema');
 const { resetDb, mkTherapist, mkClient, mkPayment, mkEvent } = await import('./helpers');
@@ -310,5 +312,84 @@ describe('client portal', () => {
 		const { rows } = await listVisiblePaymentsForClient(clientId, 1, 10);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]).toMatchObject({ id: refunded.id, amount: 1000, refundAmount: 400, refundStatus: 'processed' });
+	});
+
+	it('a pending refund Razorpay has since finished shows as processed once the client looks', async () => {
+		const p = await razorpayPaidPayment();
+		rzp.createRefund = (body) => {
+			const pending = { id: 'rfnd_5', payment_id: 'pay_123', amount: Number(body.amount), receipt: String(body.receipt), status: 'pending' };
+			rzp.refunds = [pending];
+			return jsonResponse(200, pending);
+		};
+		await refund('refundRazorpay', p.id, '1000');
+
+		rzp.refunds[0].status = 'processed';
+		await settlePendingRefundsForClient(clientId);
+
+		const { rows } = await listVisiblePaymentsForClient(clientId, 1, 10);
+		expect(rows[0]).toMatchObject({ id: p.id, refundStatus: 'processed' });
+	});
+});
+
+describe('cron', () => {
+	it('settles pending refunds nobody has looked at', async () => {
+		const p = await razorpayPaidPayment();
+		rzp.createRefund = (body) => {
+			const pending = { id: 'rfnd_6', payment_id: 'pay_123', amount: Number(body.amount), receipt: String(body.receipt), status: 'pending' };
+			rzp.refunds = [pending];
+			return jsonResponse(200, pending);
+		};
+		await refund('refundRazorpay', p.id, '1000');
+
+		rzp.refunds[0].status = 'processed';
+		await settleAllPendingRefunds();
+
+		expect((await refundRows(p.id))[0].status).toBe('processed');
+	});
+});
+
+describe('totals', () => {
+	it('paid totals subtract pending and processed refunds, but not failed ones', async () => {
+		const refunded = await razorpayPaidPayment();
+		await refund('refundRazorpay', refunded.id, '400');
+
+		// a second ₹1000 payment whose only refund attempt failed: still fully counted
+		const failedOnly = await mkPayment(therapist.id, clientId, { amount: 1000, status: 'paid', paidVia: 'manual', paidAt: new Date() });
+		await db.insert(paymentRefund).values({
+			paymentId: failedOnly.id,
+			therapistId: therapist.id,
+			method: 'manual',
+			amount: 1000,
+			status: 'failed'
+		});
+
+		const summary = await getPaymentSummary(therapist.id, new Date(0), null);
+		expect(summary.paid).toBe(1600);
+
+		const totals = await getClientPaymentTotals(therapist.id, clientId);
+		expect(totals.paidThisMonth).toBe(1600);
+		expect(totals.paidThisYear).toBe(1600);
+	});
+});
+
+describe('delete', () => {
+	async function deleteAction(paymentId: string) {
+		return actions.deletePayment(mkEvent({ locals: { therapistId: therapist.id }, fields: { paymentId } }) as never);
+	}
+
+	it('refuses a paid or refunded payment and keeps its refund record', async () => {
+		const paid = await mkPayment(therapist.id, clientId, { status: 'paid', paidVia: 'manual', paidAt: new Date() });
+		expect(await failureMessage(await deleteAction(paid.id))).toMatch(/can’t be deleted/);
+
+		const refunded = await razorpayPaidPayment();
+		await refund('refundRazorpay', refunded.id, '1000');
+		expect(await failureMessage(await deleteAction(refunded.id))).toMatch(/can’t be deleted/);
+		expect(await refundRows(refunded.id)).toHaveLength(1);
+	});
+
+	it('still deletes an unpaid charge', async () => {
+		const unpaid = await mkPayment(therapist.id, clientId);
+		expect(isActionFailure(await deleteAction(unpaid.id))).toBe(false);
+		expect(await db.select().from(payment).where(eq(payment.id, unpaid.id))).toHaveLength(0);
 	});
 });

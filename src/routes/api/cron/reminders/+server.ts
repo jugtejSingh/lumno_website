@@ -8,6 +8,7 @@ import {
 } from '$lib/server/reminderEmails';
 import { refreshExpiringConnections } from '$lib/server/razorpayConnection';
 import { sweepStaleOrders } from '$lib/server/sessionPayments';
+import { settleAllPendingRefunds } from '$lib/server/paymentRefunds';
 import { materialiseReservedSlots } from '$lib/server/recurringBookings';
 import { logError } from '$lib/server/log';
 
@@ -17,7 +18,8 @@ const JOBS: Record<string, () => Promise<unknown>> = {
 	paymentReminders: sendPaymentReminders,
 	rebookReminders: sendRebookReminders,
 	refreshConnections: refreshExpiringConnections,
-	sweepStaleOrders: sweepStaleOrders
+	sweepStaleOrders: sweepStaleOrders,
+	settlePendingRefunds: settleAllPendingRefunds
 };
 
 // Vercel Cron hits this on a schedule (see vercel.json) with the configured bearer secret.

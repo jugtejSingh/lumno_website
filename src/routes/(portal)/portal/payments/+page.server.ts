@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getBalanceDueForClient, listVisiblePaymentsForClient } from '$lib/server/payments';
+import { settlePendingRefundsForClient } from '$lib/server/paymentRefunds';
 import { getPaymentSettings, getManualPayDetails } from '$lib/server/paymentSettings';
 import { signedUrl } from '$lib/server/storage';
 import { connectionHealth } from '$lib/server/razorpayConnection';
@@ -13,6 +14,9 @@ export const load: PageServerLoad = async (event) => {
 	const { client, currency } = await event.parent();
 
 	const page = Math.max(1, Number(event.url.searchParams.get('page')) || 1);
+
+	// before listing, so a refund Razorpay has finished shows as refunded, not pending
+	await settlePendingRefundsForClient(client.id);
 
 	const [payments, balanceDue, paymentSettings, rzpHealth, manualPayRow] = await Promise.all([
 		listVisiblePaymentsForClient(client.id, page, PAGE_SIZE),

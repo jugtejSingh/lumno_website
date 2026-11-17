@@ -120,15 +120,17 @@ describe('startInvoiceCheckout', () => {
 		expect(createOrderMock).toHaveBeenCalledTimes(2);
 	});
 
-	it('keeps the order on a paid row when the amount is edited', async () => {
+	it('refuses to reprice a paid row, keeping its amount and order', async () => {
 		const pay = await mkPayment(therapistId, clientId, {
 			amount: 1500,
 			status: 'paid',
 			razorpayOrderId: 'order_DONE'
 		});
-		await updatePayment(therapistId, pay.id, { amount: 1600, note: null });
+		const result = await updatePayment(therapistId, pay.id, { amount: 1600, note: null });
 
+		expect(result).toBe('paid');
 		const [row] = await db.select().from(payment).where(eq(payment.id, pay.id));
+		expect(row.amount).toBe(1500);
 		expect(row.razorpayOrderId).toBe('order_DONE');
 	});
 
