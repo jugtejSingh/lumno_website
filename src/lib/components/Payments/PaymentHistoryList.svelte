@@ -100,7 +100,7 @@
 		{#if p.status === 'unpaid'}
 			<Badge tone="warning">unpaid</Badge>
 		{:else}
-			paid
+			<Badge tone="success">✓ Paid</Badge>
 		{/if}
 		{#if p.refund && p.refund.status === 'processed'}
 			<Badge tone="success">refunded {formatCurrency(p.refund.amount, currency)}</Badge>
