@@ -208,6 +208,50 @@ export const razorpayReconcileException = pgTable(
 	]
 );
 
+// state of one refund attempt; a row only ever moves pending → processed or pending → failed
+// (see docs/refunds.md). A retry after 'failed' is a new row.
+export const refundStatusEnum = pgEnum('refund_status', ['pending', 'processed', 'failed']);
+// 'razorpay' — sent through the therapist's Razorpay account
+// 'manual'   — therapist paid it back off-platform; recorded only, no API call
+export const refundMethodEnum = pgEnum('refund_method', ['razorpay', 'manual']);
+
+export const paymentRefund = pgTable(
+	'payment_refund',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => randomUUID()),
+		paymentId: text('payment_id')
+			.notNull()
+			.references(() => payment.id, { onDelete: 'cascade' }),
+		therapistId: text('therapist_id')
+			.notNull()
+			.references(() => therapist.id, { onDelete: 'cascade' }),
+		method: refundMethodEnum('method').notNull(),
+		// whole rupees, like payment.amount
+		amount: integer('amount').notNull(),
+		status: refundStatusEnum('status').notNull().default('pending'),
+		// copied from payment.razorpayPaymentId so the refund traces back without a join; null for manual
+		razorpayPaymentId: text('razorpay_payment_id'),
+		// filled once Razorpay accepts the refund; null for manual, failed, or timed-out attempts
+		razorpayRefundId: text('razorpay_refund_id').unique(),
+		failureReason: text('failure_reason'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('paymentRefund_paymentId_idx').on(table.paymentId),
+		// one live refund per payment: blocks a second refund and double-clicks; failed rows don't count
+		uniqueIndex('paymentRefund_paymentId_live_uidx')
+			.on(table.paymentId)
+			.where(sql`${table.status} in ('pending', 'processed')`),
+		check('paymentRefund_amount_positive', sql`${table.amount} > 0`)
+	]
+);
+
 export const paymentSettingsRelations = relations(paymentSettings, ({ one }) => ({
 	therapist: one(therapist, { fields: [paymentSettings.therapistId], references: [therapist.id] })
 }));
@@ -219,9 +263,15 @@ export const paymentPackRelations = relations(paymentPack, ({ one, many }) => ({
 	payments: many(payment)
 }));
 
-export const paymentRelations = relations(payment, ({ one }) => ({
+export const paymentRelations = relations(payment, ({ one, many }) => ({
 	therapist: one(therapist, { fields: [payment.therapistId], references: [therapist.id] }),
 	client: one(client, { fields: [payment.clientId], references: [client.id] }),
 	appointment: one(appointment, { fields: [payment.appointmentId], references: [appointment.id] }),
-	pack: one(paymentPack, { fields: [payment.packId], references: [paymentPack.id] })
+	pack: one(paymentPack, { fields: [payment.packId], references: [paymentPack.id] }),
+	refunds: many(paymentRefund)
+}));
+
+export const paymentRefundRelations = relations(paymentRefund, ({ one }) => ({
+	payment: one(payment, { fields: [paymentRefund.paymentId], references: [payment.id] }),
+	therapist: one(therapist, { fields: [paymentRefund.therapistId], references: [therapist.id] })
 }));

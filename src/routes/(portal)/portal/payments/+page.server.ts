@@ -41,10 +41,21 @@ export const load: PageServerLoad = async (event) => {
 
 	const invoices = [];
 	for (const p of payments.rows) {
-		// a paid row is only listed because its session was cancelled and money is owed back
-		let refund: { amount: string; done: boolean } | null = null;
-		if (p.status === 'paid' && p.refundDue !== null) {
-			refund = { amount: formatCurrency(p.refundDue, currency), done: p.refundedAt !== null };
+		// a paid row is only listed because money is (or was) going back: an actual refund the
+		// therapist sent wins; otherwise the cancellation flag says what's owed
+		let refund: { amount: string; done: boolean; remaining: string | null } | null = null;
+		if (p.status === 'paid' && p.refundAmount !== null) {
+			refund = {
+				amount: formatCurrency(p.refundAmount, currency),
+				done: p.refundStatus === 'processed',
+				remaining: formatCurrency(p.amount - p.refundAmount, currency)
+			};
+		} else if (p.status === 'paid' && p.refundDue !== null) {
+			refund = {
+				amount: formatCurrency(p.refundDue, currency),
+				done: p.refundedAt !== null,
+				remaining: null
+			};
 		}
 		invoices.push({
 			id: p.id,
