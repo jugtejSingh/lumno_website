@@ -25,10 +25,24 @@ export const TIER_NAMES: Record<TherapistTier, string> = { 0: 'Free', 1: 'Basic'
 // The single source of truth for what each therapist tier allows. Add a usage by
 // giving it a key here; guards read it via usageLimit(therapistId, 'key').
 // Use Infinity for "allowed, no cap". A missing key means not allowed.
+// bulkImportsPerMonth: AI "find clients in this text" runs (see bulkClients.ts) — free gets a
+// few even though it has no aiTokensPerMonth.
+// inactiveClients: how many over-cap (deactivated) clients bulk add may create — a spam guard,
+// since every one of them gets an invite email.
 export const THERAPIST_PLAN_USAGE: Record<TherapistTier, Record<string, number>> = {
-	0: { clients: 10 },
-	1: { clients: 30, aiTokensPerMonth: 1_000_000 },
-	2: { clients: Infinity, aiTokensPerMonth: 3_000_000 }
+	0: { clients: 10, bulkImportsPerMonth: 3, inactiveClients: 50 },
+	1: {
+		clients: 30,
+		aiTokensPerMonth: 1_000_000,
+		bulkImportsPerMonth: 100,
+		inactiveClients: Infinity
+	},
+	2: {
+		clients: Infinity,
+		aiTokensPerMonth: 3_000_000,
+		bulkImportsPerMonth: 100,
+		inactiveClients: Infinity
+	}
 };
 
 // Every therapist has exactly one subscription row (edvion model — free is a

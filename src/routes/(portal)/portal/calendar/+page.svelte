@@ -92,19 +92,27 @@
 		</div>
 	{/if}
 
-	<div class="book-toolbar">
-		<div class="month-label">{monthLabel}</div>
-		<div class="month-arrows">
-			<button class="arrow-btn" onclick={prevMonth} aria-label="Previous month">&#8249;</button>
-			<button class="arrow-btn" onclick={nextMonth} aria-label="Next month">&#8250;</button>
+	{#if data.inactive && !rescheduleId}
+		<!-- over the practitioner's plan cap: no new bookings, but an existing session can
+		     still be moved (that path sets rescheduleId and shows the grid) -->
+		<div class="inactive-banner">
+			You can't book with your practitioner for the time being. You'll be able to book soon.
 		</div>
-	</div>
-	<PortalMonthGrid
-		year={data.year}
-		month={data.month}
-		slotsByDay={data.slotsByDay}
-		onDayClick={(day) => (bookDay = day)}
-	/>
+	{:else}
+		<div class="book-toolbar">
+			<div class="month-label">{monthLabel}</div>
+			<div class="month-arrows">
+				<button class="arrow-btn" onclick={prevMonth} aria-label="Previous month">&#8249;</button>
+				<button class="arrow-btn" onclick={nextMonth} aria-label="Next month">&#8250;</button>
+			</div>
+		</div>
+		<PortalMonthGrid
+			year={data.year}
+			month={data.month}
+			slotsByDay={data.slotsByDay}
+			onDayClick={(day) => (bookDay = day)}
+		/>
+	{/if}
 	<div class="hint">{data.cancellationPolicy}</div>
 	<div class="hint">{data.reschedulePolicy}</div>
 </div>
@@ -193,6 +201,16 @@
 		border: 2px dashed var(--citrus-600);
 		border-radius: var(--radius-md, 8px);
 		padding: 10px 14px;
+	}
+
+	.inactive-banner {
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--text-primary);
+		background: var(--surface-card);
+		border: 2px solid var(--border-subtle);
+		border-radius: var(--radius-md, 8px);
+		padding: 12px 14px;
 	}
 
 	.reschedule-cancel {

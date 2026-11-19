@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { client, therapist, user } from '$lib/server/db/schema';
 import { escapeHtml, sendEmail, wrapEmail } from '$lib/server/email';
@@ -26,23 +26,36 @@ function buildInviteUrl(origin: string, token: string) {
 // Returns whether the email went out. The client row (and its invite token) is
 // already saved by the time this runs, so a mail failure must not throw and
 // undo a successful add — the therapist can hit "Resend invite" instead.
+// On success the Resend id is stored so the bounce webhook can find this client,
+// and any earlier bounce is cleared — it was about the previous email.
 async function sendInvite(
+	clientId: string,
 	email: string,
 	url: string,
 	therapistName: string,
 	therapistEmail: string
 ): Promise<boolean> {
+	let emailId: string | null;
 	try {
-		await sendInviteEmail(email, url, therapistName, therapistEmail);
-		return true;
+		emailId = await sendInviteEmail(email, url, therapistName, therapistEmail);
 	} catch (err) {
 		logError('clients.sendInvite', err);
 		return false;
 	}
+	await db
+		.update(client)
+		.set({ inviteEmailId: emailId, inviteBouncedAt: null })
+		.where(eq(client.id, clientId));
+	return true;
 }
 
-async function sendInviteEmail(email: string, url: string, therapistName: string, therapistEmail: string) {
-	await sendEmail(
+async function sendInviteEmail(
+	email: string,
+	url: string,
+	therapistName: string,
+	therapistEmail: string
+): Promise<string | null> {
+	return sendEmail(
 		email,
 		"You've been invited",
 		wrapEmail({
@@ -98,12 +111,45 @@ async function withTherapistLock<T>(
 	});
 }
 
-export async function addClient(therapistId: string, input: NewClientInput, origin: string) {
+// allowInactive (bulk add only): once the plan's active-client cap is full, save the
+// client deactivated instead of refusing — the same over-cap state a downgrade leaves
+// (see syncClientActivationForCap). They still get the invite and portal, just can't
+// book. Capped by the plan's inactiveClients so a free account can't mail hundreds.
+export async function addClient(
+	therapistId: string,
+	input: NewClientInput,
+	origin: string,
+	options: { allowInactive?: boolean } = {}
+) {
 	const inviteToken = randomUUID();
 
+	let inactiveLimit: number | null = null;
+	if (options.allowInactive) {
+		// read before the lock, same reason as usageLimit in withTherapistLock
+		inactiveLimit = await usageLimit(therapistId, 'inactiveClients');
+	}
+
 	const result = await withTherapistLock(therapistId, async (tx, isAtLimit) => {
+		let deactivatedAt: Date | null = null;
 		if (await isAtLimit()) {
-			return { error: 'limit_reached' as const };
+			if (!options.allowInactive || inactiveLimit === null) {
+				return { error: 'limit_reached' as const };
+			}
+			// over-cap clients only — 'left' ones are deactivated for a different reason
+			const [{ count }] = await tx
+				.select({ count: sql<number>`count(*)::int` })
+				.from(client)
+				.where(
+					and(
+						eq(client.therapistId, therapistId),
+						isNotNull(client.deactivatedAt),
+						ne(client.status, 'left')
+					)
+				);
+			if (count >= inactiveLimit) {
+				return { error: 'inactive_limit_reached' as const };
+			}
+			deactivatedAt = new Date();
 		}
 
 		const [therapistUser] = await tx
@@ -132,7 +178,8 @@ export async function addClient(therapistId: string, input: NewClientInput, orig
 				...input,
 				status: 'paused',
 				inviteToken,
-				inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS)
+				inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS),
+				deactivatedAt
 			})
 			.returning();
 		return { row, therapistUser: therapistUser! };
@@ -146,6 +193,7 @@ export async function addClient(therapistId: string, input: NewClientInput, orig
 	// therapistUser is always found — therapist.userId is a required FK
 	const inviteUrl = buildInviteUrl(origin, inviteToken);
 	const emailSent = await sendInvite(
+		result.row.id,
 		input.email,
 		inviteUrl,
 		result.therapistUser.name,
@@ -179,9 +227,24 @@ export async function resendInvite(therapistId: string, clientId: string, origin
 
 	const inviteUrl = buildInviteUrl(origin, inviteToken);
 	// therapistUser is always found here — therapist.userId is a required FK
-	const emailSent = await sendInvite(clientRow.email, inviteUrl, therapistUser!.name, therapistUser!.email);
+	const emailSent = await sendInvite(
+		clientRow.id,
+		clientRow.email,
+		inviteUrl,
+		therapistUser!.name,
+		therapistUser!.email
+	);
 
 	return { inviteUrl, emailSent };
+}
+
+// Called by the Resend webhook on a hard bounce. Matches on the latest invite's email
+// id only, so a bounce for an older invite (already superseded by a resend) is ignored.
+export async function markInviteBounced(emailId: string) {
+	await db
+		.update(client)
+		.set({ inviteBouncedAt: new Date() })
+		.where(eq(client.inviteEmailId, emailId));
 }
 
 export async function deleteClient(therapistId: string, clientId: string) {
@@ -209,10 +272,27 @@ export async function setClientStatus(therapistId: string, clientId: string, sta
 
 		await tx
 			.update(client)
-			.set({ status, deactivatedAt: status === 'left' ? new Date() : null })
+			.set({ status, ...deactivationChange(current.status, status) })
 			.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
 		return {};
 	});
+}
+
+// Only moving into or out of 'left' touches deactivatedAt. Any other status change must
+// leave it alone: an over-cap (deactivated) client switched paused -> active is still
+// over the cap, and clearing it here would let a therapist unlock clients past their plan.
+function deactivationChange(from: ClientStatus, to: ClientStatus): { deactivatedAt?: Date | null } {
+	if (to === 'left') {
+		if (from === 'left') {
+			return {};
+		}
+		return { deactivatedAt: new Date() };
+	}
+	if (from === 'left') {
+		// callers have already checked there's cap room
+		return { deactivatedAt: null };
+	}
+	return {};
 }
 
 export type ClientUpdateInput = {
@@ -243,7 +323,7 @@ export async function updateClient(therapistId: string, clientId: string, input:
 				customFields: input.customFields,
 				rate: input.rate,
 				status: input.status,
-				deactivatedAt: input.status === 'left' ? new Date() : null
+				...deactivationChange(current.status, input.status)
 			})
 			.where(and(eq(client.id, clientId), eq(client.therapistId, therapistId)));
 		return {};

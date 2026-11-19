@@ -11,7 +11,10 @@ export const aiUsage = pgTable(
 			.notNull()
 			.references(() => therapist.id, { onDelete: 'cascade' }),
 		yearMonth: text('year_month').notNull(),
-		tokensUsed: integer('tokens_used').notNull().default(0)
+		tokensUsed: integer('tokens_used').notNull().default(0),
+		// bulk client imports (AI extraction runs) this month — capped by the plan's
+		// bulkImportsPerMonth, see bulkClients.ts
+		bulkImports: integer('bulk_imports').notNull().default(0)
 	},
 	(table) => [primaryKey({ columns: [table.therapistId, table.yearMonth] })]
 );

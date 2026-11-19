@@ -97,7 +97,10 @@
 			Practitioners on paid plans can use optional AI features to tidy up the wording of a session
 			note, write a short summary of it, draft a client-friendly recap, or ask questions about a
 			client's notes. The AI runs only when a practitioner chooses to use one of these features,
-			never automatically in the background. Every AI request follows these rules:
+			never automatically in the background. Any practitioner can also use AI to read a pasted list
+			of their clients and pull out names and email addresses for a bulk import. Only the pasted text
+			is sent, and the practitioner checks every row before anyone is added. Every AI request follows
+			these rules:
 		</p>
 		<ul>
 			<li>
@@ -151,7 +154,8 @@
 			</li>
 			<li>
 				<strong>Resend</strong> sends our emails, such as booking confirmations and reminders, and
-				receives the recipient's email address and the message.
+				receives the recipient's email address and the message. It tells us if an email bounces, so
+				the practitioner can fix a wrong address.
 			</li>
 			<li>
 				<strong>Meta (WhatsApp)</strong> sends WhatsApp verification codes and appointment reminders,
@@ -159,7 +163,8 @@
 			</li>
 			<li>
 				<strong>OpenRouter</strong> and the AI providers it connects us to, only when a practitioner
-				uses an AI feature, receive the note text for that request under the zero-data-retention rules
+				uses an AI feature, receive the note text (or, for a bulk import, the pasted client list) for
+				that request under the zero-data-retention rules
 				above.
 			</li>
 			<li>

@@ -54,13 +54,15 @@ export function wrapEmail(opts: {
 </div>`.trim();
 }
 
+// Returns Resend's id for the sent email (null if Resend gave none), so a caller can
+// match a later webhook (e.g. a bounce) back to what it sent.
 export async function sendEmail(
 	to: string,
 	subject: string,
 	html: string,
 	opts: { text?: string; replyTo?: string } = {}
-) {
-	const { error } = await resend.emails.send({
+): Promise<string | null> {
+	const { data, error } = await resend.emails.send({
 		from: env.EMAIL_FROM,
 		to,
 		subject,
@@ -72,4 +74,19 @@ export async function sendEmail(
 		// no recipient address in the message — it ends up in the logs
 		throw new Error(`failed to send email: ${error.message}`);
 	}
+	if (data && data.id) {
+		return data.id;
+	}
+	return null;
+}
+
+export type ResendWebhookHeaders = { id: string; timestamp: string; signature: string };
+
+// Throws if the signature doesn't match RESEND_WEBHOOK_SECRET (or the secret isn't set).
+export function verifyResendWebhook(payload: string, headers: ResendWebhookHeaders) {
+	const webhookSecret = env.RESEND_WEBHOOK_SECRET;
+	if (!webhookSecret) {
+		throw new Error('RESEND_WEBHOOK_SECRET not set');
+	}
+	return resend.webhooks.verify({ payload, headers, webhookSecret });
 }

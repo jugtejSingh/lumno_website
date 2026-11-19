@@ -101,6 +101,10 @@ export const client = pgTable(
 		// invite link sent to the client's email; cleared once they accept
 		inviteToken: text('invite_token').unique(),
 		inviteExpiresAt: timestamp('invite_expires_at'),
+		// Resend id of the latest invite email, so a bounce webhook can find this client
+		inviteEmailId: text('invite_email_id'),
+		// set by the Resend bounce webhook when the latest invite hard-bounced; cleared on resend
+		inviteBouncedAt: timestamp('invite_bounced_at'),
 		// set/cleared by syncClientActivationForCap (billing.ts) as the therapist's
 		// plan cap changes. While set: not bookable, not counted against the cap.
 		deactivatedAt: timestamp('deactivated_at'),
@@ -123,7 +127,11 @@ export const client = pgTable(
 			.$onUpdate(() => new Date())
 			.notNull()
 	},
-	(table) => [index('client_therapistId_idx').on(table.therapistId)]
+	(table) => [
+		index('client_therapistId_idx').on(table.therapistId),
+		// the bounce webhook looks clients up by this
+		index('client_inviteEmailId_idx').on(table.inviteEmailId)
+	]
 );
 
 export const therapistRelations = relations(therapist, ({ one, many }) => ({

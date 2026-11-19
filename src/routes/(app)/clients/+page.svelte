@@ -7,6 +7,7 @@
 	import Dialog from '$lib/components/utils/Dialog.svelte';
 	import Pager from '$lib/components/utils/Pager.svelte';
 	import ClientForm from '$lib/components/Clients/ClientForm.svelte';
+	import BulkAddClients from '$lib/components/Clients/BulkAddClients.svelte';
 	import type { ClientFieldValues } from '$lib/types/clientFields';
 	import { formatCurrency } from '$lib/format';
 	import { enhance } from '$lib/enhance';
@@ -18,6 +19,28 @@
 
 	let query = $state('');
 	let addOpen = $state(false);
+	let bulkOpen = $state(false);
+
+	// counted the same way as the server's cap check: anyone not deactivated
+	const activeCount = $derived.by(() => {
+		let count = 0;
+		for (const c of data.clients) {
+			if (c.deactivatedAt === null) {
+				count += 1;
+			}
+		}
+		return count;
+	});
+
+	const existingEmails = $derived.by(() => {
+		const emails: string[] = [];
+		for (const c of data.clients) {
+			if (c.email) {
+				emails.push(c.email);
+			}
+		}
+		return emails;
+	});
 
 	const CLIENTS_PER_PAGE = 15;
 	let page = $state(1);
@@ -71,7 +94,10 @@
 			<div class="title">Clients</div>
 			<div class="subtitle">{data.clients.length} on file · {filtered.length} shown</div>
 		</div>
-		<Button variant="pop" onclick={openAdd}>+ Add client</Button>
+		<div class="header-buttons">
+			<Button variant="secondary" onclick={() => (bulkOpen = true)}>Add many</Button>
+			<Button variant="pop" onclick={openAdd}>+ Add client</Button>
+		</div>
 	</div>
 
 	<Input placeholder="Search by name or email" bind:value={query} />
@@ -96,8 +122,14 @@
 						<div class="name-row">
 							<div class="name">{c.name}</div>
 							<Badge tone={toneFor(c.status)}>{c.status}</Badge>
+							{#if c.deactivatedAt !== null && c.status !== 'left'}
+								<!-- over the plan cap: can use the portal but can't book -->
+								<Badge tone="citrus">inactive</Badge>
+							{/if}
 							{#if c.userId}
 								<span class="joined">Portal access</span>
+							{:else if c.inviteBouncedAt}
+								<span class="bounced">Invite bounced — check the email</span>
 							{:else if c.inviteToken}
 								<span class="pending">Invite pending</span>
 							{/if}
@@ -139,6 +171,15 @@
 	</div>
 	<Pager {page} {totalPages} ongoto={(target) => (page = target)} />
 </div>
+
+<BulkAddClients
+	open={bulkOpen}
+	onclose={() => (bulkOpen = false)}
+	{existingEmails}
+	{activeCount}
+	activeClientLimit={data.activeClientLimit}
+	bulkImports={data.bulkImports}
+/>
 
 <Dialog
 	open={addOpen}
@@ -258,6 +299,17 @@
 		font-size: 11px;
 		font-weight: 700;
 		color: var(--text-muted);
+	}
+
+	.bounced {
+		font-size: 11px;
+		font-weight: 700;
+		color: var(--accent-danger, #c0392b);
+	}
+
+	.header-buttons {
+		display: flex;
+		gap: 8px;
 	}
 
 	.detail-row {

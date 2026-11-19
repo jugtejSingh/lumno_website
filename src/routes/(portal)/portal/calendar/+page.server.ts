@@ -21,11 +21,21 @@ export const load: PageServerLoad = async (event) => {
 	const year = Number(event.url.searchParams.get('year')) || now.getFullYear();
 	const month = parseMonthParam(event.url.searchParams.get('month'), now);
 
-	const [portalSessions, slotsByDay, bookingNote] = await Promise.all([
+	const [portalSessions, slotsByDay, bookingNote, [activation]] = await Promise.all([
 		loadPortalSessions(client.id, client.therapistId, displayTimezone),
 		listAvailabilityForMonth(client.therapistId, year, month),
-		getBookingNote(client.therapistId)
+		getBookingNote(client.therapistId),
+		db
+			.select({ deactivatedAt: clientTable.deactivatedAt })
+			.from(clientTable)
+			.where(eq(clientTable.id, client.id))
 	]);
+	// Over the practitioner's plan cap: no new bookings (availability.ts refuses them too).
+	// Moving an existing session is still allowed. Only a yes/no reaches the browser.
+	let inactive = false;
+	if (activation && activation.deactivatedAt !== null) {
+		inactive = true;
+	}
 
 	// Reschedule picker: leave the session being moved out of the daily max-sessions count,
 	// so the client can move it to another time on its own full day. Only honoured for this
@@ -51,6 +61,7 @@ export const load: PageServerLoad = async (event) => {
 		packUsedUp: portalSessions.packUsedUp,
 		bookingNote,
 		rescheduleId,
+		inactive,
 		sessions: portalSessions.sessions,
 		cancellationPolicy: formatCancellationPolicy(portalSessions.paymentSettings),
 		reschedulePolicy: formatReschedulePolicy(portalSessions.paymentSettings)
@@ -65,7 +76,8 @@ const bookSessionErrorMessages = {
 		'You have an outstanding balance — please settle it with your practitioner before booking',
 	booking_limit:
 		'You already have the maximum number of upcoming sessions — you can book another after your next one',
-	client_inactive: 'Your practitioner needs to upgrade their plan before you can book a new session'
+	client_inactive:
+		"You can't book with your practitioner for the time being. You'll be able to book soon."
 } as const;
 
 const rescheduleErrorMessages = {

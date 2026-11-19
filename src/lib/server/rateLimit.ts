@@ -17,6 +17,14 @@ export const ratelimit = new Ratelimit({
 	prefix: 'ratelimit'
 });
 
+// Bulk client import AI runs, keyed by therapist id. The plan's monthly allowance is the
+// real cap for free accounts; this stops a paid account hammering the AI in a loop.
+export const bulkExtractRatelimit = new Ratelimit({
+	redis,
+	limiter: Ratelimit.fixedWindow(10, '1 h'),
+	prefix: 'ratelimit:bulk-extract'
+});
+
 // One feedback/issue email per IP per day — it lands in a human inbox.
 export const feedbackRatelimit = new Ratelimit({
 	redis,

@@ -17,11 +17,25 @@ export default async function setup() {
 	if (!testUrl) {
 		throw new Error('DATABASE_URL_TEST is not set — add it to .env');
 	}
-	if (testUrl === process.env.DATABASE_URL) {
-		throw new Error('DATABASE_URL_TEST must be a separate database from DATABASE_URL');
+	// the schema is wiped below, so refuse if the test URL is any real database
+	const realUrls = [
+		process.env.DATABASE_URL,
+		process.env.DIRECT_DATABASE_URL,
+		process.env.DATABASE_URL_MIGRATE
+	];
+	for (const realUrl of realUrls) {
+		if (realUrl && testUrl === realUrl) {
+			throw new Error('DATABASE_URL_TEST must be a separate database from the real ones');
+		}
 	}
 	// setup.ts also does this per worker; do it here too for drizzle-kit below
 	process.env.DATABASE_URL = testUrl;
+
+	// drizzle-kit push only works on an empty schema: on an existing one it re-drops the
+	// availability_date_override composite PK every time and dies. Start from empty each run.
+	const reset = postgres(testUrl, { onnotice: () => {} });
+	await reset.unsafe('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+	await reset.end();
 
 	// drizzle.config.ts prefers DIRECT_DATABASE_URL — override it too, or the push
 	// lands on the dev DB instead of the local test one.
