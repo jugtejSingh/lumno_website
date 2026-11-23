@@ -74,7 +74,7 @@
 		align-items: center;
 		gap: 10px;
 		padding: 8px 10px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		font-size: 13px;
 		color: var(--text-primary);

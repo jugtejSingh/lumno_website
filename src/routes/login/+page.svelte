@@ -129,7 +129,7 @@
 	.mode-tabs {
 		display: flex;
 		gap: 16px;
-		border-bottom: 2px dotted var(--beige-400);
+		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	.tab {
@@ -141,7 +141,7 @@
 		color: var(--text-muted);
 		cursor: pointer;
 		font-family: var(--font-body);
-		border-bottom: 2px solid transparent;
+		border-bottom: 1px solid transparent;
 	}
 
 	.tab.active {

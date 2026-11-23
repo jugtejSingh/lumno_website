@@ -190,7 +190,7 @@
 		gap: 6px;
 		max-width: 100%;
 		padding: 5px 12px;
-		border: 2px dashed var(--outline);
+		border: 1px dashed var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--surface-card);
 		font-family: var(--font-mono);

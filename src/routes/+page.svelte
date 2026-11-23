@@ -32,7 +32,7 @@
 <style>
 	.page {
 		min-height: 100vh;
-		background: var(--wallpaper) var(--surface-app);
+		background: var(--surface-app);
 		color: var(--text-primary);
 		/* clip, not hidden: hidden makes .page a scroll box, which freezes the week lists' scroll fade */
 		overflow-x: clip;

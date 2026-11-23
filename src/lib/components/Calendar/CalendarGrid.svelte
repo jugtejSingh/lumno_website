@@ -92,7 +92,7 @@
 		padding: 8px;
 		border-radius: var(--radius-sm);
 		background: var(--surface-canvas);
-		border: 2px solid var(--beige-400);
+		border: 1px solid var(--beige-400);
 		display: flex;
 		flex-direction: column;
 		gap: 6px;

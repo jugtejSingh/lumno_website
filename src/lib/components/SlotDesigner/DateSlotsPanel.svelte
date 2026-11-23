@@ -168,7 +168,7 @@
 		flex-direction: column;
 		gap: 10px;
 		padding-top: 12px;
-		border-top: 2px dashed var(--border-subtle);
+		border-top: 1px dashed var(--border-subtle);
 	}
 
 	.header {

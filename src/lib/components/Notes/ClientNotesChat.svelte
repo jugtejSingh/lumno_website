@@ -143,7 +143,7 @@
 		width: 50%;
 		max-width: 640px;
 		background: var(--surface-card);
-		border-left: 2px solid var(--outline);
+		border-left: 1px solid var(--outline);
 		box-shadow: var(--shadow-lg);
 		z-index: 101;
 		display: flex;
@@ -164,7 +164,7 @@
 		gap: 16px;
 		padding: 10px 12px 10px 18px;
 		background-color: var(--coral-400);
-		border-bottom: 2px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 	}
 
 	.drawer-title {
@@ -178,7 +178,7 @@
 		width: 28px;
 		height: 28px;
 		flex-shrink: 0;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-xs);
 		background: var(--plum-300);
 		box-shadow: var(--shadow-xs);
@@ -250,14 +250,14 @@
 		display: flex;
 		gap: 8px;
 		padding: 12px 16px;
-		border-top: 2px solid var(--outline);
+		border-top: 1px solid var(--outline);
 	}
 
 	.ask-form input[type='text'] {
 		flex: 1;
 		min-width: 0;
 		padding: 8px 12px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 		font-family: var(--font-body);
 		font-size: 14px;

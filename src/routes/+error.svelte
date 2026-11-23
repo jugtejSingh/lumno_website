@@ -41,14 +41,14 @@
 		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
-		background: var(--wallpaper) var(--surface-app);
+		background: var(--surface-app);
 	}
 
 	.header {
 		display: flex;
 		align-items: center;
 		padding: 20px clamp(20px, 5vw, 48px);
-		border-bottom: 2px solid var(--border-subtle);
+		border-bottom: 1px solid var(--border-subtle);
 		background: var(--surface-canvas);
 	}
 
@@ -63,8 +63,7 @@
 	.card {
 		width: min(420px, 100%);
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
-		border-top-width: 14px;
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
 		padding: clamp(24px, 5vw, 36px);

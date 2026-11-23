@@ -110,7 +110,7 @@
 	.slot {
 		font-size: 13px;
 		font-weight: 600;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 		padding: 8px 6px;
 		text-align: center;
@@ -152,7 +152,7 @@
 		font-weight: 700;
 		background: var(--accent-primary);
 		color: var(--text-on-accent);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		box-shadow: var(--shadow-sm);
 		padding: 10px 20px;

@@ -131,7 +131,7 @@
 	.icon-btn {
 		width: 32px;
 		height: 32px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 		color: var(--text-secondary);

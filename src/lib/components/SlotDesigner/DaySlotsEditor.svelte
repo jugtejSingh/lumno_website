@@ -39,7 +39,7 @@
 		align-self: flex-start;
 		padding: 5px 12px;
 		border-radius: var(--radius-pill);
-		border: 2px dashed var(--outline);
+		border: 1px dashed var(--outline);
 		background: var(--surface-card);
 		color: var(--text-muted);
 		font-family: var(--font-mono);

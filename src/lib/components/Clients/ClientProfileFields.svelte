@@ -132,7 +132,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		box-shadow: var(--shadow-inset);
 		padding: 10px 12px;
@@ -149,7 +149,7 @@
 		max-height: 300px;
 		overflow-y: auto;
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		box-shadow: var(--shadow-lg);
 	}

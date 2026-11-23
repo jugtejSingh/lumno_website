@@ -37,7 +37,7 @@
 		font-family: var(--font-body);
 		font-size: 12px;
 		padding: 4px 8px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 		color: var(--text-primary);

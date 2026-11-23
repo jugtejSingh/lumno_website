@@ -54,7 +54,7 @@
 		flex-wrap: wrap;
 		gap: 4px;
 		padding: 4px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 	}
 

@@ -81,7 +81,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		background: var(--surface-card);
 		box-shadow: var(--shadow-xs);
@@ -104,7 +104,7 @@
 		font-weight: 700;
 		background: var(--accent-primary);
 		color: var(--text-on-accent);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		box-shadow: var(--shadow-xs);
 		padding: 4px 12px;

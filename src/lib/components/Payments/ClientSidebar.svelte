@@ -35,7 +35,7 @@
 	.client-sidebar {
 		width: 180px;
 		flex-shrink: 0;
-		border-right: 2px solid var(--border-subtle);
+		border-right: 1px solid var(--border-subtle);
 		padding-right: 16px;
 		display: flex;
 		flex-direction: column;
@@ -93,7 +93,7 @@
 		.client-sidebar {
 			width: auto;
 			border-right: none;
-			border-bottom: 2px dotted var(--beige-400);
+			border-bottom: 1px solid var(--border-subtle);
 			padding-right: 0;
 			padding-bottom: 10px;
 		}
@@ -109,7 +109,7 @@
 			flex-shrink: 0;
 			white-space: nowrap;
 			border-radius: 999px;
-			border: 2px solid var(--border-subtle);
+			border: 1px solid var(--border-subtle);
 			background: var(--surface-card);
 			padding: 8px 14px;
 		}

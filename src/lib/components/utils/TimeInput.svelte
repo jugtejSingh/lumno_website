@@ -89,7 +89,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}

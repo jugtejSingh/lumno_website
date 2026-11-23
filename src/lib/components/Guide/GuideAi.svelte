@@ -11,7 +11,7 @@
 	title="AI help with notes"
 	intro="Jot your notes down however they come out between sessions. AI can tidy them up, summarise them, turn them into something you can share with the client, and answer questions about a client. AI is included on the Basic and Pro plans, not on Free."
 >
-	<h3>✨ Fix: tidy up your writing</h3>
+	<h3>Fix: tidy up your writing</h3>
 	<p>
 		Fix corrects grammar, spelling and punctuation in the note you're writing and makes it read more
 		clearly, then puts the result back in the editor. It only works with what you wrote: it never adds

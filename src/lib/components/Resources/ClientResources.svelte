@@ -64,7 +64,7 @@
 	}
 
 	.divider {
-		border-top: 2px solid var(--border-subtle);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.status {

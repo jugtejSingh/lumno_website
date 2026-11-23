@@ -105,24 +105,22 @@
 		font-weight: 700;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		box-shadow: var(--shadow-xs);
 		padding: 6px 14px;
 		cursor: pointer;
-		transition:
-			transform var(--duration-fast) var(--ease-out),
-			box-shadow var(--duration-fast) var(--ease-out);
+		transition: background-color var(--duration-fast) ease-out;
 	}
 
 	.tab:hover {
-		transform: translate(-1px, -1px);
-		box-shadow: var(--shadow-sm);
+		background: var(--surface-app);
 	}
 
 	.tab.active {
-		background: var(--plum-300);
-		box-shadow: var(--shadow-md);
+		background: var(--coral-100);
+		border-color: var(--coral-500);
+		color: var(--coral-700);
 	}
 
 	.switch-row {
@@ -147,7 +145,7 @@
 		width: 64px;
 		height: 34px;
 		padding: 0;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--plum-300);
 		box-shadow: var(--shadow-xs);
@@ -168,7 +166,7 @@
 		height: 24px;
 		border-radius: 50%;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		transition: transform var(--duration-base) var(--ease-out);
 	}
 
@@ -192,7 +190,7 @@
 		grid-area: 1 / 1;
 		backface-visibility: hidden;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
 		padding: clamp(18px, 3vw, 28px);
@@ -223,7 +221,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 		padding: 10px 14px;
@@ -246,7 +244,7 @@
 	.face :global(.chip) {
 		font-size: 12px;
 		font-weight: 700;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		padding: 2px 10px;
 		white-space: nowrap;

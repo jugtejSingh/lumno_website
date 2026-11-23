@@ -68,7 +68,7 @@
 <style>
 	.page {
 		min-height: 100vh;
-		background: var(--wallpaper) var(--surface-app);
+		background: var(--surface-app);
 		color: var(--text-primary);
 	}
 

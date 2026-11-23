@@ -55,7 +55,7 @@
 		width: 42px;
 		height: 24px;
 		flex-shrink: 0;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--beige-200);
 		padding: 2px;
@@ -74,7 +74,7 @@
 		height: 16px;
 		border-radius: var(--radius-pill);
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 	}
 
 	.switch-label {

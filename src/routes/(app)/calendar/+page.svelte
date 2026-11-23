@@ -228,7 +228,7 @@
 		width: 32px;
 		height: 32px;
 		border-radius: var(--radius-sm);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		box-shadow: var(--shadow-xs);
 		background: var(--surface-card);
 		cursor: pointer;
@@ -317,7 +317,7 @@
 		gap: 10px;
 		width: 100%;
 		padding: 12px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-md);
 		background: var(--surface-card);
 		box-shadow: var(--shadow-xs);
@@ -346,7 +346,7 @@
 	.day-empty {
 		width: 100%;
 		padding: 24px 12px;
-		border: 2px dashed var(--border-subtle);
+		border: 1px dashed var(--border-subtle);
 		border-radius: var(--radius-md);
 		background: transparent;
 		font-family: var(--font-body);

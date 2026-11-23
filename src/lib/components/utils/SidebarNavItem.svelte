@@ -16,36 +16,33 @@
 	.nav-item {
 		/* tightens on short windows so the sidebar never needs to scroll */
 		padding: clamp(4px, 1vh, 8px) 12px;
-		border: 2px solid transparent;
+		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
 		font-size: 14px;
-		font-weight: 600;
+		font-weight: 500;
 		color: var(--text-secondary);
 	}
 
 	.nav-item:hover {
-		background: var(--coral-100);
-		border-color: var(--beige-400);
+		background: var(--surface-app);
+		color: var(--text-primary);
 	}
 
 	.nav-item.active {
-		background: var(--coral-400);
-		border-color: var(--outline);
-		box-shadow: var(--shadow-xs);
-		color: var(--text-primary);
+		background: var(--coral-100);
+		color: var(--coral-700);
+		font-weight: 600;
 	}
 
 	/* actions, not destinations: lighter, never "active", no coral hover */
 	.tone-quiet {
 		font-size: 13px;
-		font-weight: 600;
+		font-weight: 500;
 		color: var(--text-muted);
 	}
 
 	.tone-quiet:hover {
-		background: transparent;
-		border-color: var(--beige-400);
-		border-style: dotted;
+		background: var(--surface-app);
 		color: var(--text-primary);
 	}
 

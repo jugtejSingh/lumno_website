@@ -25,7 +25,7 @@
 		box-sizing: border-box;
 		padding: 10px 14px;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 		font-size: 14px;
 		text-align: center;
@@ -45,7 +45,7 @@
 		height: 34px;
 		border-radius: 50%;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		color: var(--text-primary);
 	}
 

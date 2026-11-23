@@ -102,13 +102,13 @@
 	.app-shell {
 		display: flex;
 		height: 100vh;
-		background: var(--wallpaper) var(--surface-app);
+		background: var(--surface-app);
 	}
 
 	.sidebar {
 		width: 220px;
 		flex-shrink: 0;
-		border-right: 2px solid var(--border-subtle);
+		border-right: 1px solid var(--border-subtle);
 		background: var(--surface-canvas);
 		/* spacing shrinks with window height so every link fits without a scrollbar;
 		   full-size values kick in from ~800px tall */
@@ -185,7 +185,7 @@
 		gap: 2px;
 		margin-top: clamp(4px, 1vh, 8px);
 		padding-top: clamp(4px, 1vh, 8px);
-		border-top: 2px dotted var(--beige-400);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.app-main {
@@ -200,13 +200,8 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 16px clamp(16px, 4vw, 24px);
-		border-bottom: 2px solid var(--border-subtle);
+		border-bottom: 1px solid var(--border-subtle);
 		background-color: var(--surface-canvas);
-		background-image: repeating-linear-gradient(
-			180deg,
-			transparent 0 6px,
-			rgb(239 196 166 / 0.35) 6px 8px
-		);
 	}
 
 	.app-header-title {

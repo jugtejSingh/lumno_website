@@ -20,12 +20,12 @@
 			Lumno handles the reminders, payments and notes, so the day ends when your last client leaves.
 		</p>
 		<div class="hero-actions">
-			<Button href="/login?tab=register" variant="primary" size="lg">Start free →</Button>
-			<Button href="/pricing" variant="secondary" size="lg">See pricing →</Button>
+			<Button href="/login?tab=register" variant="primary" size="lg">Start free</Button>
+			<Button href="/pricing" variant="secondary" size="lg">See pricing</Button>
 		</div>
 		<ul class="facts">
 			{#each facts as fact (fact)}
-				<li><span class="tick" aria-hidden="true">✓</span>{fact}</li>
+				<li>{fact}</li>
 			{/each}
 		</ul>
 	</div>
@@ -81,16 +81,10 @@
 
 	.eyebrow {
 		font-size: 13px;
-		font-weight: 700;
-		letter-spacing: var(--ls-wide);
+		font-weight: 600;
+		letter-spacing: 0.05em;
 		text-transform: uppercase;
-		color: var(--text-primary);
-		display: inline-block;
-		background: var(--citrus-300);
-		border: 2px solid var(--outline);
-		border-radius: var(--radius-pill);
-		box-shadow: var(--shadow-xs);
-		padding: 4px 12px;
+		color: var(--coral-700);
 		margin-bottom: 16px;
 	}
 
@@ -99,11 +93,15 @@
 		color: var(--text-primary);
 		margin: 0;
 		font-weight: 600;
-		font-size: clamp(32px, 3.6vw, 46px);
+		font-size: clamp(34px, 4vw, 52px);
 		line-height: var(--lh-tight);
+		letter-spacing: -0.02em;
+		text-wrap: balance;
 	}
 
 	.italic-accent {
+		font-style: italic;
+		font-weight: 500;
 		color: var(--text-link);
 	}
 
@@ -132,9 +130,4 @@
 		color: var(--text-secondary);
 	}
 
-	.tick {
-		color: var(--sage-600);
-		font-weight: 700;
-		margin-right: 6px;
-	}
 </style>

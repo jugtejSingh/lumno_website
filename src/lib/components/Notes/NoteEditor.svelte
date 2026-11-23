@@ -133,7 +133,7 @@
 				{describing ? 'Describing…' : '📝 Describe'}
 			</button>
 			<button type="button" onclick={fixNote} disabled={fixing || !body.trim()}>
-				{fixing ? 'Fixing…' : '✨ Fix'}
+				{fixing ? 'Fixing…' : 'Fix'}
 			</button>
 		</div>
 		{#if description}
@@ -198,7 +198,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
@@ -208,7 +208,7 @@
 		flex-wrap: wrap;
 		gap: 4px;
 		padding-bottom: 10px;
-		border-bottom: 2px dotted var(--beige-400);
+		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	.toolbar button {

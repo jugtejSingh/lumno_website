@@ -16,7 +16,7 @@
 				>
 			</div>
 			<p class="plans-link">
-				Need more clients or AI help? <a href="/pricing">See plans →</a>
+				Need more clients or AI help? <a href="/pricing">See plans</a>
 			</p>
 		</div>
 		<div class="visual">
@@ -30,7 +30,7 @@
 		padding: clamp(40px, 6vw, 64px) max(clamp(16px, 5vw, 48px), calc((100% - 1100px) / 2));
 		/* full-width band, like the week and testimonials sections */
 		background: var(--sage-300);
-		border-top: 2px solid var(--outline);
+		border-top: 1px solid var(--outline);
 	}
 
 	.panel {

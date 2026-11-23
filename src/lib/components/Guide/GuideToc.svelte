@@ -21,7 +21,7 @@
 <style>
 	.toc {
 		padding: 14px 16px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-md, 8px);
 		background: var(--surface-canvas);
 	}

@@ -36,7 +36,7 @@
 		gap: 14px;
 		padding: 18px;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-sm);
 	}

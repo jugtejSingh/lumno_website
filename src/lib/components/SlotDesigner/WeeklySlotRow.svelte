@@ -122,7 +122,7 @@
 
 	.save-btn {
 		padding: 5px 12px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--citrus-400);
 		font-family: var(--font-mono);

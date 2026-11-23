@@ -16,7 +16,7 @@ a {
 }
 
 a:hover {
-	color: var(--beige-700);
+	color: var(--text-link-hover);
 }
 
 /* set by $lib/enhance while a form action is in flight */

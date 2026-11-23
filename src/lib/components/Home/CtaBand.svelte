@@ -12,8 +12,8 @@
 <style>
 	.cta-band {
 		background: var(--plum-300);
-		border-top: 2px solid var(--outline);
-		border-bottom: 2px solid var(--outline);
+		border-top: 1px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 		color: var(--text-primary);
 		padding: clamp(44px, 8vw, 64px) clamp(16px, 5vw, 48px);
 		text-align: center;

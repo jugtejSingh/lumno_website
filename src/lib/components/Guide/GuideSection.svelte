@@ -67,7 +67,7 @@
 	.body {
 		margin-top: 14px;
 		padding-top: 14px;
-		border-top: 2px dotted var(--beige-400);
+		border-top: 1px solid var(--border-subtle);
 		font-size: 14px;
 		color: var(--text-secondary);
 		line-height: var(--lh-relaxed);

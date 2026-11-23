@@ -112,7 +112,7 @@
 		align-items: center;
 		gap: 12px;
 		padding: 10px 12px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 	}

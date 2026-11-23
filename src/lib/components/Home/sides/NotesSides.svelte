@@ -9,7 +9,7 @@
 	<div class="note raw">
 		doing better. sleep improving ~6/10. went over breathing again. hw journal 3x
 	</div>
-	<div class="fix">✨ Fix wording</div>
+	<div class="fix">Fix wording</div>
 	<div class="note clean">
 		Priya reports feeling better, with sleep improving to around 6/10. We revisited the breathing
 		exercise. Homework: journal three times this week.
@@ -34,7 +34,7 @@
 
 <style>
 	.note {
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		padding: 14px 16px;
 		font-size: 15px;
@@ -59,7 +59,7 @@
 		font-size: 13px;
 		font-weight: 700;
 		background: var(--plum-300);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		box-shadow: var(--shadow-xs);
 		padding: 4px 12px;

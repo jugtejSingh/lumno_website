@@ -9,8 +9,8 @@
 	<div class="nav-links">
 		<a href="/#features">Features</a>
 		<a href="/pricing">Pricing</a>
-		<Button href="/login/client" variant="pop" size="md">Client login</Button>
-		<Button href="/login" variant="secondary" size="md">Practitioner login</Button>
+		<a href="/login/client">Client login</a>
+		<a href="/login">Practitioner login</a>
 		<Button href="/login?tab=register" variant="primary" size="md">Get started for free</Button>
 	</div>
 	<MobileNav>
@@ -31,7 +31,7 @@
 		flex-wrap: wrap;
 		/* content capped at 1200px; the border and background still run full width. Hero uses the same gutter */
 		padding: 20px max(clamp(16px, 5vw, 48px), calc((100% - 1200px) / 2));
-		border-bottom: 2px solid var(--border-subtle);
+		border-bottom: 1px solid var(--border-subtle);
 		background: var(--surface-canvas);
 	}
 
@@ -43,15 +43,14 @@
 
 	.nav-links > a {
 		font-size: 14px;
-		font-weight: 700;
+		font-weight: 500;
 		text-decoration: none;
 		color: var(--text-secondary);
 	}
 
 	.nav-links > a:hover {
 		color: var(--text-primary);
-		text-decoration: underline var(--coral-500);
-		text-underline-offset: 5px;
+		text-decoration: none;
 	}
 
 	/* below 820px the burger (in MobileNav) takes over */

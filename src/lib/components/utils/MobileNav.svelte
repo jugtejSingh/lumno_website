@@ -46,7 +46,7 @@
 		width: 32px;
 		height: 32px;
 		padding: 7px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-xs);
 		background: var(--surface-card);
 		box-shadow: var(--shadow-xs);
@@ -89,7 +89,7 @@
 		width: min(224px, 72vw);
 		max-width: calc(100vw - 20px);
 		padding: 0;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-top: 12px solid var(--coral-400);
 		border-radius: var(--radius-lg);
 		background: var(--surface-card);
@@ -127,13 +127,13 @@
 		justify-content: space-between;
 		padding: 2px 4px 8px;
 		margin-bottom: 6px;
-		border-bottom: 2px solid var(--border-subtle);
+		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	.drawer-close {
 		width: 28px;
 		height: 28px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-xs);
 		background: var(--plum-300);
 		box-shadow: var(--shadow-xs);
@@ -153,7 +153,7 @@
 	.drawer-foot {
 		margin: 8px 4px 2px;
 		padding-top: 8px;
-		border-top: 2px dotted var(--beige-400);
+		border-top: 1px solid var(--border-subtle);
 		font-family: var(--font-display);
 		font-weight: 600;
 		font-size: 12px;
@@ -206,7 +206,7 @@
 
 	.drawer-links :global([data-kind='cta']) {
 		margin-top: 6px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 		background: var(--accent-primary);
 		box-shadow: var(--shadow-xs);
@@ -222,7 +222,7 @@
 	/* logins mirror the desktop pop / secondary buttons so they don't read as plain links */
 	.drawer-links :global([data-kind^='login']) {
 		margin-top: 6px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 		box-shadow: var(--shadow-xs);
 		justify-content: center;
@@ -251,7 +251,7 @@
 	.drawer-links :global([data-kind='quiet']) {
 		margin-top: 6px;
 		padding-top: 12px;
-		border-top: 2px dotted var(--beige-400);
+		border-top: 1px solid var(--border-subtle);
 		border-radius: 0;
 		font-size: 13px;
 		color: var(--text-muted);

@@ -53,8 +53,8 @@
 	.testimonials {
 		padding: clamp(40px, 6vw, 64px) max(clamp(16px, 5vw, 48px), calc((100% - 1200px) / 2));
 		background: var(--citrus-300);
-		border-top: 2px solid var(--outline);
-		border-bottom: 2px solid var(--outline);
+		border-top: 1px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 	}
 
 	.testimonials-heading {
@@ -93,7 +93,7 @@
 		justify-content: space-between;
 		gap: 20px;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-md);
 		padding: clamp(20px, 3vw, 28px);
@@ -117,7 +117,7 @@
 		height: 48px;
 		flex-shrink: 0;
 		border-radius: 50%;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		object-fit: cover;
 	}
 

@@ -49,8 +49,8 @@
 	.faq {
 		padding: clamp(40px, 6vw, 64px) max(clamp(16px, 5vw, 48px), calc((100% - 760px) / 2));
 		background: var(--surface-canvas);
-		border-top: 2px solid var(--outline);
-		border-bottom: 2px solid var(--outline);
+		border-top: 1px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 	}
 
 	.faq-heading {
@@ -83,7 +83,7 @@
 
 	.item {
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-sm);
 	}

@@ -121,7 +121,7 @@
 		flex-wrap: wrap;
 		gap: 12px;
 		padding: 12px 18px;
-		border-top: 2px solid var(--outline);
+		border-top: 1px solid var(--outline);
 		background: var(--surface-card);
 	}
 

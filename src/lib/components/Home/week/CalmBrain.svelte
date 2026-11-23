@@ -29,7 +29,7 @@
 		height: 100%;
 		padding: clamp(20px, 3vw, 28px);
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-md);
 	}
@@ -53,7 +53,7 @@
 		letter-spacing: var(--ls-wide);
 		text-transform: uppercase;
 		background: var(--sage-300);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		padding: 2px 10px;
 		white-space: nowrap;
@@ -84,7 +84,7 @@
 		flex: none;
 		width: 14px;
 		height: 14px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: 4px;
 		background: var(--surface-card);
 	}
@@ -93,7 +93,7 @@
 		margin-top: auto;
 		padding: 16px;
 		background: var(--sage-300);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 	}
 </style>

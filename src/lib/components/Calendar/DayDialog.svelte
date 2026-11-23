@@ -239,7 +239,7 @@
 		flex-direction: column;
 		gap: 10px;
 		padding: 20px;
-		border-left: 2px solid var(--border-subtle);
+		border-left: 1px solid var(--border-subtle);
 	}
 
 	.col-slots:only-child {
@@ -260,7 +260,7 @@
 
 		.col-slots {
 			border-left: none;
-			border-top: 2px solid var(--border-subtle);
+			border-top: 1px solid var(--border-subtle);
 		}
 
 		.col-slots:only-child {
@@ -347,7 +347,7 @@
 		font-size: 13px;
 		font-weight: 700;
 		border-radius: var(--radius-sm);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		box-shadow: var(--shadow-xs);
 		background: var(--surface-card);
 		color: var(--text-primary);

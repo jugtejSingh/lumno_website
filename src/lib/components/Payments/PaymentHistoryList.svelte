@@ -283,7 +283,7 @@
 	}
 
 	.row {
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-left-width: 5px;
 		border-left-color: var(--border-subtle);
 		border-radius: var(--radius-sm);
@@ -364,7 +364,7 @@
 		flex-direction: column;
 		gap: 12px;
 		padding: 12px;
-		border-top: 2px dotted var(--beige-400);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.body-section {

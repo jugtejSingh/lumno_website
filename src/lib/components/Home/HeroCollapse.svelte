@@ -49,7 +49,7 @@
 		font-weight: 700;
 		font-size: 16px;
 		color: var(--text-primary);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-md);
 		padding: 14px 20px;

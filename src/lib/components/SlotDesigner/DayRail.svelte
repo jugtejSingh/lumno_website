@@ -50,7 +50,7 @@
 		flex-shrink: 0;
 		padding: 12px 10px;
 		background: var(--surface-sunken);
-		border-right: 2px solid var(--outline);
+		border-right: 1px solid var(--outline);
 		/* scrolls itself rather than stretching the dialog */
 		overflow-y: auto;
 	}
@@ -70,7 +70,7 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 8px 10px;
-		border: 2px solid transparent;
+		border: 1px solid transparent;
 		border-radius: var(--radius-md);
 		background: transparent;
 		color: var(--text-primary);
@@ -116,7 +116,7 @@
 			overflow-x: auto;
 			overflow-y: hidden;
 			border-right: none;
-			border-bottom: 2px solid var(--outline);
+			border-bottom: 1px solid var(--outline);
 		}
 
 		.rail-title {

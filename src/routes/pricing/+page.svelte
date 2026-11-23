@@ -236,7 +236,7 @@
 <style>
 	.page {
 		min-height: 100vh;
-		background: var(--wallpaper) var(--surface-app);
+		background: var(--surface-app);
 		color: var(--text-primary);
 	}
 
@@ -296,7 +296,7 @@
 		width: 100%;
 		box-sizing: border-box;
 		padding: 10px 12px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		background: var(--surface-card);
 		color: var(--text-primary);
@@ -344,7 +344,7 @@
 		letter-spacing: var(--ls-wide);
 		text-transform: uppercase;
 		padding: 5px 14px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		box-shadow: var(--shadow-xs);
 		border-radius: var(--radius-pill);
 		z-index: 1;

@@ -31,38 +31,25 @@
 		flex: 1;
 		border-radius: var(--radius-md);
 		padding: 14px 16px;
-		border: 2px solid var(--border-subtle);
-		box-shadow: var(--shadow-sm);
+		background: var(--surface-card);
+		border: 1px solid var(--border-subtle);
+		box-shadow: var(--shadow-xs);
 	}
 
-	.stat-plum {
-		background: var(--plum-300);
-	}
-
-	.stat-coral {
-		background: var(--coral-300);
-	}
-
-	.stat-citrus {
-		background: var(--citrus-300);
-	}
-
-	.stat-sage {
-		background: var(--sage-300);
-	}
-
+	/* ponytail: accent prop is now unused (cards are neutral); drop it from callers if the look sticks */
 	.stat-label {
 		font-size: 12px;
-		font-weight: 800;
-		letter-spacing: var(--ls-wide);
+		font-weight: 600;
+		letter-spacing: 0.05em;
 		text-transform: uppercase;
-		color: var(--text-secondary);
+		color: var(--text-muted);
 	}
 
 	.stat-value {
 		font-family: var(--font-display);
 		font-size: 28px;
 		font-weight: 600;
+		font-variant-numeric: tabular-nums;
 		color: var(--text-primary);
 	}
 

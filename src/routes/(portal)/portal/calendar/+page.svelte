@@ -146,7 +146,7 @@
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
@@ -174,7 +174,7 @@
 		width: 28px;
 		height: 28px;
 		border-radius: var(--radius-sm);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		box-shadow: var(--shadow-xs);
 		background: var(--surface-card);
 		cursor: pointer;

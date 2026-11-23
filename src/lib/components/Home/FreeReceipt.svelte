@@ -32,7 +32,7 @@
 <style>
 	.receipt {
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
 		padding: 22px 24px 20px;
@@ -49,7 +49,7 @@
 		text-transform: uppercase;
 		color: var(--text-secondary);
 		padding-bottom: 12px;
-		border-bottom: 2px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 	}
 
 	.rows {
@@ -80,7 +80,7 @@
 		justify-content: space-between;
 		align-items: baseline;
 		padding-top: 12px;
-		border-top: 2px dashed var(--outline);
+		border-top: 1px dashed var(--outline);
 	}
 
 	.total-label {

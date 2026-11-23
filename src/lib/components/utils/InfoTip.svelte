@@ -43,7 +43,7 @@
 		margin-left: 6px;
 		padding: 0;
 		vertical-align: middle;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--surface-card);
 		color: var(--outline);
@@ -65,7 +65,7 @@
 	.info-card {
 		width: min(360px, calc(100vw - 32px));
 		padding: 16px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		background: var(--surface-card);
 		color: var(--text-primary);
@@ -97,7 +97,7 @@
 		font-size: 13px;
 		font-weight: 600;
 		padding: 6px 14px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--coral-100);
 		color: var(--text-primary);

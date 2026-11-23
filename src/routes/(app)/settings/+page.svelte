@@ -959,7 +959,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
@@ -969,7 +969,7 @@
 		color: var(--text-secondary);
 		padding: 10px 12px;
 		background: var(--surface-canvas);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 	}
 
@@ -1003,7 +1003,7 @@
 		width: 160px;
 		height: 160px;
 		object-fit: contain;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 	}
@@ -1022,7 +1022,7 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		background: var(--surface-canvas);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 8px 12px;
 	}
@@ -1040,7 +1040,7 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		background: var(--surface-canvas);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 10px 12px;
 	}
@@ -1068,7 +1068,7 @@
 		font-size: 13px;
 		color: var(--text-primary);
 		background: var(--surface-canvas);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 12px;
 	}
@@ -1130,7 +1130,7 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		background: var(--surface-canvas);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 8px 12px;
 	}

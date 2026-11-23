@@ -1,5 +1,5 @@
-/* Cozy type system — Google Fonts CDN.
-   Display: Fredoka — chunky, rounded, sticker-like headings.
-   UI/Body: Nunito — soft rounded grotesk that stays legible in dense admin UI.
-   Mono: Space Mono — timestamps, IDs, codes; a small dose of old-computer texture. */
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Space+Mono:wght@400;700&display=swap');
+/* Type system — Google Fonts CDN.
+   Display: Source Serif 4 — calm, editorial serif for headings.
+   UI/Body: Inter — neutral sans that stays legible in dense admin UI.
+   Mono: Space Mono — times, IDs, codes. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=Space+Mono:wght@400;700&display=swap');

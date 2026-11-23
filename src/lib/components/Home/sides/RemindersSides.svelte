@@ -45,7 +45,7 @@
 
 <style>
 	.chat {
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		background: var(--surface-sunken);
 		box-shadow: var(--shadow-sm);
@@ -55,7 +55,7 @@
 	.chat-head {
 		font-weight: 700;
 		background: var(--sage-300);
-		border-bottom: 2px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 		padding: 10px 16px;
 	}
 
@@ -63,7 +63,7 @@
 		margin: 18px 16px 22px;
 		max-width: 360px;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md) var(--radius-md) var(--radius-md) var(--radius-xs);
 		padding: 12px 14px;
 		font-size: 15px;

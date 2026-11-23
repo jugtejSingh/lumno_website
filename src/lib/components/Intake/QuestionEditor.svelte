@@ -149,7 +149,7 @@
 		flex-direction: column;
 		gap: 12px;
 		padding: 16px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-md);
 		background: var(--surface-card);
 	}
@@ -190,7 +190,7 @@
 		font-size: 14px;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		padding: 6px 8px;
 	}
@@ -223,7 +223,7 @@
 	.icon-btn {
 		width: 32px;
 		height: 32px;
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 		color: var(--text-secondary);

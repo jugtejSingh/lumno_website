@@ -55,7 +55,7 @@
 		flex: none;
 		width: 22px;
 		height: 22px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: 50%;
 		font-size: 11px;
 		font-weight: 700;

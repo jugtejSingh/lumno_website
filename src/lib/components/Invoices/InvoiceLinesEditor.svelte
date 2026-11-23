@@ -64,7 +64,7 @@
 		flex-direction: column;
 		gap: 10px;
 		padding: 12px;
-		border: 2px dashed var(--border-subtle);
+		border: 1px dashed var(--border-subtle);
 		border-radius: var(--radius-sm);
 	}
 

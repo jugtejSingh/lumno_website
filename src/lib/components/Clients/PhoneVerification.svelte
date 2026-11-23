@@ -166,7 +166,7 @@
 		letter-spacing: 0.2em;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--border-subtle);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		box-shadow: var(--shadow-inset);
 		padding: 8px 10px;

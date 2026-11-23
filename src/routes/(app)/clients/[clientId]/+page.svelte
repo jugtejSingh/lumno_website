@@ -294,7 +294,7 @@
 	.tabs {
 		display: flex;
 		gap: 4px;
-		border-bottom: 2px solid var(--border-subtle);
+		border-bottom: 1px solid var(--border-subtle);
 		overflow-x: auto;
 	}
 
@@ -354,7 +354,7 @@
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		gap: 10px;
-		border-bottom: 2px dotted var(--beige-400);
+		border-bottom: 1px solid var(--border-subtle);
 		padding-bottom: 10px;
 	}
 
@@ -379,7 +379,7 @@
 		align-items: flex-end;
 		gap: 8px;
 		flex-wrap: wrap;
-		border-top: 2px dotted var(--beige-400);
+		border-top: 1px solid var(--border-subtle);
 		padding-top: 14px;
 	}
 

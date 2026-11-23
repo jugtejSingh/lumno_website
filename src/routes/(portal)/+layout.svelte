@@ -86,13 +86,13 @@
 	.app-shell {
 		display: flex;
 		height: 100vh;
-		background: var(--wallpaper) var(--surface-app);
+		background: var(--surface-app);
 	}
 
 	.sidebar {
 		width: 220px;
 		flex-shrink: 0;
-		border-right: 2px solid var(--border-subtle);
+		border-right: 1px solid var(--border-subtle);
 		background: var(--surface-canvas);
 		padding: 16px;
 		display: flex;
@@ -149,7 +149,7 @@
 		gap: 2px;
 		margin-top: 8px;
 		padding-top: 8px;
-		border-top: 2px dotted var(--beige-400);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.app-main {
@@ -166,7 +166,7 @@
 		gap: 12px;
 		flex-wrap: wrap;
 		padding: 16px clamp(16px, 4vw, 24px);
-		border-bottom: 2px solid var(--border-subtle);
+		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	.app-header-title {
@@ -187,7 +187,7 @@
 		font-weight: 600;
 		color: var(--text-primary);
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		box-shadow: var(--shadow-xs);
 		border-radius: var(--radius-pill);
 		padding: 6px 12px;

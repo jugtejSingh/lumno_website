@@ -42,8 +42,8 @@
 --citrus-500:#F2B865;
 --citrus-600:#8F5316;
 
-/* ---- Cozy outline ---- */
---outline:var(--beige-600);
+/* ---- Hairline outline: a light warm neutral for borders ---- */
+--outline:#E6D7C9;
 
 /* ---- Semantic ---- */
 --success:var(--sage-600);
@@ -56,13 +56,13 @@
 --info-bg:var(--plum-300);
 
 /* ---- Surfaces & text (semantic aliases) ---- */
---surface-app:var(--beige-100);
---surface-canvas:var(--beige-50);
---surface-card:var(--beige-0);
---surface-sunken:var(--beige-200);
+--surface-app:var(--beige-50);
+--surface-canvas:var(--beige-0);
+--surface-card:#FFFFFF;
+--surface-sunken:var(--beige-50);
 --surface-inverse:var(--beige-900);
 --border-subtle:var(--outline);
---border-strong:var(--beige-700);
+--border-strong:#CDB8A6;
 
 --text-primary:var(--beige-900);
 --text-secondary:var(--beige-700);
@@ -70,6 +70,7 @@
 --text-on-accent:var(--beige-900);
 --text-inverse:var(--beige-50);
 --text-link:var(--coral-700);
+--text-link-hover:var(--beige-800);
 
 --accent-primary:var(--coral-500);
 --accent-primary-hover:var(--coral-600);

@@ -127,7 +127,7 @@
 
 	.search {
 		padding: 8px 10px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 		background: var(--surface-card);
 		font-size: 14px;
@@ -144,7 +144,7 @@
 		flex-direction: column;
 		max-height: 190px;
 		overflow-y: auto;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-sm);
 	}
 
@@ -191,7 +191,7 @@
 
 	.frequency-option {
 		padding: 5px 12px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--surface-card);
 		font-family: var(--font-mono);

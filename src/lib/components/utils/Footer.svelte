@@ -25,7 +25,7 @@
 
 <style>
 	.footer {
-		border-top: 2px solid var(--border-subtle);
+		border-top: 1px solid var(--border-subtle);
 		background: var(--surface-canvas);
 		padding: 28px clamp(16px, 5vw, 48px);
 		/* equal side columns so the copyright sits on the page's centre line,
@@ -73,7 +73,7 @@
 		background: transparent;
 		padding: 0;
 		font-family: var(--font-body);
-		text-decoration: underline dotted var(--beige-400);
+		text-decoration: underline var(--border-strong);
 		text-underline-offset: 4px;
 		cursor: pointer;
 	}

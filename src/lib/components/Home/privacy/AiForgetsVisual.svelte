@@ -9,7 +9,7 @@
 </script>
 
 <div class="press">
-	<span class="button">✨ Summarise</span>
+	<span class="button">Summarise</span>
 	<span class="hint">Runs only when you press it</span>
 </div>
 <AccessRows rows={ROWS} />
@@ -26,7 +26,7 @@
 	.button {
 		padding: 10px 18px;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		box-shadow: var(--shadow-sm);
 		font-size: 15px;

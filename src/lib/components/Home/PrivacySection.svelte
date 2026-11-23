@@ -57,7 +57,7 @@
 		{/each}
 	</ul>
 
-	<p class="more"><a href="/privacy">Read the full privacy policy →</a></p>
+	<p class="more"><a href="/privacy">Read the full privacy policy</a></p>
 </section>
 
 <style>
@@ -99,7 +99,7 @@
 		display: flex;
 		flex-direction: column;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-md);
 		overflow: hidden;
@@ -112,7 +112,7 @@
 		justify-content: center;
 		padding: 32px clamp(20px, 4vw, 40px);
 		background: var(--accent);
-		border-bottom: 2px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 	}
 
 	.copy {

@@ -179,7 +179,7 @@
 	.note {
 		margin: 0;
 		padding: 8px 12px;
-		border: 2px dashed var(--outline);
+		border: 1px dashed var(--outline);
 		border-radius: var(--radius-sm);
 		background: var(--warning-bg);
 		font-size: 13px;
@@ -207,7 +207,7 @@
 		align-self: flex-start;
 		padding: 5px 12px;
 		border-radius: var(--radius-pill);
-		border: 2px dashed var(--outline);
+		border: 1px dashed var(--outline);
 		background: var(--surface-card);
 		color: var(--text-muted);
 		font-family: var(--font-mono);
@@ -235,7 +235,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		padding: 5px 10px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--surface-card);
 		color: var(--text-muted);

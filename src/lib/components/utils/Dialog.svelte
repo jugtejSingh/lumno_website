@@ -64,7 +64,7 @@
 
 	.dialog {
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
 		padding: 0;
@@ -95,7 +95,7 @@
 		}
 	}
 
-	/* old-OS window title bar */
+	/* plain header row: title on the left, close on the right */
 	.dialog-header {
 		position: sticky;
 		top: 0;
@@ -104,14 +104,9 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		padding: 10px 12px 10px 18px;
-		background-color: var(--coral-400);
-		background-image: repeating-linear-gradient(
-			180deg,
-			transparent 0 5px,
-			rgb(255 253 248 / 0.22) 5px 7px
-		);
-		border-bottom: 2px solid var(--outline);
+		padding: 14px 12px 14px 20px;
+		background-color: var(--surface-card);
+		border-bottom: 1px solid var(--outline);
 	}
 
 	.dialog-title {
@@ -122,28 +117,23 @@
 	}
 
 	.dialog-close {
-		width: 28px;
-		height: 28px;
+		width: 32px;
+		height: 32px;
 		flex-shrink: 0;
-		border: 2px solid var(--outline);
-		border-radius: var(--radius-xs);
-		background: var(--plum-300);
-		box-shadow: var(--shadow-xs);
-		font-size: 18px;
-		font-weight: 700;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		font-size: 20px;
+		font-weight: 500;
 		line-height: 1;
-		color: var(--text-primary);
+		color: var(--text-secondary);
 		cursor: pointer;
 		padding: 0;
 	}
 
 	.dialog-close:hover {
-		background: var(--plum-400);
-	}
-
-	.dialog-close:active {
-		transform: translate(2px, 2px);
-		box-shadow: none;
+		background: var(--surface-app);
+		color: var(--text-primary);
 	}
 
 	.dialog-body.flush {

@@ -68,7 +68,7 @@
 		.slot-row {
 			gap: 8px;
 			padding: 10px;
-			border: 2px solid var(--border-subtle);
+			border: 1px solid var(--border-subtle);
 			border-radius: var(--radius-md);
 			background: var(--surface-sunken);
 		}
@@ -136,7 +136,7 @@
 	.type-chip select {
 		appearance: none;
 		padding: 5px 12px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		box-shadow: var(--shadow-xs);
 		font-family: var(--font-mono);

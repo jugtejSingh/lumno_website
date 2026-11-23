@@ -12,10 +12,10 @@
 <style>
 	.week {
 		padding: clamp(40px, 6vw, 64px) max(clamp(16px, 5vw, 48px), calc((100% - 1200px) / 2));
-		/* full-width band to break up the dotted page background */
+		/* full-width band to break up the page background */
 		background: var(--surface-sunken);
-		border-top: 2px solid var(--outline);
-		border-bottom: 2px solid var(--outline);
+		border-top: 1px solid var(--outline);
+		border-bottom: 1px solid var(--outline);
 	}
 
 	.week-heading {

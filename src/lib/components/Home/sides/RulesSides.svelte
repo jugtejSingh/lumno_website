@@ -90,7 +90,7 @@
 		gap: 6px;
 		font-weight: 700;
 		font-size: 18px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		background: var(--surface-card);
 		box-shadow: var(--shadow-sm);
@@ -107,7 +107,7 @@
 		font-size: 13px;
 		font-weight: 700;
 		background: var(--coral-300);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		padding: 4px 12px;
 	}

@@ -47,7 +47,7 @@
 		box-sizing: border-box;
 		height: 100%;
 		padding: clamp(20px, 3vw, 28px);
-		border: 2px dashed var(--outline);
+		border: 1px dashed var(--outline);
 		border-radius: var(--radius-lg);
 	}
 
@@ -70,7 +70,7 @@
 		letter-spacing: var(--ls-wide);
 		text-transform: uppercase;
 		background: var(--coral-300);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		padding: 2px 10px;
 		white-space: nowrap;
@@ -87,7 +87,7 @@
 
 	.note {
 		background: var(--tone);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-sm);
 		padding: 12px 14px;

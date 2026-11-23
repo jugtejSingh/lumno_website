@@ -48,7 +48,7 @@
 		position: relative;
 		width: 40px;
 		height: 22px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-pill);
 		background: var(--surface-sunken);
 		transition: background 0.15s;
@@ -60,7 +60,7 @@
 		left: 1px;
 		width: 16px;
 		height: 16px;
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: 50%;
 		background: var(--surface-card);
 		transform: translateX(0);

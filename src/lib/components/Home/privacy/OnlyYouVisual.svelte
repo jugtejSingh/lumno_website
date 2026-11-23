@@ -27,7 +27,7 @@
 		margin-bottom: 20px;
 		padding: 16px 18px;
 		background: var(--surface-card);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		border-radius: var(--radius-md);
 	}
 
@@ -41,7 +41,7 @@
 		height: 30px;
 		border-radius: 50%;
 		background: var(--sage-300);
-		border: 2px solid var(--outline);
+		border: 1px solid var(--outline);
 		color: var(--text-primary);
 	}
 

@@ -38,38 +38,33 @@
 <style>
 	.btn {
 		font-family: var(--font-body);
-		font-weight: 700;
+		font-weight: 600;
 		font-size: 14px;
 		text-decoration: none;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		border-radius: var(--radius-sm);
-		border: 2px solid var(--outline);
-		box-shadow: var(--shadow-sm);
+		border: 1px solid transparent;
+		box-shadow: var(--shadow-xs);
 		cursor: pointer;
 		transition:
-			transform var(--duration-fast) var(--ease-standard),
-			box-shadow var(--duration-fast) var(--ease-standard),
-			background var(--duration-fast) var(--ease-standard);
+			scale var(--duration-fast) ease-out,
+			background-color var(--duration-fast) ease-out,
+			border-color var(--duration-fast) ease-out;
 	}
 
 	.btn:hover {
 		text-decoration: none;
-		transform: translate(-1px, -1px);
-		box-shadow: var(--shadow-md);
 	}
 
-	.btn:active {
-		transform: translate(2px, 2px);
-		box-shadow: 1px 1px 0 var(--outline);
+	.btn:not(:disabled):active {
+		scale: 0.98;
 	}
 
 	.btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
-		transform: none;
-		box-shadow: var(--shadow-sm);
 	}
 
 	.btn-sm {
@@ -98,11 +93,12 @@
 
 	.btn-secondary {
 		background: var(--surface-card);
+		border-color: var(--border-strong);
 		color: var(--text-primary);
 	}
 
 	.btn-secondary:hover {
-		background: var(--coral-100);
+		background: var(--surface-app);
 		color: var(--text-primary);
 	}
 
