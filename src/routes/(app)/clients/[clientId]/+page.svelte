@@ -77,6 +77,9 @@
 					<Badge tone={toneFor(data.client.status)}>{data.client.status}</Badge>
 				</div>
 				<div class="email">{data.client.email}</div>
+				{#if data.intakeResponseId}
+					<a class="intake-link" href="/intake/{data.intakeResponseId}">View intake response</a>
+				{/if}
 			</div>
 		</div>
 
@@ -271,6 +274,11 @@
 	.email {
 		font-size: 13px;
 		color: var(--text-muted);
+	}
+
+	.intake-link {
+		font-size: 13px;
+		color: var(--accent-primary);
 	}
 
 	.banner {

@@ -4,9 +4,9 @@
 	import Footer from '$lib/components/utils/Footer.svelte';
 	import Hero from '$lib/components/Home/Hero.svelte';
 	import WeekSection from '$lib/components/Home/WeekSection.svelte';
-	import FeaturesSection from '$lib/components/Home/FeaturesSection.svelte';
+	import FeatureList from '$lib/components/Home/FeatureList.svelte';
 	import CtaBand from '$lib/components/Home/CtaBand.svelte';
-	import { features } from '$lib/data/features';
+	import { featureRows } from '$lib/data/featureList';
 	import TestimonialsSection from '$lib/components/Home/TestimonialsSection.svelte';
 	import { testimonials } from '$lib/data/testimonials';
 	import PrivacySection from '$lib/components/Home/PrivacySection.svelte';
@@ -20,7 +20,7 @@
 	<Nav />
 	<Hero />
 	<WeekSection />
-	<FeaturesSection {features} />
+	<FeatureList rows={featureRows} />
 	<TestimonialsSection {testimonials} />
 	<PrivacySection />
 	<PricingSection />

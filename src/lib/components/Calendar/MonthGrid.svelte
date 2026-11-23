@@ -1,152 +1,98 @@
 <script lang="ts">
-	import type { CalendarWeek } from '$lib/types/calendar';
+	import CalendarGrid from './CalendarGrid.svelte';
+	import type { CalendarDay, CalendarWeek } from '$lib/types/calendar';
 
+	// Therapist calendar: every day is clickable; cells show session chips
+	// (dots on phones) and off days are hatched.
 	let {
 		weeks,
-		onDayClick
+		onDayClick,
+		selectedDay = null
 	}: {
 		weeks: CalendarWeek[];
 		onDayClick: (day: number) => void;
+		// highlighted on phones, where the day's sessions are listed under the grid
+		selectedDay?: number | null;
 	} = $props();
 
-	const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+	const dayNumbers = $derived.by(() => {
+		const result: (number | null)[][] = [];
+		for (const week of weeks) {
+			const row: (number | null)[] = [];
+			for (const cell of week.days) {
+				row.push(cell.day);
+			}
+			result.push(row);
+		}
+		return result;
+	});
+
+	const daysByNumber = $derived.by(() => {
+		const result: Record<number, CalendarDay> = {};
+		for (const week of weeks) {
+			for (const cell of week.days) {
+				if (cell.day !== null) {
+					result[cell.day] = cell;
+				}
+			}
+		}
+		return result;
+	});
+
+	function tone(day: number): 'off' | null {
+		if (daysByNumber[day]?.kind === 'off') {
+			return 'off';
+		}
+		return null;
+	}
 </script>
 
-<div class="grid">
-	{#each weekdayLabels as wd (wd)}
-		<div class="weekday">{wd}</div>
-	{/each}
-	{#each weeks as week (week.id)}
-		{#each week.days as cell, di (di)}
-			<div
-				class="cell"
-				class:today={cell.isToday}
-				class:empty={cell.day === null}
-				class:kind-bookable={cell.kind !== null && cell.kind !== 'off'}
-				class:kind-off={cell.kind === 'off'}
-				role="button"
-				tabindex={cell.day !== null ? 0 : -1}
-				onclick={() => cell.day !== null && onDayClick(cell.day)}
-				onkeydown={(e) => {
-					if (cell.day !== null && (e.key === 'Enter' || e.key === ' ')) onDayClick(cell.day);
-				}}
-			>
-				{#if cell.day !== null}
-					<div class="cell-num" class:today={cell.isToday}>{cell.day}</div>
-					<div class="cell-sessions">
-						{#each cell.sessions as s (s.id)}
-							<div
-								class="session-chip"
-								class:dim={s.status === 'cancelled' || s.status === 'rescheduled'}
-								class:struck={s.status === 'cancelled'}
-								class:done={s.status === 'completed'}
-								style="background: {s.color}"
-							>
-								<span class="session-time">{s.time}</span>
-								{s.name}
-							</div>
-						{/each}
-						{#if cell.extraCount > 0}
-							<div class="extra">+{cell.extraCount} more</div>
-						{/if}
+<CalendarGrid
+	weeks={dayNumbers}
+	isToday={(day) => daysByNumber[day]?.isToday ?? false}
+	canClick={() => true}
+	{onDayClick}
+	{tone}
+	{selectedDay}
+>
+	{#snippet cell(day: number)}
+		{@const info = daysByNumber[day]}
+		{#if info}
+			<div class="cell-sessions">
+				{#each info.sessions as s (s.id)}
+					<div
+						class="session-chip"
+						class:dim={s.status === 'cancelled' || s.status === 'rescheduled'}
+						class:struck={s.status === 'cancelled'}
+						class:done={s.status === 'completed'}
+						style="background: {s.color}"
+					>
+						<span class="session-time">{s.time}</span>
+						{s.name}
 					</div>
+				{/each}
+				{#if info.extraCount > 0}
+					<div class="extra">+{info.extraCount} more</div>
 				{/if}
 			</div>
-		{/each}
-	{/each}
-</div>
+			<!-- phone-only: chips don't fit, so each session is a dot in its colour -->
+			<div class="cell-dots">
+				{#each info.sessions as s (s.id)}
+					<span
+						class="dot"
+						class:dim={s.status === 'cancelled' || s.status === 'rescheduled'}
+						style="background: {s.color}"
+					></span>
+				{/each}
+				{#if info.extraCount > 0}
+					<span class="dot-extra">+</span>
+				{/if}
+			</div>
+		{/if}
+	{/snippet}
+</CalendarGrid>
 
 <style>
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(7, minmax(0, 1fr));
-		gap: 8px;
-	}
-
-	/* ponytail: 7 columns can't get narrower, so on small screens tighten the
-	   cells instead — smaller gap/padding/min-height keeps the month on screen */
-	@media (max-width: 640px) {
-		.grid {
-			gap: 3px;
-		}
-
-		.cell {
-			min-height: 58px;
-			padding: 4px;
-			gap: 3px;
-		}
-
-		.weekday {
-			font-size: 10px;
-		}
-
-		.session-chip {
-			font-size: 9px;
-			padding: 2px 3px;
-		}
-
-		.cell-num {
-			font-size: 11px;
-		}
-
-		.extra {
-			font-size: 9px;
-		}
-	}
-
-	.weekday {
-		font-size: 12px;
-		font-weight: 700;
-		color: var(--text-muted);
-		letter-spacing: var(--ls-wide);
-		text-transform: uppercase;
-		text-align: center;
-		padding: 4px 0;
-	}
-
-	.cell {
-		min-height: 92px;
-		padding: 8px;
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		background: var(--surface-canvas);
-		border: 2px solid var(--beige-400);
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-	}
-
-	.cell.today {
-		border-color: var(--outline);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.cell.empty {
-		cursor: default;
-		background: var(--coral-100);
-	}
-
-	/* day tint stays quiet so the session chips carry the contrast; modality doesn't matter here */
-	.cell.kind-bookable {
-		background: var(--surface-canvas);
-	}
-
-	.cell.kind-off {
-		background: repeating-linear-gradient(135deg, var(--beige-200) 0 6px, var(--beige-50) 6px 12px);
-		border-style: dashed;
-		opacity: 0.6;
-	}
-
-	.cell-num {
-		font-size: 13px;
-		font-weight: 700;
-		color: var(--text-primary);
-	}
-
-	.cell-num.today {
-		color: var(--plum-700);
-	}
-
 	.cell-sessions {
 		display: flex;
 		flex-direction: column;
@@ -185,5 +131,40 @@
 		font-size: 11px;
 		color: var(--text-muted);
 		padding-left: 2px;
+	}
+
+	.cell-dots {
+		display: none;
+	}
+
+	@media (max-width: 640px) {
+		.cell-sessions {
+			display: none;
+		}
+
+		.cell-dots {
+			display: flex;
+			align-items: center;
+			gap: 3px;
+			min-height: 7px;
+		}
+
+		.dot {
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+			border: 1px solid var(--outline);
+		}
+
+		.dot.dim {
+			opacity: 0.45;
+		}
+
+		.dot-extra {
+			font-size: 10px;
+			font-weight: 700;
+			line-height: 7px;
+			color: var(--text-muted);
+		}
 	}
 </style>

@@ -18,6 +18,7 @@
 		{ href: '/dashboard', label: 'Dashboard' },
 		{ href: '/calendar', label: 'Calendar' },
 		{ href: '/clients', label: 'Clients' },
+		{ href: '/intake', label: 'Intake' },
 		{ href: '/payments', label: 'Payments' },
 		{ href: '/notes', label: 'Notes' },
 		{ href: '/community', label: 'Community' }
@@ -225,5 +226,10 @@
 		flex: 1;
 		padding: clamp(16px, 4vw, 24px);
 		overflow-y: auto;
+	}
+
+	/* centres each page's max-width column; full-width pages are unaffected */
+	.app-content > :global(*) {
+		margin-inline: auto;
 	}
 </style>

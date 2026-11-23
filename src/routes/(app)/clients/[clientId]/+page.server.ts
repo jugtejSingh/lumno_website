@@ -16,6 +16,7 @@ import { resourceActions } from '$lib/server/resourceActions';
 import { therapistScope } from '$lib/server/resources';
 import { listClientsWithNotes } from '$lib/server/notes';
 import { noteActions } from '$lib/server/noteActions';
+import { getIntakeResponseIdForClient } from '$lib/server/intakeResponses';
 
 const updateErrorMessages = {
 	not_found: 'Client not found',
@@ -53,12 +54,13 @@ export const load: PageServerLoad = async (event) => {
 		error(404, 'Client not found');
 	}
 
-	const [upcomingSessions, pastSessions, clientsWithNotes] = await Promise.all([
+	const [upcomingSessions, pastSessions, clientsWithNotes, intakeResponseId] = await Promise.all([
 		listUpcomingAppointmentsForClient(client.id, therapist.timezone),
 		listPastAppointmentsForClient(therapist.id, client.id, therapist.timezone),
 		// ponytail: fetches every client's notes to pick out one; fine while rosters
 		// are small, add a single-client notes query if this ever shows up in profiling
-		listClientsWithNotes(therapist.id, therapist.timezone)
+		listClientsWithNotes(therapist.id, therapist.timezone),
+		getIntakeResponseIdForClient(therapist.id, client.id)
 	]);
 	const clientNotes = clientsWithNotes.find((c) => c.id === client.id) ?? {
 		notes: [],
@@ -73,7 +75,8 @@ export const load: PageServerLoad = async (event) => {
 		pastSessions,
 		notes: clientNotes.notes,
 		sharedNotes: clientNotes.sharedNotes,
-		currency: therapist.currency
+		currency: therapist.currency,
+		intakeResponseId
 	};
 };
 

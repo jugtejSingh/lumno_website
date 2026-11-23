@@ -40,3 +40,11 @@ export const phoneOtpNumberRatelimit = new Ratelimit({
 	limiter: Ratelimit.fixedWindow(3, '1 d'),
 	prefix: 'ratelimit:phone-otp-number'
 });
+
+// Public intake form submissions, keyed by IP. Each one writes a row and emails the
+// therapist, so this is tighter than the global limit.
+export const intakeSubmitRatelimit = new Ratelimit({
+	redis,
+	limiter: Ratelimit.fixedWindow(10, '1 h'),
+	prefix: 'ratelimit:intake-submit'
+});

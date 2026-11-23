@@ -9,21 +9,7 @@
 	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
 	import type { CalendarDay, CalendarWeek } from '$lib/types/calendar';
-
-	// month grid, padded with leading/trailing nulls so it lines up on 7 columns, chunked into weeks
-	function getMonthGridWeeks(year: number, month: number): (number | null)[][] {
-		const firstWeekday = new Date(year, month, 1).getDay();
-		const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-		const days: (number | null)[] = [];
-		for (let i = 0; i < firstWeekday; i++) days.push(null);
-		for (let d = 1; d <= daysInMonth; d++) days.push(d);
-		while (days.length % 7 !== 0) days.push(null);
-
-		const weeks: (number | null)[][] = [];
-		for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
-		return weeks;
-	}
+	import { getMonthGridWeeks } from '$lib/monthGrid';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -36,10 +22,9 @@
 	let dayDialogDay = $state<number | null>(dayParam >= 1 && dayParam <= 31 ? dayParam : null);
 	let todayDialogOpen = $state(false);
 
-	// single-day view for phones (see .day-view in styles). Starts on today's
-	// date-of-month; the calendar loads the current month by default.
-	// ponytail: deep-linking ?month= to another month lands on the same day number,
-	// clamped — fine, the arrows move from there
+	// phones: tapping a day in the grid selects it and its sessions are listed under
+	// the grid (see .day-view in styles). Starts on today's date-of-month.
+	// ponytail: changing month keeps the same day number, clamped — tap another day to move
 	let selectedDay = $state(today.getDate());
 	const daysInMonth = $derived(new Date(year, month + 1, 0).getDate());
 	// ponytail: clamp instead of syncing selectedDay to month changes — only matters
@@ -54,18 +39,12 @@
 	);
 	const dayViewSessions = $derived(data.sessionsByDay[safeSelectedDay] ?? []);
 
-	function stepDay(delta: number) {
-		const next = safeSelectedDay + delta;
-		if (next < 1) {
-			const pm = month === 0 ? 11 : month - 1;
-			const py = month === 0 ? year - 1 : year;
-			selectedDay = new Date(py, pm + 1, 0).getDate();
-			gotoMonth(py, pm);
-		} else if (next > daysInMonth) {
-			selectedDay = 1;
-			gotoMonth(month === 11 ? year + 1 : year, month === 11 ? 0 : month + 1);
-		} else {
-			selectedDay = next;
+	// same breakpoint as the @media rule below: phones select the day, desktop opens it
+	function handleDayClick(day: number) {
+		selectedDay = day;
+		const isPhone = window.matchMedia('(max-width: 640px)').matches;
+		if (!isPhone) {
+			dayDialogDay = day;
 		}
 	}
 
@@ -139,11 +118,6 @@
 				<button class="arrow-btn" onclick={nextMonth} aria-label="Next month">&#8250;</button>
 			</div>
 		</div>
-		<div class="day-nav">
-			<button class="arrow-btn" onclick={() => stepDay(-1)} aria-label="Previous day">&#8249;</button>
-			<div class="month-label">{dayViewLabel}</div>
-			<button class="arrow-btn" onclick={() => stepDay(1)} aria-label="Next day">&#8250;</button>
-		</div>
 		<div class="toolbar-actions">
 			<Button variant="secondary" onclick={() => (weekTemplateOpen = true)}>Weekly slots</Button>
 			<Button variant="secondary" onclick={goToday}>Today</Button>
@@ -161,10 +135,11 @@
 				<span class="legend-chip legend-cancelled" style="background: var(--beige-300)">Cancelled</span>
 			</span>
 		</div>
-		<MonthGrid {weeks} onDayClick={(day) => (dayDialogDay = day)} />
+		<MonthGrid {weeks} selectedDay={safeSelectedDay} onDayClick={handleDayClick} />
 	</div>
 
 	<div class="day-view">
+		<div class="day-view-label">{dayViewLabel}</div>
 		{#if dayViewSessions.length === 0}
 			<button class="day-empty" onclick={() => (dayDialogDay = safeSelectedDay)}>
 				No sessions this day. Tap to add one.
@@ -309,17 +284,20 @@
 		gap: 10px;
 	}
 
-	/* desktop: month grid only; the single-day view is phone-only */
-	.day-nav,
+	/* desktop: tapping a day opens its dialog; the selected-day list is phone-only */
 	.day-view {
 		display: none;
-	}
-
-	.day-view {
 		flex-direction: column;
 		gap: 12px;
 		align-items: center;
 		text-align: center;
+	}
+
+	.day-view-label {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 20px;
+		color: var(--text-primary);
 	}
 
 	.day-list {
@@ -378,26 +356,13 @@
 	}
 
 	@media (max-width: 640px) {
-		.month-nav,
-		.month-view {
-			display: none;
-		}
-
 		.toolbar {
 			justify-content: center;
 		}
 
-		.day-nav {
-			display: flex;
-			align-items: center;
-			gap: 14px;
+		.month-nav {
 			flex: 1 1 100%;
 			justify-content: space-between;
-		}
-
-		.day-nav .month-label {
-			flex: 1;
-			text-align: center;
 		}
 
 		.toolbar-actions {

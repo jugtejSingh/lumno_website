@@ -1,26 +1,16 @@
-import type { Component } from 'svelte';
+export type Accent = 'plum' | 'coral' | 'sage' | 'citrus';
+
+export type FeatureIconName =
+	'dashboard' | 'calendar' | 'payments' | 'notes' | 'clients' | 'reminders';
 
 export type Feature = {
-	// short label for the tab that opens this feature
-	tab: string;
-	title: string;
-	desc: string;
-	points: string[];
-	cta: string;
-	href: string;
-	icon:
-		| 'dashboard'
-		| 'calendar'
-		| 'payments'
-		| 'notes'
-		| 'clients'
-		| 'referrals'
-		| 'reminders'
-		| 'heart';
-	accent: 'plum' | 'coral' | 'sage' | 'citrus';
-	// true for the jobs Lumno does without the therapist lifting a finger
-	automatic: boolean;
-	visual: Component;
+	name: string;
+	// one short line on what having this feature means for the therapist
+	line: string;
+	icon: FeatureIconName;
+	accent: Accent;
+	// columns taken in its 4-column bento row: 2 = big, 1 = small
+	span: 1 | 2;
 };
 
 export type Testimonial = {
@@ -32,5 +22,5 @@ export type Testimonial = {
 	about: string;
 	// path under /static, e.g. '/testimonials/name.jpg'; initials are shown when missing
 	image?: string;
-	accent: 'plum' | 'coral' | 'sage' | 'citrus';
+	accent: Accent;
 };
