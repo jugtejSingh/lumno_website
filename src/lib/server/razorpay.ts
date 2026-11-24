@@ -115,6 +115,17 @@ export async function cancelSubscription(id: string) {
 	return razorpay().subscriptions.cancel(id, true);
 }
 
+// The one exception to cycle-end: a deferred-start sub (free trial / referral
+// month) that hasn't started has no cycle to end, so Razorpay refuses a
+// cycle-end cancel. Nothing has been charged, so cancelling now is safe.
+export async function cancelSubscriptionImmediately(id: string) {
+	return razorpay().subscriptions.cancel(id, false);
+}
+
+export async function fetchSubscription(id: string) {
+	return razorpay().subscriptions.fetch(id);
+}
+
 // Full refund of one payment — used to give the referrer their free month
 // (docs/referall.md): there's no "skip a cycle" API on a live subscription, so
 // we let it charge and refund it instead.

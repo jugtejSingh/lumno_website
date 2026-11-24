@@ -1,7 +1,11 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOrCreateSubscription, setCancelScheduled } from '$lib/server/billing';
-import { cancelSubscription } from '$lib/server/razorpay';
+import {
+	cancelSubscription,
+	cancelSubscriptionImmediately,
+	fetchSubscription
+} from '$lib/server/razorpay';
 import { logError, logInfo } from '$lib/server/log';
 
 // Always cancel-at-cycle-end — access continues through the paid period,
@@ -24,7 +28,16 @@ export const POST: RequestHandler = async ({ locals }) => {
 	}
 
 	try {
-		const cancelled = await cancelSubscription(subscription.razorpaySubscriptionId);
+		// A trial / referral-month sub sits in 'authenticated' until its first
+		// charge — there's no cycle to end, so cancel it now (nothing was charged).
+		// Access ends when the subscription.cancelled webhook lands.
+		const current = await fetchSubscription(subscription.razorpaySubscriptionId);
+		let cancelled;
+		if (current.status === 'authenticated') {
+			cancelled = await cancelSubscriptionImmediately(subscription.razorpaySubscriptionId);
+		} else {
+			cancelled = await cancelSubscription(subscription.razorpaySubscriptionId);
+		}
 		// ponytail: temporary trial debugging — remove once trial cancel is verified
 		logInfo('trial.debug', 'cancel accepted by razorpay', {
 			therapistId,

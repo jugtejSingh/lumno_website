@@ -9,6 +9,23 @@ type DescribedError = { message: string; stack?: string; code?: unknown; cause?:
 // names) in its message/stack as "params: …", and Postgres puts them in `detail`
 // ("Key (email)=(…) already exists"), so both are dropped before anything is logged.
 function describeError(err: unknown): DescribedError {
+	// The Razorpay SDK rejects with a plain { statusCode, error: { code, description } }
+	// object, not an Error — String() on it would log "[object Object]".
+	if (typeof err === 'object' && err !== null && 'statusCode' in err && 'error' in err) {
+		const razorpayError = err as {
+			statusCode: unknown;
+			error?: { code?: unknown; description?: unknown; reason?: unknown };
+		};
+		const description = razorpayError.error?.description;
+		return {
+			message: `Razorpay ${String(razorpayError.statusCode)}: ${String(description)}`,
+			code: {
+				statusCode: razorpayError.statusCode,
+				code: razorpayError.error?.code,
+				reason: razorpayError.error?.reason
+			}
+		};
+	}
 	if (!(err instanceof Error)) {
 		return { message: String(err) };
 	}

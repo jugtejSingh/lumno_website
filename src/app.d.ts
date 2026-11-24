@@ -37,6 +37,7 @@ declare global {
 			amount?: number; // paise — order checkout only
 			currency?: string;
 			name?: string;
+			description?: string;
 			handler?: (response: unknown) => void;
 			modal?: { ondismiss?: () => void };
 		}) => { open: () => void };

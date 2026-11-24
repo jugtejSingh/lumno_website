@@ -144,7 +144,8 @@ async function changePlan(
 	}
 
 	const subId = await createOrReusePendingSub(therapistId, planNumber, subscription);
-	return json({ subscriptionId: subId, key: razorpayKeyId() });
+	// Plan changes are charged straight away — no free period.
+	return json({ subscriptionId: subId, key: razorpayKeyId(), trialDays: 0 });
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -214,5 +215,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		deferStart,
 		referrerTherapistId ?? undefined
 	);
-	return json({ subscriptionId: subId, key: razorpayKeyId() });
+
+	// Free days before the first charge, so checkout can say so. Must match the
+	// startAt computed in createOrReusePendingSub.
+	let trialSeconds = 0;
+	if (deferStart) {
+		trialSeconds = TRIAL_SECONDS;
+		if (referrerTherapistId) {
+			trialSeconds = trialSeconds + REFERRAL_FREE_MONTH_SECONDS;
+		}
+	}
+	const trialDays = trialSeconds / (24 * 60 * 60);
+	return json({ subscriptionId: subId, key: razorpayKeyId(), trialDays });
 };

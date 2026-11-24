@@ -35,6 +35,7 @@ export const PLANS: Plan[] = [
 		period: '/month',
 		blurb: 'For a growing solo practice.',
 		features: [
+			'2 months free for first-time subscribers',
 			'Up to 40 clients',
 			'Unlimited appointments',
 			'Calendar with Google Meet links',
@@ -54,6 +55,7 @@ export const PLANS: Plan[] = [
 		period: '/month',
 		blurb: 'For a full practice, with no caseload ceiling.',
 		features: [
+			'2 months free for first-time subscribers',
 			'Unlimited clients',
 			'Unlimited appointments',
 			'Calendar with Google Meet links',

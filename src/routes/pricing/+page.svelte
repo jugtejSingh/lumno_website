@@ -91,6 +91,22 @@
 		});
 	}
 
+	// Shown under "Lumno" in the Razorpay popup. trialDays comes from /subscribe
+	// (60 = trial, 90 = trial + referral month, 0 = charged now).
+	function checkoutDescription(tier: number, trialDays: number): string {
+		let price = '';
+		for (const plan of PLANS) {
+			if (plan.tier === tier) {
+				price = `${plan.price}${plan.period}`;
+			}
+		}
+		if (trialDays > 0) {
+			const months = Math.round(trialDays / 30);
+			return `First ${months} months free, then ${price}. ₹5 is charged to verify your payment method and refunded.`;
+		}
+		return price;
+	}
+
 	async function choosePlan(tier: number, referrerEmail?: string) {
 		loadingTier = tier;
 		try {
@@ -115,12 +131,13 @@
 				loadingTier = null;
 				return;
 			}
-			const { subscriptionId, key } = await res.json();
+			const { subscriptionId, key, trialDays } = await res.json();
 			await loadCheckoutScript();
 			const checkout = new window.Razorpay({
 				key,
 				subscription_id: subscriptionId,
 				name: 'Lumno',
+				description: checkoutDescription(tier, trialDays),
 				// The real entitlement flip happens async via the webhook once the
 				// first charge confirms — this is just UX feedback that checkout
 				// finished, not proof the plan changed yet.
@@ -212,10 +229,10 @@
 <Dialog open={pendingTier !== null} title="Refer a colleague?" onclose={() => (pendingTier = null)}>
 	<div class="referral-modal">
 		<p class="referral-copy">
-			If a colleague referred you, enter their email below and you'll both get a free month —
-			your first month free now, and a free month for them once your first payment goes through.
-			This only works if it's your first-ever subscription, and your colleague must already be on
-			a paid plan.
+			If a colleague referred you, enter their email below and you'll both get an extra free month.
+			You get 3 months free instead of 2, and they get a free month once your first payment goes
+			through. This only works if it's your first-ever subscription, and your colleague must
+			already be on a paid plan.
 		</p>
 		<label for="referrer-email">Referred by (email)</label>
 		<input
