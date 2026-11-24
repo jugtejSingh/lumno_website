@@ -33,7 +33,7 @@
 			]
 		},
 		1: {
-			caseload: 'Up To 30 Clients · Unlimited Appointments',
+			caseload: 'Up To 40 Clients · Unlimited Appointments',
 			perks: ['Everything In Free', 'AI Note Clean-Up']
 		},
 		2: {
@@ -41,6 +41,26 @@
 			perks: ['Everything In Basic', 'No Caseload Ceiling', 'AI Note Clean-Up']
 		}
 	};
+	// A cancelled sub keeps its plan number so a paying therapist sees "Basic —
+	// cancelled, access until <date>" for the paid tail. Once there's no paid time
+	// left (a cancelled free trial has no currentEnd at all, or the date passed),
+	// they're on Free — show Free, not the old plan.
+	const accessEnded = $derived.by(() => {
+		if (data.billing.status !== 'cancelled') {
+			return false;
+		}
+		if (!data.billing.currentEnd) {
+			return true;
+		}
+		return new Date(data.billing.currentEnd).getTime() <= Date.now();
+	});
+	const displayPlan = $derived.by(() => {
+		if (accessEnded) {
+			return 0;
+		}
+		return data.billing.plan;
+	});
+
 	let cancelling = $state(false);
 
 	// Slugs thrown by /cancel — anything else (network drop, 500 without a body)
@@ -789,17 +809,19 @@
 			<div class="section-title">Plan</div>
 			<div class="plan-block">
 				<div class="plan-summary">
-					<div class="plan-caseload">{PLAN_SUMMARY[data.billing.plan].caseload}</div>
+					<div class="plan-caseload">{PLAN_SUMMARY[displayPlan].caseload}</div>
 					<ul class="plan-perks">
-						{#each PLAN_SUMMARY[data.billing.plan].perks as perk (perk)}
+						{#each PLAN_SUMMARY[displayPlan].perks as perk (perk)}
 							<li>{perk}</li>
 						{/each}
 					</ul>
 				</div>
 				<div class="plan-row">
 					<div class="plan-label">
-						{TIER_NAMES[data.billing.plan]}
-						{#if data.billing.status === 'past_due'}
+						{TIER_NAMES[displayPlan]}
+						{#if accessEnded}
+							<!-- back on Free: nothing left to warn about -->
+						{:else if data.billing.status === 'past_due'}
 							<span class="plan-warning">— payment failed</span>
 						{:else if data.billing.status === 'cancelled'}
 							<span class="plan-warning">
@@ -812,7 +834,7 @@
 						{/if}
 					</div>
 					<div class="plan-actions">
-						{#if data.billing.plan === 0}
+						{#if displayPlan === 0}
 							<Button href="/pricing" variant="primary" size="sm">Upgrade</Button>
 						{:else}
 							<Button href="/pricing" variant="secondary" size="sm">Change Plan</Button>
