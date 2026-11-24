@@ -14,7 +14,7 @@ import {
 	razorpayKeyId
 } from '$lib/server/razorpay';
 import { checkReferralEligibility } from '$lib/server/billingReferrals';
-import { logError } from '$lib/server/log';
+import { logError, logInfo } from '$lib/server/log';
 
 // Deferred-start free month for a referral (see docs/referall.md).
 const REFERRAL_FREE_MONTH_SECONDS = 30 * 24 * 60 * 60;
@@ -95,6 +95,15 @@ async function createOrReusePendingSub(
 		} else {
 			newSub = await createSubscription(planNumber, { therapistId });
 		}
+		// ponytail: temporary trial debugging — remove once trial cancel is verified
+		logInfo('trial.debug', 'subscribe created sub', {
+			therapistId,
+			subId: newSub.id,
+			status: newSub.status,
+			startAt: newSub.start_at,
+			deferStart,
+			referral: Boolean(referrerTherapistId)
+		});
 	} catch (err) {
 		logError('subscribe.createSubscription', err, { therapistId, planNumber });
 		// Release the slot so the therapist can retry immediately, not in 60s.

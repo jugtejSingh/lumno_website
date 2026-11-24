@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOrCreateSubscription, setCancelScheduled } from '$lib/server/billing';
 import { cancelSubscription } from '$lib/server/razorpay';
-import { logError } from '$lib/server/log';
+import { logError, logInfo } from '$lib/server/log';
 
 // Always cancel-at-cycle-end — access continues through the paid period,
 // status stays 'active' until the period-end webhook flips it. Matches
@@ -24,7 +24,17 @@ export const POST: RequestHandler = async ({ locals }) => {
 	}
 
 	try {
-		await cancelSubscription(subscription.razorpaySubscriptionId);
+		const cancelled = await cancelSubscription(subscription.razorpaySubscriptionId);
+		// ponytail: temporary trial debugging — remove once trial cancel is verified
+		logInfo('trial.debug', 'cancel accepted by razorpay', {
+			therapistId,
+			subId: cancelled.id,
+			status: cancelled.status,
+			startAt: cancelled.start_at,
+			endAt: cancelled.end_at,
+			endedAt: cancelled.ended_at,
+			currentEnd: cancelled.current_end
+		});
 	} catch (err) {
 		logError('cancel.cancelSubscription', err, {
 			therapistId,

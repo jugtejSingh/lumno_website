@@ -24,6 +24,8 @@ interface RazorpayWebhookPayload {
 				plan_id: string;
 				customer_id: string;
 				current_end: number | null;
+				status?: string;
+				start_at?: number | null;
 				notes?: { therapistId?: string; trial?: string; referral?: string; referrerTherapistId?: string };
 			};
 		};
@@ -116,6 +118,19 @@ export const POST: RequestHandler = async ({ request }) => {
 	const subEntity = payload.payload.subscription?.entity;
 	const payEntity = payload.payload.payment?.entity;
 	const therapistId = subEntity?.notes?.therapistId;
+
+	// ponytail: temporary trial debugging — remove once trial cancel is verified
+	if (subEntity) {
+		logInfo('trial.debug', `webhook ${payload.event}`, {
+			therapistId,
+			subId: subEntity.id,
+			status: subEntity.status,
+			startAt: subEntity.start_at,
+			currentEnd: subEntity.current_end,
+			trial: subEntity.notes?.trial,
+			referral: subEntity.notes?.referral
+		});
+	}
 
 	// No therapistId in notes — can't map this to anyone. Ignore, 200 so
 	// Razorpay stops retrying.
