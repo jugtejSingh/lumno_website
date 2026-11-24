@@ -24,7 +24,7 @@ interface RazorpayWebhookPayload {
 				plan_id: string;
 				customer_id: string;
 				current_end: number | null;
-				notes?: { therapistId?: string; referral?: string; referrerTherapistId?: string };
+				notes?: { therapistId?: string; trial?: string; referral?: string; referrerTherapistId?: string };
 			};
 		};
 		payment?: {
@@ -39,11 +39,12 @@ interface RazorpayWebhookPayload {
 }
 
 const ACTIVE_EVENTS = ['subscription.activated', 'subscription.charged'];
-// A referral sub sits in `authenticated` for its whole deferred-start free
-// month (see docs/referall.md) — treat that as active too, but ONLY when
-// notes.referral marks it, so a normal sub's authenticated event (which fires
-// before its real activation) can't grant access early.
-const REFERRAL_AUTHENTICATED_EVENT = 'subscription.authenticated';
+// A deferred-start sub (free trial, docs/free_trial.md, or referral month,
+// docs/referall.md) sits in `authenticated` until its first charge — treat that
+// as active too, but ONLY when notes.trial or notes.referral marks it, so a
+// normal sub's authenticated event (which fires before its real activation)
+// can't grant access early.
+const DEFERRED_AUTHENTICATED_EVENT = 'subscription.authenticated';
 // pending fires while Razorpay is still retrying a failed charge, before it
 // gives up and halts — collapsed with halted since neither behaves differently
 // from the other (see subscription.status comment in billing.schema.ts).
@@ -137,12 +138,20 @@ export const POST: RequestHandler = async ({ request }) => {
 		event: payload.event
 	};
 
-	const isReferralAuthenticated =
-		payload.event === REFERRAL_AUTHENTICATED_EVENT && subEntity.notes?.referral === '1';
+	let isDeferredAuthenticated = false;
+	let isReferralAuthenticated = false;
+	if (payload.event === DEFERRED_AUTHENTICATED_EVENT) {
+		if (subEntity.notes?.referral === '1') {
+			isReferralAuthenticated = true;
+			isDeferredAuthenticated = true;
+		} else if (subEntity.notes?.trial === '1') {
+			isDeferredAuthenticated = true;
+		}
+	}
 
 	let processed = false;
 
-	if (ACTIVE_EVENTS.includes(payload.event) || isReferralAuthenticated) {
+	if (ACTIVE_EVENTS.includes(payload.event) || isDeferredAuthenticated) {
 		let oldSubId: string | null;
 		({ processed, oldSubId } = await handleWebhookEvent({ ...base, plan, status: 'active' }));
 		// New sub is confirmed active — retire the previous live sub, if any.

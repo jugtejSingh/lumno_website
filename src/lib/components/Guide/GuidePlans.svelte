@@ -12,7 +12,7 @@
 >
 	<ul>
 		<li><strong>Free</strong>: up to 10 clients, no AI features.</li>
-		<li><strong>Basic</strong>: up to 30 clients, with AI help for notes.</li>
+		<li><strong>Basic</strong>: up to 40 clients, with AI help for notes.</li>
 		<li><strong>Pro</strong>: unlimited clients, with AI help for notes.</li>
 	</ul>
 	<p>

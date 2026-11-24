@@ -97,7 +97,7 @@ export function planNumberFor(razorpayPlanId: string): number {
 // bill until then.
 export async function createSubscription(
 	planNumber: number,
-	notes: { therapistId: string; referral?: '1'; referrerTherapistId?: string },
+	notes: { therapistId: string; trial?: '1'; referral?: '1'; referrerTherapistId?: string },
 	startAt?: number
 ) {
 	return razorpay().subscriptions.create({

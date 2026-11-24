@@ -19,6 +19,10 @@ import { logError } from '$lib/server/log';
 // Deferred-start free month for a referral (see docs/referall.md).
 const REFERRAL_FREE_MONTH_SECONDS = 30 * 24 * 60 * 60;
 
+// 2-month free trial for every first-time subscriber (see docs/free_trial.md).
+// Stacks with the referral month: a referred therapist waits 90 days.
+const TRIAL_SECONDS = 60 * 24 * 60 * 60;
+
 // A pending sub id is reused only while comfortably inside Razorpay's 30-minute
 // expire_by window (subscriptions.create) — otherwise it's treated as expired
 // and superseded. Matches edvion's create_or_reuse_pending_sub.
@@ -77,12 +81,17 @@ async function createOrReusePendingSub(
 	let newSub;
 	try {
 		if (deferStart) {
-			const startAt = Math.floor(Date.now() / 1000) + REFERRAL_FREE_MONTH_SECONDS;
-			newSub = await createSubscription(
-				planNumber,
-				{ therapistId, referral: '1', referrerTherapistId },
-				startAt
-			);
+			let startAt = Math.floor(Date.now() / 1000) + TRIAL_SECONDS;
+			if (referrerTherapistId) {
+				startAt = startAt + REFERRAL_FREE_MONTH_SECONDS;
+				newSub = await createSubscription(
+					planNumber,
+					{ therapistId, trial: '1', referral: '1', referrerTherapistId },
+					startAt
+				);
+			} else {
+				newSub = await createSubscription(planNumber, { therapistId, trial: '1' }, startAt);
+			}
 		} else {
 			newSub = await createSubscription(planNumber, { therapistId });
 		}
@@ -159,15 +168,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// qualify as a referee. A referrer must already be on a paid plan
 	// (checkReferralEligibility enforces this), so their own credit is always
 	// resolved by refunding a later charge (see refundReferralCredit) — never here.
+	// The free trial follows the same first-subscription-only rule: re-subscribers
+	// are charged straight away.
 	let deferStart = false;
 	let referrerTherapistId: string | null = null;
-	if (!subscription.razorpaySubscriptionId && typeof body.referrerEmail === 'string' && body.referrerEmail) {
-		const eligibility = await checkReferralEligibility(therapistId, body.referrerEmail);
-		if (!eligibility.ok) {
-			error(422, eligibility.reason);
-		}
-		referrerTherapistId = eligibility.referrerTherapistId;
+	if (!subscription.razorpaySubscriptionId) {
 		deferStart = true;
+		if (typeof body.referrerEmail === 'string' && body.referrerEmail) {
+			const eligibility = await checkReferralEligibility(therapistId, body.referrerEmail);
+			if (!eligibility.ok) {
+				error(422, eligibility.reason);
+			}
+			referrerTherapistId = eligibility.referrerTherapistId;
+		}
 	}
 
 	// The halted subscription still exists on Razorpay's side (with an unpaid

@@ -35,7 +35,7 @@ export const PLANS: Plan[] = [
 		period: '/month',
 		blurb: 'For a growing solo practice.',
 		features: [
-			'Up to 30 clients',
+			'Up to 40 clients',
 			'Unlimited appointments',
 			'Calendar with Google Meet links',
 			'Automated email reminders for sessions & payments',
